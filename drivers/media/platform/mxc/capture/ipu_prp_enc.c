@@ -33,6 +33,7 @@
 #endif
 
 static ipu_rotate_mode_t grotation = IPU_ROTATE_NONE;
+static int remove;
 
 /*
  * Function definitions
@@ -52,6 +53,11 @@ static irqreturn_t prp_enc_callback(int irq, void *dev_id)
 
 	if (cam->enc_callback == NULL)
 		return IRQ_HANDLED;
+
+	if (remove) {
+		irq = -1;
+		remove--;
+	}
 
 	cam->enc_callback(irq, dev_id);
 
@@ -400,6 +406,8 @@ static int prp_enc_enabling_tasks(void *private)
 	cam->dummy_frame.buffer.length =
 	    PAGE_ALIGN(cam->v2f.fmt.pix.sizeimage);
 	cam->dummy_frame.buffer.m.offset = cam->dummy_frame.paddress;
+
+	remove = 2;
 
 	if (cam->rotation >= IPU_ROTATE_90_RIGHT) {
 		err = ipu_request_irq(cam->ipu, IPU_IRQ_PRP_ENC_ROT_OUT_EOF,
