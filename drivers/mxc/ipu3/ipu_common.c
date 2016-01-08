@@ -1106,6 +1106,94 @@ err:
 EXPORT_SYMBOL(ipu_init_channel);
 
 /*!
+ * This function is called to initialize a logical IPU channel.
+ * it's a copy of ipu_init_channel but only with case BS_SYNC
+ * and some tweaks..
+ *
+ * @param	ipu	ipu handler
+ * @param       channel Input parameter for the logical channel ID to init.
+ *
+ * @param       params  Input parameter containing union of channel
+ *                      initialization parameters.
+ *
+ * @return      Returns 0 on success or negative error code on fail
+ */
+int32_t ipu_init_channel_bg(struct ipu_soc *ipu, ipu_channel_t channel, ipu_channel_params_t *params)
+{
+	int ret = 0;
+	uint32_t ipu_conf;
+
+	dev_dbg(ipu->dev, "init channel = %d\n", IPU_CHAN_ID(channel));
+
+	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
+		return 0;
+
+	ret = pm_runtime_get_sync(ipu->dev);
+	if (ret < 0) {
+		dev_err(ipu->dev, "ch = %d, pm_runtime_get failed:%d!\n",
+				IPU_CHAN_ID(channel), ret);
+		dump_stack();
+		return ret;
+	}
+	/*
+	 * Here, ret could be 1 if the device's runtime PM status was
+	 * already 'active', so clear it to be 0.
+	 */
+	ret = 0;
+
+	_ipu_get(ipu);
+
+	mutex_lock(&ipu->mutex_lock);
+
+	/* Re-enable error interrupts every time a channel is
+	 * initialized */
+	ipu_cm_write(ipu, 0xFFFFFFFF, IPU_INT_CTRL(5));
+	ipu_cm_write(ipu, 0xFFFFFFFF, IPU_INT_CTRL(6));
+	ipu_cm_write(ipu, 0xFFFFFFFF, IPU_INT_CTRL(9));
+	ipu_cm_write(ipu, 0xFFFFFFFF, IPU_INT_CTRL(10));
+
+	if (ipu->channel_init_mask & (1L << IPU_CHAN_ID(channel))) {
+		dev_warn(ipu->dev, "Warning: channel already initialized %d\n",
+			IPU_CHAN_ID(channel));
+	}
+
+	ipu_conf = ipu_cm_read(ipu, IPU_CONF);
+
+//	switch (channel) {
+//	case MEM_BG_SYNC:
+	if (params->mem_dp_bg_sync.di > 1) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	if (params->mem_dp_bg_sync.alpha_chan_en)
+		ipu->thrd_chan_en[IPU_CHAN_ID(channel)] = true;
+
+	ipu->dc_di_assignment[5] = params->mem_dp_bg_sync.di;
+	ipu->dc_di_assignment[5] = 0;  //Apparantly required to be DI=0 (even when DI=1..)
+
+	_ipu_dp_init(ipu, channel, params->mem_dp_bg_sync.in_pixel_fmt,
+		     params->mem_dp_bg_sync.out_pixel_fmt);
+	_ipu_dc_init(ipu, 5, params->mem_dp_bg_sync.di,
+		     params->mem_dp_bg_sync.interlaced,
+		     params->mem_dp_bg_sync.out_pixel_fmt);
+	ipu->di_use_count[params->mem_dp_bg_sync.di]++;
+	ipu->di_use_count[0]++;
+	ipu->dc_use_count++;
+	ipu->dp_use_count++;
+	ipu->dmfc_use_count++;
+
+	ipu->channel_init_mask |= 1L << IPU_CHAN_ID(channel);
+
+	ipu_cm_write(ipu, ipu_conf, IPU_CONF);
+
+err:
+	mutex_unlock(&ipu->mutex_lock);
+	return ret;
+}
+EXPORT_SYMBOL(ipu_init_channel_bg);
+
+/*!
  * This function is called to uninitialize a logical IPU channel.
  *
  * @param	ipu	ipu handler
