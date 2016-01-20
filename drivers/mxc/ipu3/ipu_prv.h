@@ -72,7 +72,7 @@ struct ipu_soc {
 	/*irq*/
 	int irq_sync;
 	int irq_err;
-	struct ipu_irq_node irq_list[IPU_IRQ_COUNT];
+	struct ipu_irq_node irq_list[IPU_IRQ_COUNT][2];
 
 	/*reg*/
 	void __iomem *cm_reg;
@@ -91,7 +91,9 @@ struct ipu_soc {
 
 	struct device *dev;
 
-	ipu_channel_t csi_channel[2];
+	ipu_channel_t csi_channel_vf[2];
+	ipu_channel_t csi_channel_enc[2];
+	ipu_channel_t csi_channel_smfc[2];
 	ipu_channel_t using_ic_dirct_ch;
 	unsigned char dc_di_assignment[10];
 	bool sec_chan_en[IPU_MAX_CH];
@@ -340,6 +342,7 @@ int _ipu_ic_idma_init(struct ipu_soc *ipu, int dma_chan, uint16_t width, uint16_
 		      int burst_size, ipu_rotate_mode_t rot);
 void _ipu_vdi_toggle_top_field_man(struct ipu_soc *ipu);
 int _ipu_csi_init(struct ipu_soc *ipu, ipu_channel_t channel, uint32_t csi);
+int _ipu_csi_uninit(struct ipu_soc *ipu, ipu_channel_t channel, uint32_t csi);
 int _ipu_csi_set_mipi_di(struct ipu_soc *ipu, uint32_t num, uint32_t di_val, uint32_t csi);
 void ipu_csi_set_test_generator(struct ipu_soc *ipu, bool active, uint32_t r_value,
 		uint32_t g_value, uint32_t b_value,
