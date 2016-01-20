@@ -761,6 +761,46 @@ err:
 }
 
 /*!
+ * _ipu_csi_uninit
+ *
+ * @param   ipu     ipu handler
+ * @param   channel      IDMAC channel
+ * @param   csi      csi 0 or csi 1
+ *
+ * @return  Returns 0 on success or negative error code on fail
+ */
+int _ipu_csi_uninit(struct ipu_soc *ipu, ipu_channel_t channel, uint32_t csi)
+{
+	uint32_t csi_sens_conf, csi_dest;
+	int retval = 0;
+
+	switch (channel) {
+	case CSI_MEM0:
+	case CSI_MEM1:
+	case CSI_MEM2:
+	case CSI_MEM3:
+		csi_dest = CSI_DATA_DEST_IDMAC;
+		break;
+	case CSI_PRP_ENC_MEM:
+	case CSI_PRP_VF_MEM:
+		csi_dest = CSI_DATA_DEST_IC;
+		break;
+	default:
+		retval = -EINVAL;
+		goto err;
+	}
+
+	csi_sens_conf = ipu_csi_read(ipu, csi, CSI_SENS_CONF);
+	dev_dbg(ipu->dev, "%s:CSI_SENS_CONF: ipu=%p,csi=%x,data=%x\n", __func__,
+			ipu, csi, csi_sens_conf &
+			~(csi_dest << CSI_SENS_CONF_DATA_DEST_SHIFT));
+	ipu_csi_write(ipu, csi, csi_sens_conf & ~(csi_dest <<
+			CSI_SENS_CONF_DATA_DEST_SHIFT), CSI_SENS_CONF);
+err:
+	return retval;
+}
+
+/*!
  * csi_irq_handler
  *
  * @param	irq		interrupt id

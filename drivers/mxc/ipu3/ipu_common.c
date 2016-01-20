@@ -487,7 +487,13 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu->normal_axi = iputype->normal_axi;
 	ipu->smfc_idmac_12bit_3planar_bs_fixup =
 			iputype->smfc_idmac_12bit_3planar_bs_fixup;
-	spin_lock_init(&ipu->int_reg_spin_lock);
+	ipu->csi_channel_vf[0] = CHAN_NONE;
+	ipu->csi_channel_vf[1] = CHAN_NONE;
+	ipu->csi_channel_enc[0] = CHAN_NONE;
+	ipu->csi_channel_enc[1] = CHAN_NONE;
+	ipu->csi_channel_smfc[0] = CHAN_NONE;
+	ipu->csi_channel_smfc[1] = CHAN_NONE;
+ 	spin_lock_init(&ipu->int_reg_spin_lock);
 	spin_lock_init(&ipu->rdy_reg_spin_lock);
 	mutex_init(&ipu->mutex_lock);
 
@@ -793,7 +799,11 @@ int32_t ipu_init_channel(struct ipu_soc *ipu, ipu_channel_t channel, ipu_channel
 				IPU_OUTPUT_BUFFER)] = false;
 
 		ipu->smfc_use_count++;
-		ipu->csi_channel[params->csi_mem.csi] = channel;
+		ipu->csi_channel_smfc[params->csi_mem.csi] = channel;
+		if (ipu->csi_channel_vf[params->csi_mem.csi] != CHAN_NONE)
+			_ipu_csi_wait4eof(ipu, ipu->csi_channel_vf[params->csi_mem.csi]);
+		else if (ipu->csi_channel_enc[params->csi_mem.csi] != CHAN_NONE)
+			_ipu_csi_wait4eof(ipu, ipu->csi_channel_enc[params->csi_mem.csi]);
 
 		/*SMFC setting*/
 		if (params->csi_mem.mipi_en) {
@@ -825,7 +835,7 @@ int32_t ipu_init_channel(struct ipu_soc *ipu, ipu_channel_t channel, ipu_channel
 		ipu->using_ic_dirct_ch = CSI_PRP_ENC_MEM;
 
 		ipu->ic_use_count++;
-		ipu->csi_channel[params->csi_prp_enc_mem.csi] = channel;
+		ipu->csi_channel_enc[params->csi_prp_enc_mem.csi] = channel;
 
 		if (params->csi_prp_enc_mem.mipi_en) {
 			ipu_conf |= (1 << (IPU_CONF_CSI0_DATA_SOURCE_OFFSET +
@@ -866,7 +876,7 @@ int32_t ipu_init_channel(struct ipu_soc *ipu, ipu_channel_t channel, ipu_channel
 		ipu->using_ic_dirct_ch = CSI_PRP_VF_MEM;
 
 		ipu->ic_use_count++;
-		ipu->csi_channel[params->csi_prp_vf_mem.csi] = channel;
+		ipu->csi_channel_vf[params->csi_prp_vf_mem.csi] = channel;
 
 		if (params->csi_prp_vf_mem.mipi_en) {
 			ipu_conf |= (1 << (IPU_CONF_CSI0_DATA_SOURCE_OFFSET +
@@ -1260,10 +1270,12 @@ void ipu_uninit_channel(struct ipu_soc *ipu, ipu_channel_t channel)
 	case CSI_MEM2:
 	case CSI_MEM3:
 		ipu->smfc_use_count--;
-		if (ipu->csi_channel[0] == channel) {
-			ipu->csi_channel[0] = CHAN_NONE;
-		} else if (ipu->csi_channel[1] == channel) {
-			ipu->csi_channel[1] = CHAN_NONE;
+		if (ipu->csi_channel_smfc[0] == channel) {
+			_ipu_csi_uninit(ipu, channel, 0);
+			ipu->csi_channel_smfc[0] = CHAN_NONE;
+		} else if (ipu->csi_channel_smfc[1] == channel) {
+			_ipu_csi_uninit(ipu, channel, 1);
+			ipu->csi_channel_smfc[1] = CHAN_NONE;
 		}
 		break;
 	case CSI_PRP_ENC_MEM:
@@ -1271,10 +1283,14 @@ void ipu_uninit_channel(struct ipu_soc *ipu, ipu_channel_t channel)
 		if (ipu->using_ic_dirct_ch == CSI_PRP_ENC_MEM)
 			ipu->using_ic_dirct_ch = 0;
 		_ipu_ic_uninit_prpenc(ipu);
-		if (ipu->csi_channel[0] == channel) {
-			ipu->csi_channel[0] = CHAN_NONE;
-		} else if (ipu->csi_channel[1] == channel) {
-			ipu->csi_channel[1] = CHAN_NONE;
+		if (ipu->csi_channel_enc[0] == channel) {
+			ipu->csi_channel_enc[0] = CHAN_NONE;
+			if (ipu->csi_channel_vf[0] == CHAN_NONE)
+				_ipu_csi_uninit(ipu, channel, 0);
+		} else if (ipu->csi_channel_enc[1] == channel) {
+			ipu->csi_channel_enc[1] = CHAN_NONE;
+			if (ipu->csi_channel_vf[1] == CHAN_NONE)
+				_ipu_csi_uninit(ipu, channel, 1);
 		}
 		break;
 	case CSI_PRP_VF_MEM:
@@ -1282,10 +1298,14 @@ void ipu_uninit_channel(struct ipu_soc *ipu, ipu_channel_t channel)
 		if (ipu->using_ic_dirct_ch == CSI_PRP_VF_MEM)
 			ipu->using_ic_dirct_ch = 0;
 		_ipu_ic_uninit_prpvf(ipu);
-		if (ipu->csi_channel[0] == channel) {
-			ipu->csi_channel[0] = CHAN_NONE;
-		} else if (ipu->csi_channel[1] == channel) {
-			ipu->csi_channel[1] = CHAN_NONE;
+		if (ipu->csi_channel_vf[0] == channel) {
+			ipu->csi_channel_vf[0] = CHAN_NONE;
+			if (ipu->csi_channel_enc[0] == CHAN_NONE)
+				_ipu_csi_uninit(ipu, channel, 0);
+		} else if (ipu->csi_channel_vf[1] == channel) {
+			ipu->csi_channel_vf[1] = CHAN_NONE;
+			if (ipu->csi_channel_enc[1] == CHAN_NONE)
+				_ipu_csi_uninit(ipu, channel, 1);
 		}
 		break;
 	case MEM_PRP_VF_MEM:
@@ -2798,6 +2818,8 @@ int32_t ipu_disable_channel(struct ipu_soc *ipu, ipu_channel_t channel, bool wai
 			dev_dbg(ipu->dev, "wait_time:%d\n", 50000 - timeout);
 
 		}
+	} else if (wait_for_stop) {
+		_ipu_csi_wait4eof(ipu, channel);
 	}
 
 	if ((channel == MEM_BG_SYNC) || (channel == MEM_FG_SYNC) ||
@@ -2940,7 +2962,9 @@ int32_t ipu_disable_csi(struct ipu_soc *ipu, uint32_t csi)
 	mutex_lock(&ipu->mutex_lock);
 	ipu->csi_use_count[csi]--;
 	if (ipu->csi_use_count[csi] == 0) {
-		_ipu_csi_wait4eof(ipu, ipu->csi_channel[csi]);
+		_ipu_csi_wait4eof(ipu, (ipu->csi_channel_smfc[csi] != CHAN_NONE) ?
+		                        ipu->csi_channel_smfc[csi] : (ipu->csi_channel_vf[csi] != CHAN_NONE) ?
+					ipu->csi_channel_vf[csi] : ipu->csi_channel_enc[csi]);
 		reg = ipu_cm_read(ipu, IPU_CONF);
 		if (csi == 0)
 			ipu_cm_write(ipu, reg & ~IPU_CONF_CSI0_EN, IPU_CONF);
@@ -2974,11 +2998,15 @@ static irqreturn_t ipu_sync_irq_handler(int irq, void *desc)
 			bit = --line;
 			int_stat &= ~(1UL << line);
 			line += (int_reg[i] - 1) * 32;
-			result |=
-			    ipu->irq_list[line].handler(line,
-						       ipu->irq_list[line].
+			if (ipu->irq_list[line][0].handler)
+			    result |= ipu->irq_list[line][0].handler(line,
+			                                             ipu->irq_list[line][0].
+			                                             dev_id);
+			if (ipu->irq_list[line][1].handler)
+			    result |= ipu->irq_list[line][1].handler(line,
+			                                             ipu->irq_list[line][1].
 						       dev_id);
-			if (ipu->irq_list[line].flags & IPU_IRQF_ONESHOT) {
+			if (ipu->irq_list[line][0].flags & IPU_IRQF_ONESHOT) {
 				int_ctrl &= ~(1UL << bit);
 				ipu_cm_write(ipu, int_ctrl,
 						IPU_INT_CTRL(int_reg[i]));
@@ -3047,7 +3075,7 @@ int ipu_enable_irq(struct ipu_soc *ipu, uint32_t irq)
 	 * error interrupts but than print out register values in the
 	 * error interrupt source handler.
 	 */
-	if (_ipu_is_sync_irq(irq) && (ipu->irq_list[irq].handler == NULL)) {
+	if (_ipu_is_sync_irq(irq) && (ipu->irq_list[irq][0].handler == NULL)) {
 		dev_err(ipu->dev, "handler hasn't been registered on sync "
 				  "irq %d\n", irq);
 		ret = -EACCES;
@@ -3183,7 +3211,7 @@ int ipu_request_irq(struct ipu_soc *ipu, uint32_t irq,
 
 	spin_lock_irqsave(&ipu->int_reg_spin_lock, lock_flags);
 
-	if (ipu->irq_list[irq].handler != NULL) {
+	if (ipu->irq_list[irq][1].handler != NULL) {
 		dev_err(ipu->dev,
 			"handler already installed on irq %d\n", irq);
 		ret = -EINVAL;
@@ -3201,18 +3229,24 @@ int ipu_request_irq(struct ipu_soc *ipu, uint32_t irq,
 		goto out;
 	}
 
-	ipu->irq_list[irq].handler = handler;
-	ipu->irq_list[irq].flags = irq_flags;
-	ipu->irq_list[irq].dev_id = dev_id;
-	ipu->irq_list[irq].name = devname;
+	if (ipu->irq_list[irq][0].handler == NULL) {
+		ipu->irq_list[irq][0].handler = handler;
+		ipu->irq_list[irq][0].flags = irq_flags;
+		ipu->irq_list[irq][0].dev_id = dev_id;
+		ipu->irq_list[irq][0].name = devname;
 
-	/* clear irq stat for previous use */
-	ipu_cm_write(ipu, IPUIRQ_2_MASK(irq),
-			IPUIRQ_2_STATREG(ipu->devtype, irq));
-	/* enable the interrupt */
-	reg = ipu_cm_read(ipu, IPUIRQ_2_CTRLREG(irq));
-	reg |= IPUIRQ_2_MASK(irq);
-	ipu_cm_write(ipu, reg, IPUIRQ_2_CTRLREG(irq));
+		/* clear irq stat for previous use */
+		ipu_cm_write(ipu, IPUIRQ_2_MASK(irq), IPUIRQ_2_STATREG(ipu->devtype, irq));
+		/* enable the interrupt */
+		reg = ipu_cm_read(ipu, IPUIRQ_2_CTRLREG(irq));
+		reg |= IPUIRQ_2_MASK(irq);
+		ipu_cm_write(ipu, reg, IPUIRQ_2_CTRLREG(irq));
+	} else {
+		ipu->irq_list[irq][1].handler = handler;
+		ipu->irq_list[irq][1].flags = irq_flags;
+		ipu->irq_list[irq][1].dev_id = dev_id;
+		ipu->irq_list[irq][1].name = devname;
+	}
 out:
 	spin_unlock_irqrestore(&ipu->int_reg_spin_lock, lock_flags);
 
@@ -3243,12 +3277,20 @@ void ipu_free_irq(struct ipu_soc *ipu, uint32_t irq, void *dev_id)
 
 	spin_lock_irqsave(&ipu->int_reg_spin_lock, lock_flags);
 
-	/* disable the interrupt */
-	reg = ipu_cm_read(ipu, IPUIRQ_2_CTRLREG(irq));
-	reg &= ~IPUIRQ_2_MASK(irq);
-	ipu_cm_write(ipu, reg, IPUIRQ_2_CTRLREG(irq));
-	if (ipu->irq_list[irq].dev_id == dev_id)
-		memset(&ipu->irq_list[irq], 0, sizeof(ipu->irq_list[irq]));
+	if (ipu->irq_list[irq][1].handler)
+	{
+		if (ipu->irq_list[irq][1].dev_id == dev_id)
+			memset(&ipu->irq_list[irq][1], 0, sizeof(ipu->irq_list[irq][1]));
+	}
+	else
+	{
+		/* disable the interrupt */
+		reg = ipu_cm_read(ipu, IPUIRQ_2_CTRLREG(irq));
+		reg &= ~IPUIRQ_2_MASK(irq);
+		ipu_cm_write(ipu, reg, IPUIRQ_2_CTRLREG(irq));
+		if (ipu->irq_list[irq][0].dev_id == dev_id)
+			memset(&ipu->irq_list[irq][0], 0, sizeof(ipu->irq_list[irq][0]));
+	}
 
 	spin_unlock_irqrestore(&ipu->int_reg_spin_lock, lock_flags);
 
