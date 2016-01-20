@@ -19,8 +19,6 @@
 #include "mxc_v4l2_capture.h"
 #include "ipu_prp_sw.h"
 
-static int buffer_num;
-static int buffer_ready;
 static struct ipu_soc *disp_ipu;
 
 #if defined(CONFIG_MXC_CAMERA_FLIR)
@@ -55,13 +53,16 @@ static void get_disp_ipu(cam_data *cam)
 static irqreturn_t flir_evco_prpvf_vf_eof_callback(int irq, void *dev_id)
 {
 	cam_data *cam = dev_id;
-	pr_debug("buffer_ready %d buffer_num %d\n", buffer_ready, buffer_num);
-	pr_err("buffer_ready %d buffer_num %d\n", buffer_ready, buffer_num);
+	int csibuf;
+	int lcdbuf, lcdbufp;
+	csibuf = ipu_get_cur_buffer_idx(cam->ipu, CSI_PRP_VF_MEM, IPU_OUTPUT_BUFFER);
+	lcdbufp = lcdbuf = ipu_get_cur_buffer_idx(cam->ipu, MEM_BG_SYNC, IPU_INPUT_BUFFER);
+	pr_debug("csibuf %d  (%d)\n", csibuf, csibuf == 0? 1:0);
+	lcdbuf = (lcdbuf + 1) % 3;
+		
+	ipu_select_buffer(cam->ipu, CSI_PRP_VF_MEM, IPU_OUTPUT_BUFFER, csibuf == 0 ? 1 : 0); 
+	ipu_select_buffer(disp_ipu, MEM_BG_SYNC, IPU_INPUT_BUFFER, lcdbuf);
 
-	ipu_select_buffer(cam->ipu, CSI_PRP_VF_MEM,
-			  IPU_OUTPUT_BUFFER, buffer_num); 
-	/* buffer_num = (buffer_num == 0) ? 1 : 0; */
-	buffer_ready++;
 	return IRQ_HANDLED;
 }
 
@@ -71,7 +72,7 @@ static irqreturn_t flir_evco_prpvf_vf_eof_callback(int irq, void *dev_id)
  * @param private    cam_data * mxc v4l2 main structure
  *
  */
-static int flir_evco_prpvf_start(void *private)
+int flir_evco_prpvf_start(void *private)
 {
 	cam_data *cam = (cam_data *) private;
 	ipu_channel_params_t vf;
@@ -90,7 +91,7 @@ static int flir_evco_prpvf_start(void *private)
 	for (i = 0; i < num_registered_fb; i++) {
 		if ((strcmp(registered_fb[i]->fix.id, "DISP3 XX") == 0)){
 			fbi_overlay = registered_fb[i];
-			printk(KERN_ERR "FBI OVERLAY SET\n");
+			pr_info("Framebuffer overlay set to %s\n", fbi_overlay->fix.id);
 //			break;
 		}
 	}
@@ -132,6 +133,12 @@ static int flir_evco_prpvf_start(void *private)
 	else
 		offset += (u32) cam->v4l2_fb.base;
 
+	pr_info("Framebuffer base address %p.\n", cam->v4l2_fb.base);
+	pr_info("Framebuffer base address 0x%x.\n", (u32)cam->v4l2_fb.base);
+	pr_info("W:%u H:%u %u %u %u %u %u\n", cam->v4l2_fb.fmt.width, cam->v4l2_fb.fmt.height,
+                cam->v4l2_fb.fmt.pixelformat, cam->v4l2_fb.fmt.field, cam->v4l2_fb.fmt.bytesperline, cam->v4l2_fb.fmt.sizeimage, cam->v4l2_fb.fmt.colorspace );
+
+	
 	memset(&vf, 0, sizeof(ipu_channel_params_t));
 	ipu_csi_get_window_size(cam->ipu, &vf.csi_prp_vf_mem.in_width,
 				&vf.csi_prp_vf_mem.in_height, cam->csi);
@@ -227,14 +234,18 @@ static int flir_evco_prpvf_start(void *private)
 		goto out_3;
 	}
 
+
+	ipu_update_channel_buffer(disp_ipu, MEM_FG_SYNC, IPU_INPUT_BUFFER, 0, offset + 480*2560);
+	ipu_update_channel_buffer(disp_ipu, MEM_FG_SYNC, IPU_INPUT_BUFFER, 0, offset);
+
 	err = ipu_init_channel_buffer(cam->ipu, CSI_PRP_VF_MEM,
 				      IPU_OUTPUT_BUFFER,
 				      format, vf.csi_prp_vf_mem.out_width,
 				      vf.csi_prp_vf_mem.out_height,
 				      vf.csi_prp_vf_mem.out_width,
 				      IPU_ROTATE_NONE,
-				      offset,  //output to FB0
-				      0,
+				      offset + 480*2560,  //output to FB0
+				      offset,
 				      0, 0, 0);
 	if (err != 0) {
 		printk(KERN_ERR "Error initializing CSI_PRP_VF_MEM\n");
@@ -253,8 +264,6 @@ static int flir_evco_prpvf_start(void *private)
 
 	ipu_enable_channel(cam->ipu, CSI_PRP_VF_MEM);
 
-	buffer_num = 0;
-	buffer_ready = 0;
 	ipu_select_buffer(cam->ipu, CSI_PRP_VF_MEM, IPU_OUTPUT_BUFFER, 0);
 
 	cam->overlay_active = true;
@@ -358,8 +367,6 @@ static int flir_evco_prpvf_stop(void *private)
 		cam->rot_vf_bufs[1] = 0;
 	}
 
-	buffer_num = 0;
-	buffer_ready = 0;
 	cam->overlay_active = false;
 	return 0;
 }
