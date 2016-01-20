@@ -657,7 +657,7 @@ static int verify_preview(cam_data *cam, struct v4l2_window *win)
  *
  * @return status  0 Success
  */
-static int start_preview(cam_data *cam)
+int start_preview(cam_data *cam)
 {
 	int err = 0;
 
