@@ -742,6 +742,9 @@ int32_t ipu_init_channel(struct ipu_soc *ipu, ipu_channel_t channel, ipu_channel
 
 	dev_dbg(ipu->dev, "init channel = %d\n", IPU_CHAN_ID(channel));
 
+	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
+		return 0;
+
 	ret = pm_runtime_get_sync(ipu->dev);
 	if (ret < 0) {
 		dev_err(ipu->dev, "ch = %d, pm_runtime_get failed:%d!\n",
@@ -1116,6 +1119,9 @@ void ipu_uninit_channel(struct ipu_soc *ipu, ipu_channel_t channel)
 	uint32_t dc_chan = 0;
 	int ret;
 
+	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
+		return;
+
 	mutex_lock(&ipu->mutex_lock);
 
 	if ((ipu->channel_init_mask & (1L << IPU_CHAN_ID(channel))) == 0) {
@@ -1403,6 +1409,9 @@ int32_t ipu_init_channel_buffer(struct ipu_soc *ipu, ipu_channel_t channel,
 	uint32_t dma_chan;
 	uint32_t burst_size;
 
+	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
+		return 0;
+
 	dma_chan = channel_2_dma(channel, type);
         dev_err(ipu->dev, "** DMA CHANNEL 0x%02x\n", dma_chan);
 	if (!idma_is_valid(dma_chan))
@@ -1673,6 +1682,9 @@ int32_t ipu_update_channel_buffer(struct ipu_soc *ipu, ipu_channel_t channel,
 	uint32_t dma_chan = channel_2_dma(channel, type);
 	unsigned long lock_flags;
 
+	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
+		return 0;
+
 	if (dma_chan == IDMA_CHAN_INVALID)
 		return -EINVAL;
 
@@ -1786,6 +1798,9 @@ int32_t ipu_update_channel_offset(struct ipu_soc *ipu,
 	uint32_t dma_chan = channel_2_dma(channel, type);
 	unsigned long lock_flags;
 
+	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
+		return 0;
+
 	if (dma_chan == IDMA_CHAN_INVALID)
 		return -EINVAL;
 
@@ -1840,6 +1855,9 @@ int32_t ipu_select_buffer(struct ipu_soc *ipu, ipu_channel_t channel,
 {
 	uint32_t dma_chan = channel_2_dma(channel, type);
 	unsigned long lock_flags;
+
+	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
+		return 0;
 
 	if (dma_chan == IDMA_CHAN_INVALID)
 		return -EINVAL;
@@ -2313,6 +2331,9 @@ int32_t ipu_enable_channel(struct ipu_soc *ipu, ipu_channel_t channel)
 	uint32_t thrd_dma;
 	uint32_t di = 0;
 
+	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
+		return 0;
+
 	mutex_lock(&ipu->mutex_lock);
 
 	if (ipu->channel_enable_mask & (1L << IPU_CHAN_ID(channel))) {
@@ -2570,6 +2591,9 @@ int32_t ipu_disable_channel(struct ipu_soc *ipu, ipu_channel_t channel, bool wai
 	uint32_t thrd_dma = NO_DMA;
 	uint16_t fg_pos_x, fg_pos_y;
 	unsigned long lock_flags;
+
+	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
+		return 0;
 
 	mutex_lock(&ipu->mutex_lock);
 
