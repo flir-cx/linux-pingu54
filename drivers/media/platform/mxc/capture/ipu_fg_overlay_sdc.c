@@ -28,6 +28,16 @@
 	#define CAMERA_TRACE(x)
 #endif
 
+#if defined(CONFIG_MXC_CAMERA_FLIR)
+#define IPU_DEF_FORMAT IPU_PIX_FMT_RGB32
+#define HEIGHTFACTOR (4)
+#define IPU_PIX_SIZE 4
+#else
+#define IPU_DEF_FORMAT IPU_PIX_FMT_NV12
+#define HEIGHTFACTOR (3/2)
+#define IPU_PIX_SIZE 2
+#endif
+
 static int csi_buffer_num, buffer_num;
 static u32 csi_mem_bufsize;
 static struct ipu_soc *disp_ipu;
@@ -49,7 +59,7 @@ static void csi_buf_work_func(struct work_struct *work)
 		task.input.paddr = cam->vf_bufs[1];
 	task.input.width = cam->crop_current.width;
 	task.input.height = cam->crop_current.height;
-	task.input.format = IPU_PIX_FMT_NV12;
+	task.input.format = IPU_DEF_FORMAT;
 
 	if (buffer_num == 0)
 		task.output.paddr = fbi->fix.smem_start +
@@ -209,8 +219,10 @@ static int csi_enc_setup(cam_data *cam)
 				  cam->vf_bufs_vaddr[1],
 				  (dma_addr_t) cam->vf_bufs[1]);
 	}
+
 	csi_mem_bufsize = cam->crop_current.width *
-			  cam->crop_current.height * 3/2;
+			  cam->crop_current.height * HEIGHTFACTOR;
+
 	cam->vf_bufs_size[0] = PAGE_ALIGN(csi_mem_bufsize);
 	cam->vf_bufs_vaddr[0] = (void *)dma_alloc_coherent(cam->dev,
 							   cam->vf_bufs_size[0],
@@ -245,10 +257,10 @@ static int csi_enc_setup(cam_data *cam)
 
 	if ((cam->crop_current.width == cam->win.w.width) &&
 		(cam->crop_current.height == cam->win.w.height) &&
-		(vf_out_format == IPU_PIX_FMT_NV12) &&
+		(vf_out_format == IPU_DEF_FORMAT) &&
 		(cam->rotation < IPU_ROTATE_VERT_FLIP)) {
 		err = ipu_init_channel_buffer(cam->ipu, chan,
-				IPU_OUTPUT_BUFFER, IPU_PIX_FMT_NV12,
+				IPU_OUTPUT_BUFFER, IPU_DEF_FORMAT,
 				cam->crop_current.width,
 				cam->crop_current.height,
 				cam->crop_current.width, IPU_ROTATE_NONE,
@@ -258,7 +270,7 @@ static int csi_enc_setup(cam_data *cam)
 				cam->offset.u_offset, cam->offset.u_offset);
 	} else {
 		err = ipu_init_channel_buffer(cam->ipu, chan,
-				IPU_OUTPUT_BUFFER, IPU_PIX_FMT_NV12,
+				IPU_OUTPUT_BUFFER, IPU_DEF_FORMAT,
 				cam->crop_current.width,
 				cam->crop_current.height,
 				cam->crop_current.width, IPU_ROTATE_NONE,
@@ -382,14 +394,16 @@ static int foreground_start(void *private)
 
 	if (cam->devtype == IMX5_V4L2 || cam->devtype == IMX6_V4L2) {
 		/* Use DP to do CSC so that we can get better performance */
-		vf_out_format = IPU_PIX_FMT_NV12;
+		vf_out_format = IPU_DEF_FORMAT;
 		fbvar.nonstd = vf_out_format;
 	} else {
 		vf_out_format = IPU_PIX_FMT_RGB565;
 		fbvar.nonstd = 0;
 	}
 
-	fbvar.bits_per_pixel = 16;
+	fbvar.bits_per_pixel = IPU_PIX_SIZE * 8;
+
+
 	fbvar.xres = fbvar.xres_virtual = cam->win.w.width;
 	fbvar.yres = cam->win.w.height;
 	fbvar.yres_virtual = cam->win.w.height * 2;

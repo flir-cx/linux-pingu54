@@ -23,6 +23,15 @@ static int buffer_num;
 static int buffer_ready;
 static struct ipu_soc *disp_ipu;
 
+#if defined(CONFIG_MXC_CAMERA_FLIR)
+#define IPU_DEF_FORMAT	IPU_PIX_FMT_RGB32
+#define IPU_PIX_SIZE 	4
+#else
+#define IPU_DEF_FORMAT 	IPU_PIX_FMT_UYVY
+#define IPU_PIX_SIZE 	2
+#endif
+
+
 static void get_disp_ipu(cam_data *cam)
 {
 	if (cam->output > 2)
@@ -136,7 +145,7 @@ static int prpvf_start(void *private)
 	memset(&vf, 0, sizeof(ipu_channel_params_t));
 	ipu_csi_get_window_size(cam->ipu, &vf.csi_prp_vf_mem.in_width,
 				&vf.csi_prp_vf_mem.in_height, cam->csi);
-	vf.csi_prp_vf_mem.in_pixel_fmt = IPU_PIX_FMT_UYVY;
+	vf.csi_prp_vf_mem.in_pixel_fmt = IPU_DEF_FORMAT;
 	vf.csi_prp_vf_mem.out_width = cam->win.w.width;
 	vf.csi_prp_vf_mem.out_height = cam->win.w.height;
 	vf.csi_prp_vf_mem.csi = cam->csi;
