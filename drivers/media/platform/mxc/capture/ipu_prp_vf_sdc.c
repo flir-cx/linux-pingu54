@@ -23,6 +23,16 @@
 static int buffer_num;
 static struct ipu_soc *disp_ipu;
 
+#if defined(CONFIG_MXC_CAMERA_FLIR)
+#define IPU_DEF_FORMAT	IPU_PIX_FMT_RGB32
+#define IPU_PIX_SIZE 	4
+#define HEIGHTFACTOR    3
+#else
+#define IPU_DEF_FORMAT 	IPU_PIX_FMT_UYVY
+#define IPU_PIX_SIZE 	2
+#define HEIGHTFACTOR    2
+#endif
+
 static void get_disp_ipu(cam_data *cam)
 {
 	if (cam->output > 2)
@@ -68,7 +78,7 @@ static int prpvf_start(void *private)
 	cam_data *cam = (cam_data *) private;
 	ipu_channel_params_t vf;
 	u32 vf_out_format = 0;
-	u32 size = 2, temp = 0;
+	u32 size = IPU_PIX_SIZE, temp = 0;
 	int err = 0, i = 0;
 	short *tmp, color;
 #ifdef CONFIG_MXC_MIPI_CSI2
@@ -110,7 +120,7 @@ static int prpvf_start(void *private)
 
 	if (cam->devtype == IMX5_V4L2 || cam->devtype == IMX6_V4L2) {
 		/* Use DP to do CSC so that we can get better performance */
-		vf_out_format = IPU_PIX_FMT_UYVY;
+		vf_out_format = IPU_DEF_FORMAT;
 		fbvar.nonstd = vf_out_format;
 		color = 0x80;
 	} else {
@@ -119,10 +129,10 @@ static int prpvf_start(void *private)
 		color = 0x0;
 	}
 
-	fbvar.bits_per_pixel = 16;
+	fbvar.bits_per_pixel = IPU_PIX_SIZE * 8;
 	fbvar.xres = fbvar.xres_virtual = cam->win.w.width;
 	fbvar.yres = cam->win.w.height;
-	fbvar.yres_virtual = cam->win.w.height * 2;
+	fbvar.yres_virtual = cam->win.w.height * HEIGHTFACTOR;
 	fbvar.yoffset = 0;
 	fbvar.accel_flags = FB_ACCEL_DOUBLE_FLAG;
 	fbvar.activate |= FB_ACTIVATE_FORCE;
@@ -153,7 +163,7 @@ static int prpvf_start(void *private)
 	memset(&vf, 0, sizeof(ipu_channel_params_t));
 	ipu_csi_get_window_size(cam->ipu, &vf.csi_prp_vf_mem.in_width,
 				&vf.csi_prp_vf_mem.in_height, cam->csi);
-	vf.csi_prp_vf_mem.in_pixel_fmt = IPU_PIX_FMT_UYVY;
+	vf.csi_prp_vf_mem.in_pixel_fmt = IPU_DEF_FORMAT;
 	vf.csi_prp_vf_mem.out_width = cam->win.w.width;
 	vf.csi_prp_vf_mem.out_height = cam->win.w.height;
 	vf.csi_prp_vf_mem.csi = cam->csi;

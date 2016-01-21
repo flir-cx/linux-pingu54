@@ -26,6 +26,12 @@
 	#define CAMERA_TRACE(x)
 #endif
 
+#if defined(CONFIG_MXC_CAMERA_FLIR)
+#define IPU_DEF_FORMAT	IPU_PIX_FMT_RGB32
+#else
+#define IPU_DEF_FORMAT 	IPU_PIX_FMT_UYVY
+#endif
+
 static ipu_rotate_mode_t grotation = IPU_ROTATE_NONE;
 
 /*
@@ -82,7 +88,7 @@ static int prp_enc_setup(cam_data *cam)
 	ipu_csi_get_window_size(cam->ipu, &enc.csi_prp_enc_mem.in_width,
 				&enc.csi_prp_enc_mem.in_height, cam->csi);
 
-	enc.csi_prp_enc_mem.in_pixel_fmt = IPU_PIX_FMT_UYVY;
+	enc.csi_prp_enc_mem.in_pixel_fmt = IPU_DEF_FORMAT;
 	enc.csi_prp_enc_mem.out_width = cam->v2f.fmt.pix.width;
 	enc.csi_prp_enc_mem.out_height = cam->v2f.fmt.pix.height;
 	enc.csi_prp_enc_mem.csi = cam->csi;
