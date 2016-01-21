@@ -477,7 +477,6 @@ static int _setup_disp_channel1(struct fb_info *fbi)
 		dev_err(fbi->device, "init ipu channel fail\n");
 		return -EINVAL;
 	}
-
 	return 0;
 }
 
@@ -2060,6 +2059,7 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 				}
 			}
 
+
 			retval = mxcfb_check_var(&fbi->var, fbi);
 			if (retval)
 				break;
@@ -3442,6 +3442,26 @@ static int mxcfb_get_of_property(struct platform_device *pdev,
 	return err;
 }
 
+static int saved_brightness=5;
+
+static void lcd_backlight_enable(struct backlight_device * bd)
+{
+	if(!bd)
+		return;
+
+	bd->props.brightness = saved_brightness;
+	backlight_update_status(bd);
+}
+static void lcd_backlight_disable(struct backlight_device * bd)
+{
+	if(!bd)
+		return;
+
+	saved_brightness = bd->props.brightness;
+	bd->props.brightness = 0;
+	backlight_update_status(bd);
+}
+
 /*!
  * Probe routine for the framebuffer driver. It is called during the
  * driver binding process.      The following functions are performed in
@@ -3457,6 +3477,7 @@ static int mxcfb_probe(struct platform_device *pdev)
 	struct mxcfb_info *mxcfbi;
 	struct resource *res;
 	int ret = 0;
+	struct device_node *node;
 
 	dev_dbg(&pdev->dev, "%s enter\n", __func__);
 	pdev->id = of_alias_get_id(pdev->dev.of_node, "mxcfb");
@@ -3516,6 +3537,16 @@ static int mxcfb_probe(struct platform_device *pdev)
 		if (!mxcfbi->late_init)
 			memset(fbi->screen_base, 0, fbi->fix.smem_len);
 	}
+
+	node = of_find_node_by_name(NULL,"backlight_lcd");
+	if(node)
+	{
+		mxcfbi->bd = of_find_backlight_by_node(node);
+	}
+	else
+		dev_err(&pdev->dev, "failed to find node backlight_lcd\n");
+
+	lcd_backlight_disable(mxcfbi->bd);
 
 	mxcfbi->ipu = ipu_get_soc(mxcfbi->ipu_id);
 	if (IS_ERR(mxcfbi->ipu)) {
