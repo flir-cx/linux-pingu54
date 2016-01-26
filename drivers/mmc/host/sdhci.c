@@ -2428,7 +2428,10 @@ static int sdhci_check_ro(struct sdhci_host *host)
 	unsigned long flags;
 	int is_readonly;
 
-	spin_lock_irqsave(&host->lock, flags);
+	//Removed the spinlock due to WP pin on Flir Evander board which
+	//currently resides on a PCA9536 I2C gpio expander
+	//thus, forcing us to sleep while reading the RO pin
+	//spin_lock_irqsave(&host->lock, flags);
 
 	if (host->flags & SDHCI_DEVICE_DEAD)
 		is_readonly = 0;
@@ -2439,8 +2442,7 @@ static int sdhci_check_ro(struct sdhci_host *host)
 	else
 		is_readonly = !(sdhci_readl(host, SDHCI_PRESENT_STATE)
 				& SDHCI_WRITE_PROTECT);
-
-	spin_unlock_irqrestore(&host->lock, flags);
+	//	spin_unlock_irqrestore(&host->lock, flags);
 
 	/* This quirk needs to be replaced by a callback-function later */
 	return host->quirks & SDHCI_QUIRK_INVERTED_WRITE_PROTECT ?
