@@ -81,6 +81,8 @@ struct da9063 {
 	/* Control interface */
 	struct regmap	*regmap;
 
+	int		t_offset;
+
 	/* Interrupts */
 	int		chip_irq;
 	unsigned int	irq_base;
