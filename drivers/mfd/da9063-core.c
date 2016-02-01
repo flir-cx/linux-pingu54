@@ -160,6 +160,7 @@ static int da9063_clear_fault_log(struct da9063 *da9063)
 
 int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 {
+	int t_offset = 0;
 	int ret;
 
 	ret = da9063_clear_fault_log(da9063);
@@ -196,6 +197,14 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 			return ret;
 		}
 	}
+
+	ret = regmap_read(da9063->regmap, DA9063_REG_T_OFFSET, &t_offset);
+	if (ret < 0)
+		dev_warn(da9063->dev,
+			 "Temperature trimming value cannot be read (defaulting to 0)\n");
+
+	/* pass this on to the hwmon driver */
+	da9063->t_offset = t_offset;
 
 	return ret;
 }
