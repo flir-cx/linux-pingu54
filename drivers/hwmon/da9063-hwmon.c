@@ -383,14 +383,16 @@ static int da9063_hwmon_probe(struct platform_device *pdev)
 	}
 
 	/* set up the current configurations */
-	val = (pdata->hwmon_pdata->adcin1_cur << DA9063_REG_ADCIN1_CUR_SHIFT |
-	       pdata->hwmon_pdata->adcin2_cur << DA9063_REG_ADCIN2_CUR_SHIFT |
-	       pdata->hwmon_pdata->adcin3_cur << DA9063_REG_ADCIN3_CUR_SHIFT);
-	ret = regmap_update_bits(hwmon->da9063->regmap, DA9063_REG_ADC_CFG,
-				 (DA9063_REG_ADCIN1_CUR_MASK |
-				  DA9063_REG_ADCIN2_CUR_MASK |
-				  DA9063_REG_ADCIN3_CUR_MASK), val);
-
+	if(pdata)
+	{
+		val = (pdata->hwmon_pdata->adcin1_cur << DA9063_REG_ADCIN1_CUR_SHIFT |
+			   pdata->hwmon_pdata->adcin2_cur << DA9063_REG_ADCIN2_CUR_SHIFT |
+			   pdata->hwmon_pdata->adcin3_cur << DA9063_REG_ADCIN3_CUR_SHIFT);
+		ret = regmap_update_bits(hwmon->da9063->regmap, DA9063_REG_ADC_CFG,
+					 (DA9063_REG_ADCIN1_CUR_MASK |
+					  DA9063_REG_ADCIN2_CUR_MASK |
+					  DA9063_REG_ADCIN3_CUR_MASK), val);
+	}
 	ret = regmap_read(da9063->regmap, DA9063_REG_ADC_CFG, &val);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
