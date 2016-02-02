@@ -366,14 +366,30 @@ config MFD_DA9062
 	  of the device.
 
 config MFD_DA9063
-	tristate "Dialog Semiconductor DA9063 PMIC Support"
+	bool
 	select MFD_CORE
+
+config MFD_DA9063_I2C
+	bool "Dialog Semiconductor DA9063 PMIC Support with I2C"
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	depends on I2C
+	select MFD_DA9063
+	depends on I2C=y
 	help
 	  Say yes here for support for the Dialog Semiconductor DA9063 PMIC.
 	  This includes the I2C driver and core APIs.
+	  Additional drivers must be enabled in order to use the functionality
+	  of the device.
+
+config MFD_DA9063_SPI
+	bool "Dialog Semiconductor DA9063 PMIC Support with SPI"
+	select REGMAP_SPI
+	select REGMAP_IRQ
+	select MFD_DA9063
+	depends on SPI_MASTER=y
+	help
+	  Say yes here for support for the Dialog Semiconductor DA9063 PMIC.
+	  This includes the SPI driver and core APIs.
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
 

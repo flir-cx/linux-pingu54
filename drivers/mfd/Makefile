@@ -157,8 +157,10 @@ obj-$(CONFIG_MFD_TI_LMU)	+= ti-lmu.o
 da9055-objs			:= da9055-core.o da9055-i2c.o
 obj-$(CONFIG_MFD_DA9055)	+= da9055.o
 obj-$(CONFIG_MFD_DA9062)	+= da9062-core.o
-da9063-objs			:= da9063-core.o da9063-irq.o da9063-i2c.o
+da9063-objs			:= da9063-core.o da9063-irq.o
 obj-$(CONFIG_MFD_DA9063)	+= da9063.o
+obj-$(CONFIG_MFD_DA9063_SPI)	+= da9063-spi.o
+obj-$(CONFIG_MFD_DA9063_I2C)	+= da9063-i2c.o
 obj-$(CONFIG_MFD_DA9150)	+= da9150-core.o
 
 obj-$(CONFIG_MFD_MAX14577)	+= max14577.o

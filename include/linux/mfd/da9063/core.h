@@ -12,6 +12,7 @@
 #define __MFD_DA9063_CORE_H__
 
 #include <linux/interrupt.h>
+#include <linux/regmap.h>
 #include <linux/mfd/da9063/registers.h>
 
 /* DA9063 modules */
@@ -88,6 +89,10 @@ struct da9063 {
 	unsigned int	irq_base;
 	struct regmap_irq_chip_data *regmap_irq;
 };
+
+extern struct regmap_config da9063_regmap_config;
+extern struct regmap_range_cfg da9063_range_cfg[];
+int da9063_register_regmap(struct da9063 *da9063);
 
 int da9063_device_init(struct da9063 *da9063, unsigned int irq);
 int da9063_irq_init(struct da9063 *da9063);
