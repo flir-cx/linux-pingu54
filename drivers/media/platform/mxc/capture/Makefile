@@ -35,4 +35,7 @@ obj-$(CONFIG_MXC_CAMERA_OV5647_MIPI) += ov5647_camera_mipi.o
 adv7180_tvin-objs := adv7180.o
 obj-$(CONFIG_MXC_TVIN_ADV7180) += adv7180_tvin.o
 
+flir_csi_camera-objs := flir_csi.o
+obj-$(CONFIG_MXC_CAMERA_FLIR) += flir_csi_camera.o
+
 obj-$(CONFIG_VIDEO_V4L2_MXC_INT_DEVICE) += v4l2-int-device.o
