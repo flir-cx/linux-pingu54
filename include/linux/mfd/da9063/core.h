@@ -23,6 +23,7 @@
 #define DA9063_DRVNAME_HWMON		"da9063-hwmon"
 #define DA9063_DRVNAME_ONKEY		"da9063-onkey"
 #define DA9063_DRVNAME_RTC		"da9063-rtc"
+#define DA9063_DRVNAME_POWEROFF		"da9063-poweroff"
 #define DA9063_DRVNAME_VIBRATION	"da9063-vibration"
 
 #define PMIC_CHIP_ID_DA9063		0x61

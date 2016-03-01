@@ -110,6 +110,17 @@ config POWER_RESET_LINKSTATION
 
 	  Say Y here if you have a Buffalo LinkStation LS421D/E.
 
+config POWER_RESET_DA9063
+	tristate "Dialog Semiconductor DA9063 Poweroff"
+	depends on MFD_DA9063 && POWER_RESET
+	help
+	  If you say yes here you will get support for powering off the system
+	  of the Dialog Semiconductor DA9063.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "poweroff-da9063".
+
+
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
 	depends on ARCH_QCOM

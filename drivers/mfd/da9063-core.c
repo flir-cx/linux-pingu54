@@ -108,6 +108,10 @@ static const struct mfd_cell da9063_devs[] = {
 		.resources	= da9063_rtc_resources,
 		.of_compatible	= "dlg,da9063-rtc",
 	},
+	{
+		.name		= DA9063_DRVNAME_POWEROFF,
+		.of_compatible	= "dlg,da9063-poweroff",
+	},
 };
 
 /*
