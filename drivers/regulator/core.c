@@ -5877,7 +5877,7 @@ static int regulator_late_cleanup(struct device *dev, void *data)
 	struct regulation_constraints *c = rdev->constraints;
 	int enabled, ret;
 
-	if (c && c->always_on)
+	if (c && (c->always_on || c->boot_on))
 		return 0;
 
 	if (!regulator_ops_is_valid(rdev, REGULATOR_CHANGE_STATUS))
