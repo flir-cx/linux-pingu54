@@ -49,6 +49,8 @@ enum {
 	DA9063_ID_LDO9,
 	DA9063_ID_LDO10,
 	DA9063_ID_LDO11,
+	DA9063_ID_CORE_SW,
+	DA9063_ID_PERI_SW,
 };
 
 /* Regulators platform data */
