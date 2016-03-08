@@ -57,6 +57,8 @@ enum {
 	DA9063_ID_LDO5,
 	DA9063_ID_LDO6,
 	DA9063_ID_LDO10,
+        DA9063_ID_CORE_SW,
+        DA9063_ID_PERI_SW,
 };
 
 /* Old regulator platform data */
@@ -129,6 +131,12 @@ struct da9063_regulator_info {
 	.suspend_sleep = BFIELD(DA9063_REG_V##regl_name##_B, DA9063_BUCK_SL), \
 	.suspend_vsel_reg = DA9063_REG_V##regl_name##_B, \
 	.mode = BFIELD(DA9063_REG_##regl_name##_CFG, DA9063_BUCK_MODE_MASK)
+
+/* Macro for Switch */
+#define DA9063_SWITCH(chip, regl_name) \
+	.desc.id = chip##_ID_##regl_name, \
+	.desc.name = __stringify(chip##_##regl_name), \
+	.desc.ops = &da9063_switch_ops
 
 /* Defines asignment of regulators info table to chip model */
 struct da9063_dev_model {
@@ -446,6 +454,13 @@ static const struct regulator_ops da9063_ldo_ops = {
 	.set_suspend_mode	= da9063_ldo_set_suspend_mode,
 };
 
+static struct regulator_ops da9063_switch_ops = {
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+};
+
+
 /* Info of regulators for DA9063 */
 static const struct da9063_regulator_info da9063_regulator_info[] = {
 	{
@@ -539,6 +554,16 @@ static const struct da9063_regulator_info da9063_regulator_info[] = {
 	{
 		DA9063_LDO(DA9063, LDO10, 900, 50, 3600),
 	},
+	{
+		DA9063_SWITCH(DA9063, CORE_SW),
+		.desc.enable_reg = DA9063_REG_BCORE1_CONT,
+		.desc.enable_mask = DA9063_CORE_SW_EN,
+	},
+	{
+		DA9063_SWITCH(DA9063, PERI_SW),
+		.desc.enable_reg = DA9063_REG_BPERI_CONT,
+		.desc.enable_mask = DA9063_PERI_SW_EN,
+	},
 };
 
 /* Link chip model with regulators info table */
@@ -619,6 +644,8 @@ static struct of_regulator_match da9063_matches[] = {
 	[DA9063_ID_LDO5]             = { .name = "ldo5",            },
 	[DA9063_ID_LDO6]             = { .name = "ldo6",            },
 	[DA9063_ID_LDO10]            = { .name = "ldo10",           },
+	[DA9063_ID_CORE_SW]          = { .name = "core-sw",         },
+	[DA9063_ID_PERI_SW]          = { .name = "peri-sw",         },
 };
 
 static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
