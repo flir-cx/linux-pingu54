@@ -1254,6 +1254,11 @@ static uint32_t ic_vf_pp_is_busy(struct ipu_soc *ipu, bool is_vf)
 	uint32_t	status_vf;
 	uint32_t	status_rot;
 
+#if defined (CONFIG_MXC_IPU_PRP_VF_SDC) || defined(CONFIG_FLIR_EVCO_MXC_IPU_PRP_VF_SDC)
+	if ((ipu->id == 1) && is_vf)
+		return 1;
+#endif
+
 	if (is_vf) {
 		status = ipu_channel_status(ipu, MEM_VDI_PRP_VF_MEM);
 		status_vf = ipu_channel_status(ipu, MEM_PRP_VF_MEM);
