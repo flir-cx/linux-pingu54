@@ -69,7 +69,8 @@ typedef enum {
 	CSI_MEM = CSI_MEM0,
 
 	CSI_PRP_ENC_MEM = _MAKE_CHAN(19, NO_DMA, NO_DMA, NO_DMA, 20),
-	CSI_PRP_VF_MEM = _MAKE_CHAN(20, NO_DMA, NO_DMA, NO_DMA, 21),
+        //Add overlay combine to channel 20
+	CSI_PRP_VF_MEM = _MAKE_CHAN(20, NO_DMA, 14, 17, 21),
 
 	/* for vdi mem->vdi->ic->mem , add graphics plane and alpha*/
 	MEM_VDI_PRP_VF_MEM_P = _MAKE_CHAN(21, 8, 14, 17, 21),

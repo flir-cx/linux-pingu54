@@ -876,6 +876,27 @@ int32_t ipu_init_channel(struct ipu_soc *ipu, ipu_channel_t channel, ipu_channel
 			ipu_conf &= ~(1 << (IPU_CONF_CSI0_DATA_SOURCE_OFFSET +
 				params->csi_prp_vf_mem.csi));
 
+		/* FLIR Handle overlay combining */
+		if (params->csi_prp_vf_mem.graphics_combine_en) {
+			sec_dma = channel_2_dma(channel, IPU_GRAPH_IN_BUFFER);
+			in_g_pixel_fmt = params->mem_prp_vf_mem.in_g_pixel_fmt;
+			bad_pixfmt =
+				_ipu_ch_param_bad_alpha_pos(in_g_pixel_fmt);
+
+			if (params->mem_prp_vf_mem.alpha_chan_en) {
+				if (bad_pixfmt) {
+					dev_err(ipu->dev, "bad pixel format "
+						"for graphics plane from "
+						"ch%d\n", sec_dma);
+					ret = -EINVAL;
+					goto err;
+				}
+				ipu->thrd_chan_en[IPU_CHAN_ID(channel)] = true;
+			}
+			ipu->sec_chan_en[IPU_CHAN_ID(channel)] = true;
+		}
+                /**/
+
 		/*CSI0/1 feed into IC*/
 		ipu_conf &= ~IPU_CONF_IC_INPUT;
 		if (params->csi_prp_vf_mem.csi)
@@ -1383,6 +1404,7 @@ int32_t ipu_init_channel_buffer(struct ipu_soc *ipu, ipu_channel_t channel,
 	uint32_t burst_size;
 
 	dma_chan = channel_2_dma(channel, type);
+        dev_err(ipu->dev, "** DMA CHANNEL 0x%02x\n", dma_chan);
 	if (!idma_is_valid(dma_chan))
 		return -EINVAL;
 
@@ -2394,14 +2416,14 @@ int32_t ipu_enable_channel(struct ipu_soc *ipu, ipu_channel_t channel)
 	}
 
 	if ((ipu->sec_chan_en[IPU_CHAN_ID(channel)]) &&
-		((channel == MEM_PP_MEM) || (channel == MEM_PRP_VF_MEM) ||
+		((channel == MEM_PP_MEM) || (channel == MEM_PRP_VF_MEM) || (channel == CSI_PRP_VF_MEM) ||
 		 (channel == MEM_VDI_PRP_VF_MEM))) {
 		sec_dma = channel_2_dma(channel, IPU_GRAPH_IN_BUFFER);
 		reg = ipu_idmac_read(ipu, IDMAC_CHA_EN(sec_dma));
 		ipu_idmac_write(ipu, reg | idma_mask(sec_dma), IDMAC_CHA_EN(sec_dma));
 	}
 	if ((ipu->thrd_chan_en[IPU_CHAN_ID(channel)]) &&
-		((channel == MEM_PP_MEM) || (channel == MEM_PRP_VF_MEM))) {
+		((channel == MEM_PP_MEM) || (channel == MEM_PRP_VF_MEM) || (channel == CSI_PRP_VF_MEM))) {
 		thrd_dma = channel_2_dma(channel, IPU_ALPHA_IN_BUFFER);
 		reg = ipu_idmac_read(ipu, IDMAC_CHA_EN(thrd_dma));
 		ipu_idmac_write(ipu, reg | idma_mask(thrd_dma), IDMAC_CHA_EN(thrd_dma));
