@@ -81,6 +81,8 @@ struct da9063_regulator_info {
 	struct reg_field suspend;
 	struct reg_field sleep;
 	struct reg_field suspend_sleep;
+	struct reg_field vb_gpi;
+	struct reg_field gpio2;
 	unsigned int suspend_vsel_reg;
 
 	/* DA9063 event detection bit */
@@ -130,6 +132,8 @@ struct da9063_regulator_info {
 	.suspend = BFIELD(DA9063_REG_##regl_name##_CONT, DA9063_BUCK_CONF), \
 	.suspend_sleep = BFIELD(DA9063_REG_V##regl_name##_B, DA9063_BUCK_SL), \
 	.suspend_vsel_reg = DA9063_REG_V##regl_name##_B, \
+	.vb_gpi = BFIELD(DA9063_REG_##regl_name##_CONT, DA9063_VBUCK_GPI_MASK), \
+	.gpio2 = BFIELD(DA9063_REG_GPIO_2_3, 0x0F), \
 	.mode = BFIELD(DA9063_REG_##regl_name##_CFG, DA9063_BUCK_MODE_MASK)
 
 /* Macro for Switch */
@@ -156,6 +160,8 @@ struct da9063_regulator {
 	struct regmap_field			*suspend;
 	struct regmap_field			*sleep;
 	struct regmap_field			*suspend_sleep;
+	struct regmap_field			*vb_gpi;
+	struct regmap_field			*gpio2;
 };
 
 /* Encapsulates all information for the regulators driver */
@@ -359,6 +365,16 @@ static int da9063_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 
 	ret = regmap_update_bits(regl->hw->regmap, rinfo->suspend_vsel_reg,
 				 rdev->desc->vsel_mask, sel);
+
+	if (regl->gpio2) {
+		// GPIO2 = GPI, active low and triggers wake up
+		ret |= regmap_field_write(regl->gpio2, 0x01);
+	}
+
+	if (regl->vb_gpi) {
+		// VBCORE controlled by GPIO2
+		ret |= regmap_field_write(regl->vb_gpi, 0x02);
+	}
 
 	return ret;
 }
@@ -831,6 +847,18 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 			if (IS_ERR(regl->suspend_sleep))
 				return PTR_ERR(regl->suspend_sleep);
 		}
+		if (regl->info->vb_gpi.reg) {
+			regl->vb_gpi = devm_regmap_field_alloc(&pdev->dev,
+					da9063->regmap, regl->info->vb_gpi);
+			if (IS_ERR(regl->vb_gpi))
+				return PTR_ERR(regl->vb_gpi);
+                }
+		if (regl->info->gpio2.reg) {
+			regl->gpio2 = devm_regmap_field_alloc(&pdev->dev,
+					da9063->regmap, regl->info->gpio2);
+			if (IS_ERR(regl->gpio2))
+				return PTR_ERR(regl->gpio2);
+                }
 
 		/* Register regulator */
 		memset(&config, 0, sizeof(config));
