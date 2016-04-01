@@ -348,6 +348,7 @@ static int da9063_hwmon_probe(struct platform_device *pdev)
 	hwmon->da9063 = da9063;
 
 	/* enable the ADC functions for GPIO 0,1,2 */
+#if 0
 	val = (DA9063_GPIO0_PIN_ADCIN1 << DA9063_GPIO0_PIN_MASK_SHIFT |
 	       DA9063_GPIO1_PIN_ADCIN2_COMP << DA9063_GPIO1_PIN_MASK_SHIFT);
 	ret = regmap_update_bits(hwmon->da9063->regmap, DA9063_REG_GPIO_0_1,
@@ -367,6 +368,7 @@ static int da9063_hwmon_probe(struct platform_device *pdev)
 			"Failed to alter the ADCIN 3 bits for the GPIO 2,3 register\n");
 		return -EIO;
 	}
+#endif
 
 	/* debounce ADC I settings */
 	val = (DA9063_ADCIN1_DEB_ON << DA9063_REG_ADCIN1_DEB_SHIFT |
