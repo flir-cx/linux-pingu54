@@ -634,6 +634,13 @@ config LEDS_ADP5520
 	  To compile this driver as a module, choose M here: the module will
 	  be called leds-adp5520.
 
+config LEDS_AS3649
+	tristate "LED driver for AS3649"
+	depends on LEDS_CLASS && I2C
+	help
+	  This option enables support for AS3649
+	  flashled controller with AS3649 driver.
+
 config LEDS_MC13783
 	tristate "LED Support for MC13XXX PMIC"
 	depends on LEDS_CLASS
