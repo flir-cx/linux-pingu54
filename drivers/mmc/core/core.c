@@ -351,7 +351,8 @@ int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	if (err)
 		return err;
 
-	led_trigger_event(host->led, LED_FULL);
+	if (mrq->data && (mrq->data->flags & MMC_DATA_WRITE))
+            led_trigger_event(host->led, LED_FULL);
 	__mmc_start_request(host, mrq);
 
 	return 0;
