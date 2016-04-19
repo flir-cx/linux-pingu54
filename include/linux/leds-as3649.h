@@ -45,6 +45,7 @@ struct as3649_platform_data {
 	u16 max_peak_current_mA; /* maximum LED current per current source */
 	u16 max_peak_duration_ms; /* the maximum duration max_peak_current_mA
 				     can be applied */
+	u16 default_duration_ms; /*Default duration of flash*/
 	u16 max_sustained_current_mA; /* This leds maximum sustained current
 					 in mA per current source */
 	u16 min_current_mA; /* This leds minimum current in mA, desired
