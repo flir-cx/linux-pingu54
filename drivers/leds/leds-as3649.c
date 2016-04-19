@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/leds-as3649.h>
+#include <linux/leds.h>
 
 #define AS3649_CURR_STEP          3922 /* uA */
 #define AS3649_CURR_STEP_BOOST    4902 /* uA */
@@ -129,6 +130,8 @@ struct as3649_data {
 	struct as3649_platform_data *pdata;
 	struct i2c_client *client;
 	struct mutex update_lock;
+	struct led_classdev cdev_flash;
+	struct led_classdev cdev_torch;
 	bool flash_mode;
 	u8 flash_curr;
 	u8 flash_boost;
@@ -383,19 +386,13 @@ static ssize_t as3649_brightness_uA_show(struct device *dev,
 	return scnprintf(buf, ps, "%d\n", val);
 }
 
-static ssize_t as3649_brightness_uA_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t size)
+static ssize_t as3649_brightness_uA_set(struct device *dev,
+			u32 brightness_uA)
 {
 	struct as3649_data *data = dev_get_drvdata(dev);
 	ssize_t err = 0;
-	int i;
-	u32 val, curr;
+	u32 val = brightness_uA, curr;
 	u8 ctrl = 0, pwm_reg = 0;
-
-	i = sscanf(buf, "%d", &val);
-	if (i != 1)
-		return -EINVAL;
 
 	if (val > (data->pdata->max_sustained_current_mA * 1000))
 		val = data->pdata->max_sustained_current_mA * 1000;
@@ -469,6 +466,21 @@ static ssize_t as3649_brightness_uA_store(struct device *dev,
 	data->normal_ctrl = ctrl;
 exit:
 	AS3649_UNLOCK();
+	return err;
+}
+
+
+static ssize_t as3649_brightness_uA_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	u32 brightness_uA;
+	ssize_t err = 0;
+	int i = sscanf(buf, "%d", &brightness_uA);
+	if (i != 1)
+		return -EINVAL;
+
+	err = as3649_brightness_uA_set(dev,brightness_uA);
 	if (err < 0)
 		return err;
 	return strnlen(buf, PAGE_SIZE);
@@ -617,20 +629,11 @@ static ssize_t as3649_flash_time_ms_show(struct device *dev,
 	return scnprintf(buf, ps, "%d\n", ft);
 }
 
-static ssize_t as3649_flash_time_ms_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t size)
+static ssize_t as3649_flash_time_ms_set(struct as3649_data *data,
+				u32 flash_ms)
 {
-	struct as3649_data *data = dev_get_drvdata(dev);
-	int i;
-	u32 val;
+	u32 val = flash_ms;
 	u32 reg;
-
-	i = sscanf(buf, "%d", &val);
-	if (i != 1)
-		return -EINVAL;
-	if (val == 0)
-		return -EINVAL;
 
 	if (val <= AS3649_REG_Flash_Timer_step_border_ms)
 		reg = DIV_ROUND_UP(val, AS3649_REG_Flash_Timer_small_step)
@@ -647,8 +650,28 @@ static ssize_t as3649_flash_time_ms_store(struct device *dev,
 	data->flash_time = (u8)reg;
 	AS3649_UNLOCK();
 
+	return 0;
+}
+
+static ssize_t as3649_flash_time_ms_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	struct as3649_data *data = dev_get_drvdata(dev);
+	int i;
+	u32 val;
+
+	i = sscanf(buf, "%d", &val);
+	if (i != 1)
+		return -EINVAL;
+	if (val == 0)
+		return -EINVAL;
+
+	as3649_flash_time_ms_set(data,val);
+
 	return strnlen(buf, PAGE_SIZE);
 }
+
 
 static ssize_t as3649_flash_trigger_store(struct device *dev,
 				struct device_attribute *attr,
@@ -691,18 +714,11 @@ static ssize_t as3649_flash_mode_show(struct device *dev,
 	return scnprintf(buf, ps, "%d\n", data->flash_mode);
 }
 
-static ssize_t as3649_flash_mode_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t size)
+static ssize_t as3649_flash_mode_set(struct device *dev,
+				u32 val)
 {
 	struct as3649_data *data = dev_get_drvdata(dev);
-	int i;
-	u32 val;
 	ssize_t err = 0;
-
-	i = sscanf(buf, "%d", &val);
-	if (i != 1)
-		return -EINVAL;
 	if ((val != 0) && (val != 1))
 		return -EINVAL;
 
@@ -752,10 +768,26 @@ static ssize_t as3649_flash_mode_store(struct device *dev,
 	}
 exit:
 	AS3649_UNLOCK();
+	return err;
+
+}
+
+static ssize_t as3649_flash_mode_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	ssize_t err = 0;
+	u32 val;
+	int i = sscanf(buf, "%d", &val);
+	if (i != 1)
+		return -EINVAL;
+
+	err = as3649_flash_mode_set(dev,val);
 	if (err < 0)
 		return err;
 	return strnlen(buf, PAGE_SIZE);
 }
+
 
 static ssize_t as3649_flash_brightness_max_mA_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -782,17 +814,12 @@ static ssize_t as3649_flash_brightness_mA_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static ssize_t as3649_flash_brightness_mA_store(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t size)
+static ssize_t as3649_flash_brightness_mA_set(struct device *dev,
+			u32 brightness_mA)
 {
 	struct as3649_data *data = dev_get_drvdata(dev);
-	u32 val, fb;
-	int i;
-
-	i = sscanf(buf, "%u", &val);
-	if (i != 1)
-		return -EINVAL;
+	u32 fb;
+	u32 val = brightness_mA;
 
 	if (val > data->pdata->max_peak_current_mA)
 		val = data->pdata->max_peak_current_mA;
@@ -806,6 +833,21 @@ static ssize_t as3649_flash_brightness_mA_store(struct device *dev,
 	}
 	data->flash_curr = fb;
 	AS3649_UNLOCK();
+	return 0;
+}
+
+
+static ssize_t as3649_flash_brightness_mA_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t size)
+{
+	u32 val;
+	int i = sscanf(buf, "%u", &val);
+	if (i != 1)
+		return -EINVAL;
+
+	as3649_flash_brightness_mA_set(dev,val);
+
 	return strnlen(buf, PAGE_SIZE);
 }
 
@@ -1141,6 +1183,7 @@ static int as3649_configure(struct i2c_client *client,
 		data->pdata->min_current_mA =
 			AS3649_MAX_INDICATOR_CURRENT;
 	}
+	as3649_flash_time_ms_set(data,data->pdata->default_duration_ms);
 
 	data->diag_ctrl =
 		  (pdata->diag_pulse_vcompl_adj << 5)
@@ -1229,7 +1272,63 @@ static int as3649_setup_dt(struct i2c_client *client)
 }
 #endif
 
+/* torch */
+static void as3649_torch_brightness_set(struct led_classdev *cdev,
+					enum led_brightness brightness)
+{
+	struct as3649_data *chip =
+	    container_of(cdev, struct as3649_data, cdev_torch);
+	struct device *dev = &chip->client->dev;
+	u32 brightness_uA =  brightness * AS3649_CURR_STEP;
+	as3649_brightness_uA_set(dev,brightness_uA);
+	as3649_flash_mode_set(dev,0);
+}
 
+/* flash */
+static void as3649_flash_brightness_set(struct led_classdev *cdev,
+					 enum led_brightness brightness)
+{
+	struct as3649_data *chip =
+	    container_of(cdev, struct as3649_data, cdev_flash);
+	struct device *dev = &chip->client->dev;
+	u32 brightness_mA = DIV_ROUND_UP(brightness *  AS3649_CURR_STEP, 1000);
+	as3649_brightness_uA_set(dev,0);
+	as3649_flash_mode_set(dev,0);
+	as3649_flash_brightness_mA_set(dev,brightness_mA);
+	as3649_flash_mode_set(dev,1);
+}
+
+
+static int as3649_setup_cdev(struct i2c_client *client, struct as3649_data *data)
+{
+	/* flash */
+	int err;
+
+	data->cdev_flash.name = "flash";
+	data->cdev_flash.max_brightness = DIV_ROUND_UP(data->pdata->max_peak_current_mA *1000, AS3649_CURR_STEP);
+	data->cdev_flash.brightness_set = as3649_flash_brightness_set;
+	data->cdev_flash.default_trigger = "flash";
+	err = led_classdev_register((struct device *)
+				    &client->dev, &data->cdev_flash);
+	if (err < 0)
+		goto err_out;
+	/* torch */
+	data->cdev_torch.name = "torch";
+	data->cdev_torch.max_brightness = DIV_ROUND_UP(data->pdata->max_sustained_current_mA *1000, AS3649_CURR_STEP);
+	data->cdev_torch.brightness_set = as3649_torch_brightness_set;
+	data->cdev_torch.default_trigger = "torch";
+	err = led_classdev_register((struct device *)
+				    &client->dev, &data->cdev_torch);
+	if (err < 0)
+		goto err_create_torch_file;
+
+	return 0;
+
+err_create_torch_file:
+	led_classdev_unregister(&data->cdev_flash);
+err_out:
+	return err;
+}
 
 static int as3649_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
@@ -1318,6 +1417,8 @@ static int as3649_probe(struct i2c_client *client,
 	pm_runtime_mark_last_busy(&data->client->dev);
 	pm_runtime_put_autosuspend(&data->client->dev);
 
+	err = as3649_setup_cdev(client,data);
+
 exit:
 	if (err < 0) {
 		if (as3649_pdata->init)
@@ -1361,6 +1462,8 @@ static int as3649_remove(struct i2c_client *client)
 	dev_info(&client->dev, "Removing AS3649 device\n");
 
 	AS3649_LOCK();
+	led_classdev_unregister(&data->cdev_flash);
+	led_classdev_unregister(&data->cdev_torch);
 
 	device_remove_attributes(&client->dev, as3649_attributes);
 	pm_runtime_get_sync(&data->client->dev);
