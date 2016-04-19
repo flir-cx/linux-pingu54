@@ -1177,6 +1177,60 @@ exit:
 	return err;
 }
 
+
+#ifdef CONFIG_OF
+static struct as3649_platform_data *as3649_setup_dt(struct i2c_client *client)
+{
+	struct as3649_platform_data *pdata;
+	struct device_node *np = client->dev.of_node;
+
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	if (of_property_read_bool(np, "use_tx_mask"))
+		pdata->use_tx_mask = true;
+
+	of_property_read_u16(np, "I_limit_mA", &pdata->I_limit_mA);
+	of_property_read_u16(np, "txmasked_current_mA", &pdata->txmasked_current_mA);
+	of_property_read_u16(np, "vin_low_v_mV", &pdata->vin_low_v_mV);
+	of_property_read_u8(np, "strobe_type", &pdata->strobe_type);
+	if (of_property_read_bool(np, "freq_switch_on"))
+		pdata->freq_switch_on = true;
+
+	of_property_read_u16(np, "ntc_current_uA", &pdata->ntc_current_uA);
+	of_property_read_u8(np, "ntc_on", &pdata->ntc_on);
+	if (of_property_read_bool(np, "dcdc_skip_enable"))
+		pdata->dcdc_skip_enable = true;
+
+	of_property_read_u16(np, "max_peak_current_mA", &pdata->max_peak_current_mA);
+	of_property_read_u16(np, "max_peak_duration_ms", &pdata->max_peak_duration_ms);
+	of_property_read_u16(np, "default_duration_ms", &pdata->default_duration_ms);
+	of_property_read_u16(np, "max_sustained_current_mA", &pdata->max_sustained_current_mA);
+	of_property_read_u16(np, "min_current_mA", &pdata->min_current_mA);
+	of_property_read_u16(np, "vf_mV", &pdata->vf_mV);
+	if (of_property_read_bool(np, "load_balance_on"))
+		pdata->load_balance_on = true;
+
+	of_property_read_u8(np, "diag_pulse_time", &pdata->diag_pulse_time);
+	of_property_read_u8(np, "diag_pulse_vcompl_adj", &pdata->diag_pulse_vcompl_adj);
+	of_property_read_u16(np, "diag_vin_low_v_mV", &pdata->diag_vin_low_v_mV);
+	of_property_read_u8(np, "diag_pulse_min_on_increase", &pdata->diag_pulse_min_on_increase);
+	if (of_property_read_bool(np, "diag_pulse_force_dcdc_on"))
+		pdata->diag_pulse_force_dcdc_on = true;
+
+	return pdata;
+}
+#else
+static int as3649_setup_dt(struct i2c_client *client)
+{
+	return -1;
+}
+#endif
+
+
+
 static int as3649_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -1185,6 +1239,15 @@ static int as3649_probe(struct i2c_client *client,
 	int id1, i;
 	int err = 0;
 
+	if (client->dev.of_node)
+	{
+		as3649_pdata = as3649_setup_dt(client);
+		if (IS_ERR(as3649_pdata)) {
+			err = PTR_ERR(as3649_pdata);
+			dev_err(&client->dev, "%s: No platform data\n", __func__);
+			return err;
+		}
+	}
 	if (!as3649_pdata)
 		return -EIO;
 
@@ -1326,6 +1389,14 @@ static const struct i2c_device_id as3649_id[] = {
 };
 
 MODULE_DEVICE_TABLE(i2c, as3649_id);
+
+#ifdef CONFIG_OF
+static const struct of_device_id as3649_of_match[] = {
+	{ .compatible = "ams,as3649", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, as3649_of_match);
+#endif
 
 static struct i2c_driver as3649_driver = {
 	.driver = {
