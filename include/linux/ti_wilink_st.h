@@ -250,7 +250,7 @@ struct kim_data_s {
 	struct completion kim_rcvd, ldisc_installed;
 	char resp_buffer[30];
 	const struct firmware *fw_entry;
-	unsigned nshutdown;
+	struct regulator *nshutdown;
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
@@ -405,7 +405,7 @@ struct gps_event_hdr {
 /**
  * struct ti_st_plat_data - platform data shared between ST driver and
  *	platform specific board file which adds the ST device.
- * @nshutdown_gpio: Host's GPIO line to which chip's BT_EN is connected.
+ * @nshutdown_reg: Host's Regulator/GPIO line to which chip's BT_EN is connected.
  * @dev_name: The UART/TTY name to which chip is interfaced. (eg: /dev/ttyS1)
  * @flow_cntrl: Should always be 1, since UART's CTS/RTS is used for PM
  *	purposes.
@@ -425,7 +425,7 @@ struct gps_event_hdr {
  *
  */
 struct ti_st_plat_data {
-	u32 nshutdown_gpio;
+	struct regulator *nshutdown_reg;
 	unsigned char dev_name[UART_DEV_NAME_LEN]; /* uart name */
 	u32 flow_cntrl; /* flow control flag */
 	u32 baud_rate;

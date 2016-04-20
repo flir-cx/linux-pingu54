@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/regulator/consumer.h>
 
 #define MAX_ST_DEVICES	3	/* Imagine 1 on each UART for now */
 static struct platform_device *st_kim_devices[MAX_ST_DEVICES];
@@ -480,9 +481,7 @@ long st_kim_start(void *kim_data)
 			pdata->chip_enable(kim_gdata);
 
 		/* Configure BT nShutdown to HIGH state */
-		gpio_set_value_cansleep(kim_gdata->nshutdown, GPIO_LOW);
-		mdelay(5);	/* FIXME: a proper toggle */
-		gpio_set_value_cansleep(kim_gdata->nshutdown, GPIO_HIGH);
+		err = regulator_enable(kim_gdata->nshutdown);
 		mdelay(100);
 		/* re-initialize the completion */
 		reinit_completion(&kim_gdata->ldisc_installed);
@@ -568,11 +567,8 @@ long st_kim_stop(void *kim_data)
 	}
 
 	/* By default configure BT nShutdown to LOW state */
-	gpio_set_value_cansleep(kim_gdata->nshutdown, GPIO_LOW);
-	mdelay(1);
-	gpio_set_value_cansleep(kim_gdata->nshutdown, GPIO_HIGH);
-	mdelay(1);
-	gpio_set_value_cansleep(kim_gdata->nshutdown, GPIO_LOW);
+	err |= regulator_disable(kim_gdata->nshutdown);
+	mdelay(5);
 
 	/* platform specific disable */
 	if (pdata->chip_disable)
@@ -738,8 +734,11 @@ static struct ti_st_plat_data *get_platform_data(struct device *dev)
 	dt_property = of_get_property(np, "dev_name", &len);
 	if (dt_property)
 		memcpy(&dt_pdata->dev_name, dt_property, len);
-	of_property_read_u32(np, "nshutdown_gpio",
-			     &dt_pdata->nshutdown_gpio);
+
+	dt_pdata->nshutdown_reg = devm_regulator_get(dev, "nshutdown");
+	if (PTR_ERR(dt_pdata->nshutdown_reg) == -EPROBE_DEFER)
+            return ERR_PTR(-EPROBE_DEFER);
+
 	of_property_read_u32(np, "flow_cntrl", &dt_pdata->flow_cntrl);
 	of_property_read_u32(np, "baud_rate", &dt_pdata->baud_rate);
 
@@ -757,6 +756,11 @@ static int kim_probe(struct platform_device *pdev)
 		pdata = get_platform_data(&pdev->dev);
 	else
 		pdata = pdev->dev.platform_data;
+
+	if (PTR_ERR(pdata) == -EPROBE_DEFER) {
+		dev_warn(&pdev->dev, "Probe deferral\n");
+                return -EPROBE_DEFER;
+	}
 
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "Platform Data is missing\n");
@@ -788,19 +792,8 @@ static int kim_probe(struct platform_device *pdev)
 	kim_gdata->core_data->kim_data = kim_gdata;
 
 	/* Claim the chip enable nShutdown gpio from the system */
-	kim_gdata->nshutdown = pdata->nshutdown_gpio;
-	err = gpio_request(kim_gdata->nshutdown, "kim");
-	if (unlikely(err)) {
-		pr_err(" gpio %d request failed ", kim_gdata->nshutdown);
-		goto err_sysfs_group;
-	}
+	kim_gdata->nshutdown = pdata->nshutdown_reg;
 
-	/* Configure nShutdown GPIO as output=0 */
-	err = gpio_direction_output(kim_gdata->nshutdown, 0);
-	if (unlikely(err)) {
-		pr_err(" unable to configure gpio %d", kim_gdata->nshutdown);
-		goto err_sysfs_group;
-	}
 	/* get reference of pdev for request_firmware */
 	kim_gdata->kim_pdev = pdev;
 	init_completion(&kim_gdata->kim_rcvd);
@@ -854,9 +847,6 @@ static int kim_remove(struct platform_device *pdev)
 	 * Free the Bluetooth/FM/GPIO
 	 * nShutdown gpio from the system
 	 */
-	gpio_free(pdata->nshutdown_gpio);
-	pr_info("nshutdown GPIO Freed");
-
 	debugfs_remove_recursive(kim_debugfs_dir);
 	sysfs_remove_group(&pdev->dev.kobj, &uim_attr_grp);
 	pr_info("sysfs entries removed");
