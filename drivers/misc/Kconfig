@@ -505,6 +505,11 @@ config DA9063_COMP1V2
 	  Support the comparator function of Dialog DA9063 Power Management IC. Will power
 	  off the device if comparator event is detected.
 
+config MAX7
+       tristate "MAX7 i2c GPS"
+       help
+	Max7 i2c GPS
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
