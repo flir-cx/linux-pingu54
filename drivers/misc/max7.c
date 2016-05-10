@@ -37,6 +37,8 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/spinlock.h>
+#include <linux/regulator/of_regulator.h>
+#include <linux/regulator/consumer.h>
 
 
 
@@ -199,15 +201,14 @@ static int max7_write(struct i2c_client *client, void *msg, int len)
 	memset(ubx_buf, '\0', sizeof(ubx_buf));
 
 	ubx_buf[0] = cmd;
-	for(i = 0; i < len; i++)
-	{
+	for(i = 0; i < len; i++){
 		ubx_buf[i+1] = *pmsg++;
 	}
 
 	ret = i2c_master_send(client, ubx_buf, (len + 1));
         if (ret != (len + 1)) {
-                dev_err(&client->dev, "Couldn't send I2C command.\n");
-		return 0;
+//                dev_err(&client->dev, "Couldn't send I2C command. (%i)\n", ret);
+		return ret;
         }
 
         return len;
@@ -285,10 +286,10 @@ static int max7_read_msg_stream_len(struct i2c_client *client)
  */
 static long max7_i2c_ioctl(struct file *filep,unsigned int cmd, unsigned long arg)
 {
-	int err = 0, tmp;
+	int err = 0;
 	int ret = 0;
 	int len;
-	struct i2c_client *client = max7->client;
+//	struct i2c_client *client = max7->client;
 	/*
 	 * extract the type and number bitfields, and don't decode
 	 * wrong cmds: return ENOTTY (inappropriate ioctl) before access_ok()
@@ -327,13 +328,16 @@ static int send_ublox_request(struct i2c_client *client, u8 msg_class, u16 msg_I
 {
 	char *msg = NULL;
 	int msg_len = (8 + len);
+	int ret;
 
 	msg = frame_ubx_msg(msg_class, msg_ID, len, config_data, msg_len);
-	if(!max7_write(client, msg, msg_len))
+	
+	ret = max7_write(client, msg, msg_len);
+	if(ret < 0)
 	{
-		dev_err(&client->dev, "failed to send ublox request\n");
+		//dev_err(&client->dev, "failed to send ublox request\n");
 		kfree(msg);
-		return 0;
+		return ret;
 	}
 	kfree(msg);
 	return 1;
@@ -477,54 +481,95 @@ static struct miscdevice max7_gps_miscdevice = {
 
 static int max7_initialise(struct i2c_client *client)
 {
-	u8 ret;
+	int ret;
 	//Disable uart port
 	char data_disableuart[] = {0x01,0x00,0x00,0x00,0xc0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 	char data_enablei2cirq[] ={0x00,0x00,0x1b,0x00,0x84,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x07,0x00,0x07,0x00,0x02,0x00,0x00,0x00};
 	//Enable enhanced timeout, (does not shutdown DDC port)
 
-	mdelay(100);
-	if(send_ublox_request(client, UBX_CLASS_CFG, 0, &data_disableuart, sizeof(data_disableuart))){
-		udelay(100);
-		/*Process the Ublox ACK / NAck message and print it*/
-		ret = process_ublox_ack(client, UBX_CLASS_CFG, 0);
-		if(ret == -1){
-			dev_err(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
-		}
+//	mdelay(100);
+	ret = send_ublox_request(client, UBX_CLASS_CFG, 0, &data_disableuart, sizeof(data_disableuart));
+	if( ret < 0 ){
+//		dev_err(&client->dev, "Failed to send disableuart request\n");
+		goto out;
 	}
-	if(send_ublox_request(client, UBX_CLASS_CFG, 0, &data_enablei2cirq, sizeof(data_enablei2cirq))){
-		udelay(100);
-		/*Process the Ublox ACK / NAck message and print it*/
-		ret = process_ublox_ack(client, UBX_CLASS_CFG, 0);
-		if(ret == -1){
-			dev_err(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
-		}
+		
+	usleep_range(100,200);
+	/*Process the Ublox ACK / NAck message and print it*/
+	ret = process_ublox_ack(client, UBX_CLASS_CFG, 0);
+	if(ret < 0){
+		dev_err(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
+		goto out;
 	}
-	return 0;
+
+
+	ret = send_ublox_request(client, UBX_CLASS_CFG, 0, &data_enablei2cirq, sizeof(data_enablei2cirq));
+	if(ret < 0){
+		dev_err(&client->dev, "Failed to send enablei2cirq request\n");
+		goto out;
+	}
+
+	usleep_range(100,200);
+	/*Process the Ublox ACK / NAck message and print it*/
+	ret = process_ublox_ack(client, UBX_CLASS_CFG, 0);
+	if(ret < 0){
+		dev_err(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
+		goto out;
+	}
+
+
+out:
+	return ret;
 }
+
 static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int error;
 	struct device *dev = &client->dev;
 	struct device_node *node;
-	dev_err(dev, "%s\n", __func__);
 
 	node = dev->of_node;
 	if(!node){
-		error = -ENODEV;
-		goto err_out;
+		return -ENODEV;
 	}
 	
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(dev, "i2c_check_functionality error\n");
-                return -EIO;
+	max7 = kzalloc(sizeof(struct max7_data), GFP_KERNEL);
+        if (!max7){
+		return -ENOMEM;
 	}
 
-	max7 = kzalloc(sizeof(struct max7_data), GFP_KERNEL);
-        if (!max7)
-                return -ENOMEM;
-	atomic_set(&max7->write,0);
+	max7->supply = devm_regulator_get(dev, "reg_gps_en");
+	if(IS_ERR(max7->supply))
+		dev_err(dev,"can't get regulator vin-supply");
+	else
+		error = regulator_enable(max7->supply);
 
+	max7->resetpin = of_get_named_gpio_flags(node, "reset-pin", 0, NULL);
+	if(max7->resetpin < 0){
+		dev_err(dev, "Failed reading reset pin\n");
+		error = -EINVAL;
+		goto err_001;
+	};
+
+	if (gpio_is_valid(max7->resetpin)) {
+		error = devm_gpio_request_one(&client->dev, max7->resetpin,
+					      GPIOF_OUT_INIT_HIGH, "Ublox reset");
+
+		if (error) {
+			dev_err(&client->dev,
+				"Failed to request GPIO %d, error %d\n",
+				max7->resetpin, error);
+			goto err_001;
+		}
+	}
+
+	gpio_set_value_cansleep(max7->resetpin, 1);
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		dev_err(dev, "i2c_check_functionality error\n");
+                goto err_free_pdata;
+	}
+
+	atomic_set(&max7->write,0);
 	max7->irqpin = of_get_named_gpio_flags(node, "interrupt-pin", 0, NULL);
 
 	if(max7->irqpin < 0){
@@ -533,25 +578,6 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto err_free_pdata;
 	};
 
-	max7->resetpin = of_get_named_gpio_flags(node, "reset-pin", 0, NULL);
-	if(max7->resetpin < 0){
-		dev_err(dev, "Failed reading reset pin\n");
-		error = -EINVAL;
-		goto err_free_pdata;
-	};
-
-
-	if (gpio_is_valid(max7->resetpin)) {
-		error = devm_gpio_request_one(&client->dev, max7->resetpin,
-					      GPIOF_OUT_INIT_HIGH, "Ublox reset");
-		if (error) {
-			dev_err(&client->dev,
-				"Failed to request GPIO %d, error %d\n",
-				max7->resetpin, error);
-			return error;
-		}
-	}
-
 	if (gpio_is_valid(max7->irqpin)) {
 		error = devm_gpio_request_one(&client->dev, max7->irqpin,
 					      GPIOF_IN, "Ublox IRQ");
@@ -559,19 +585,22 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			dev_err(&client->dev,
 				"Failed to request GPIO %d, error %d\n",
 				max7->irqpin, error);
-			return error;
+			goto err_01;
 		}
 	}
 
+//	msleep(200);
         max7->client = client;
-	//	msleep(300);
-	max7_initialise(client);
+	error = max7_initialise(client);
+	if(error < 0){
+		error = -EPROBE_DEFER;
+		goto err_0;
+	}
 	i2c_set_clientdata(client, max7);
-	dev_err(dev, " register device\n");
         error = misc_register(&max7_gps_miscdevice);
-        if (error) {
+        if (error < 0) {
                 dev_err(dev, "Miscdevice register failed\n");
-                return -1;
+                goto err_0;
         }
 
 	max7->rdkbuf = kzalloc(GPSSIZE, GFP_KERNEL);
@@ -587,19 +616,29 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 					  client->name, max7);
 	if (error) {
 		dev_err(dev, "Unable to request IRQ.\n");
-		return error;
+		goto err_2;
 	}
 	disable_irq(gpio_to_irq(max7->irqpin));
 	
 	goto err_out;
 
+
+	devm_free_irq(&client->dev, gpio_to_irq(max7->irqpin), max7);
+err_2:
+	kfree(max7->rdkbuf);
+	max7->rdkbuf = 0;
 err_1:
 	misc_deregister(&max7_gps_miscdevice);
+err_0:
+//	gpio_set_value_cansleep(max7->resetpin, 0);
 	devm_gpio_free(&client->dev, max7->irqpin);
+err_01:
+err_free_pdata:
+	devm_gpio_free(&client->dev, max7->resetpin);
+err_001:
+//	error = regulator_disable(max7->supply);
 	kfree(max7);
 	max7=0;
-
-err_free_pdata:
 err_out:
 
 	return error;
@@ -609,10 +648,12 @@ static int max7_remove(struct i2c_client *client)
 {
 	devm_free_irq(&client->dev, gpio_to_irq(max7->irqpin), max7);
 	devm_gpio_free(&client->dev, max7->irqpin);
+	gpio_set_value_cansleep(max7->resetpin, 0);
 	devm_gpio_free(&client->dev, max7->resetpin);
 	kfree(max7->rdkbuf);
 	max7->rdkbuf=0;
 	misc_deregister(&max7_gps_miscdevice);
+	regulator_disable(max7->supply);
         kfree(max7);
 	max7=0;
 	return 0;

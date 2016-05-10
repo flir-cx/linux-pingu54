@@ -156,6 +156,7 @@ struct max7_data {
         struct input_dev        *idev;
 	char name[20];
 	int irqpin;
+	struct regulator *supply;
 	int resetpin;
 	unsigned char *rdkbuf;
 	atomic_t write;
