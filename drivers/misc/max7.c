@@ -270,6 +270,59 @@ static int max7_read_msg_stream_len(struct i2c_client *client)
 	return streamlen;
 }
 
+
+
+
+
+/**
+ * FAD_IOControl
+ *
+ * @param filep
+ * @param cmd
+ * @param arg
+ *
+ * @return
+ */
+static long max7_i2c_ioctl(struct file *filep,unsigned int cmd, unsigned long arg)
+{
+	int err = 0, tmp;
+	int ret = 0;
+	int len;
+	struct i2c_client *client = max7->client;
+	/*
+	 * extract the type and number bitfields, and don't decode
+	 * wrong cmds: return ENOTTY (inappropriate ioctl) before access_ok()
+	 */
+	//if (_IOC_TYPE(cmd) != SCULL_IOC_MAGIC) return -ENOTTY;
+	//if (_IOC_NR(cmd) > SCULL_IOC_MAXNR) return -ENOTTY;
+
+	/*
+	 * the direction is a bitmask, and VERIFY_WRITE catches R/W
+	 * transfers. `Type' is user oriented, while
+	 * access_ok is kernel oriented, so the concept of "read" and
+	 * "write" is reversed
+	 */
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		err = !access_ok(VERIFY_WRITE, (void *)arg, _IOC_SIZE(cmd));
+	else if (_IOC_DIR(cmd) & _IOC_WRITE)
+		err = !access_ok(VERIFY_READ, (void *)arg, _IOC_SIZE(cmd));
+	if (err) return -EFAULT;
+
+	switch(cmd) {
+
+	case 0x541b:
+		len=strlen(max7->rdkbuf);
+		ret = __put_user(len, (int __user *)arg);
+		break;
+
+	default:
+		return -ENOTTY;
+	}
+
+	return ret;
+}
+
+
 static int send_ublox_request(struct i2c_client *client, u8 msg_class, u16 msg_ID, void *config_data, u16 len)
 {
 	char *msg = NULL;
@@ -374,12 +427,12 @@ ssize_t max7_i2c_write(struct file *file, const char __user *buf, size_t count, 
 	  goto out2;
         }
 
-	//Only allow UBX messages
-	if(kbuf[0] != 0xb5)
-	{
-	  ret = -EPERM;
-	  goto out2;
-	}
+	/* //Only allow UBX messages */
+	/* if(kbuf[0] != 0xb5) */
+	/* { */
+	/*   ret = -EPERM; */
+	/*   goto out2; */
+	/* } */
 
         ret = max7_write(client, kbuf, count);
 
@@ -393,8 +446,6 @@ ssize_t max7_i2c_read(struct file *file, char __user *buf, size_t count, loff_t 
 {
 	struct i2c_client *client = max7->client;
 	size_t len = 0;	
-	unsigned long flags;
-	
 	while(!atomic_read(&max7->write)){
 		usleep_range(100,2000);
 	};
@@ -404,6 +455,7 @@ ssize_t max7_i2c_read(struct file *file, char __user *buf, size_t count, loff_t 
 		//return -EFAULT;
 		return 0;
 	}
+	max7->rdkbuf[0]=0;
 	atomic_set(&max7->write, 0);
 	return len;
 }
@@ -414,7 +466,7 @@ static const struct file_operations max7_fops = {
 	.release	= max7_i2c_release,
 	.read		= max7_i2c_read,
 	.write		= max7_i2c_write,
-//	.unlocked_ioctl	= max7_i2c_ioctl,
+	.unlocked_ioctl	= max7_i2c_ioctl,
 };
 
 static struct miscdevice max7_gps_miscdevice = {
@@ -428,8 +480,10 @@ static int max7_initialise(struct i2c_client *client)
 	u8 ret;
 	//Disable uart port
 	char data_disableuart[] = {0x01,0x00,0x00,0x00,0xc0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+	char data_enablei2cirq[] ={0x00,0x00,0x1b,0x00,0x84,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x07,0x00,0x07,0x00,0x02,0x00,0x00,0x00};
+	//Enable enhanced timeout, (does not shutdown DDC port)
 
-	char data_enablei2cirq[] ={0x00,0x00,0x1b,0x08,0x84,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x07,0x00,0x07,0x00,0x00,0x00,0x00,0x00};
+	mdelay(100);
 	if(send_ublox_request(client, UBX_CLASS_CFG, 0, &data_disableuart, sizeof(data_disableuart))){
 		udelay(100);
 		/*Process the Ublox ACK / NAck message and print it*/
