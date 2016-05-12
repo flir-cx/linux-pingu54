@@ -538,11 +538,15 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 	}
 
-	max7->supply = devm_regulator_get(dev, "reg_gps_en");
-	if(IS_ERR(max7->supply))
-		dev_err(dev,"can't get regulator vin-supply");
-	else
-		error = regulator_enable(max7->supply);
+	max7->supply = devm_regulator_get(dev, "vin");
+	if(IS_ERR(max7->supply)){
+	       dev_err(dev,"can't get regulator vin-supply");
+               error = PTR_ERR(max7->supply);
+               max7->supply=NULL;
+               return error;
+
+	}
+	error = regulator_enable(max7->supply);
 
 	max7->resetpin = of_get_named_gpio_flags(node, "reset-pin", 0, NULL);
 	if(max7->resetpin < 0){
