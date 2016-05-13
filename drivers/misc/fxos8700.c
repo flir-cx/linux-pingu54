@@ -31,6 +31,7 @@
 #include <linux/input-polldev.h>
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
+#include <linux/of_device.h>
 
 /*register define*/
 #define FXOS8700_STATUS 		0x00
@@ -791,6 +792,10 @@ static void fxos8700_poll(struct input_polled_dev *dev)
 	    atomic_read(&pdata->mag_active_poll)))
 		return;
 
+	if ((atomic_read(&pdata->acc_active_poll) &&
+	    atomic_read(&pdata->mag_active_poll)))
+		return;
+
 	if (atomic_read(&pdata->acc_active_poll))
 		type = FXOS8700_TYPE_ACC;
 	if (atomic_read(&pdata->mag_active_poll))
@@ -883,13 +888,13 @@ static int fxos8700_probe(struct i2c_client *client,
 	pdata->mag_miscdev = &fxos8700_mag_device;
 
 	/* for debug */
-	if (client->irq <= 0) {
+//	if (client->irq <= 0) {
 		result = fxo8700_register_polled_device(g_fxos8700_data);
 		if (result)
 			dev_err(&client->dev,
 				"IRQ GPIO conf. error %d, error %d\n",
 				client->irq, result);
-	}
+//	}
 
 	result = fxos8700_register_sysfs_device(pdata);
 	if (result) {
@@ -898,7 +903,7 @@ static int fxos8700_probe(struct i2c_client *client,
 		goto err_register_sys;
 	}
 	fxos8700_device_init(client);
-	printk("fxos8700 device driver probe successfully");
+	dev_err(&client->dev, "fxos8700 device driver probe successfully", __func__);
 	return 0;
 err_register_sys:
 	misc_deregister(&fxos8700_mag_device);
@@ -919,10 +924,10 @@ static int fxos8700_remove(struct i2c_client *client)
 	if (!pdata)
 		return 0;
 	fxos8700_device_stop(client);
-	if (client->irq <= 0) {
+	/* if (client->irq <= 0) { */
 		input_unregister_polled_device(pdata->input_polled);
 		input_free_polled_device(pdata->input_polled);
-	}
+	/* } */
 	fxos8700_unregister_sysfs_device(pdata);
 	misc_deregister(&fxos8700_acc_device);
 	misc_deregister(&fxos8700_mag_device);
@@ -959,12 +964,26 @@ static const struct i2c_device_id fxos8700_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, fxos8700_id);
 
+
+#ifdef CONFIG_OF
+static const struct of_device_id fxos8700_of_match[] = {
+	{ .compatible = "freescale,fos8700", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, fxos8700_of_match);
+#else
+static const struct of_device_id fxos8700_of_match[] = {
+	{ },
+};
+#endif
+
 static SIMPLE_DEV_PM_OPS(fxos8700_pm_ops, fxos8700_suspend, fxos8700_resume);
 static struct i2c_driver fxos8700_driver = {
 	.driver = {
 		   .name = FXOS8700_DRIVER,
 		   .owner = THIS_MODULE,
 		   .pm = &fxos8700_pm_ops,
+		   .of_match_table = of_match_ptr(fxos8700_of_match),
 		   },
 	.probe = fxos8700_probe,
 	.remove = fxos8700_remove,
