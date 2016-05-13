@@ -182,6 +182,8 @@
 
 #define ABS_STATUS		ABS_WHEEL
 #define FXOS8700_DRIVER		"fxos8700"
+#define FXOS8700_ACC_DRIVER		"fxos8700 Acc"
+#define FXOS8700_MAG_DRIVER		"fxos8700 Mag"
 
 #define ABSMAX_ACC_VAL          0x01FF
 #define ABSMIN_ACC_VAL          -(ABSMAX_ACC_VAL)
@@ -200,7 +202,8 @@ struct fxos8700_data_axis {
 
 struct fxos8700_data {
 	struct i2c_client *client;
-	struct input_polled_dev *input_polled;
+	struct input_polled_dev *input_polled_acc;
+	struct input_polled_dev *input_polled_mag;
 	struct miscdevice *acc_miscdev;
 	struct miscdevice *mag_miscdev;
 	atomic_t acc_delay;
@@ -768,7 +771,8 @@ static void fxos8700_report(struct input_polled_dev *dev, int type)
 {
 	struct fxos8700_data_axis data;
 	struct fxos8700_data *pdata = g_fxos8700_data;
-	struct input_dev *idev = pdata->input_polled->input;
+	struct input_dev *idev_acc = pdata->input_polled_acc->input;
+	struct input_dev *idev_mag = pdata->input_polled_mag->input;
 	int position;
 	int ret;
 
@@ -776,10 +780,20 @@ static void fxos8700_report(struct input_polled_dev *dev, int type)
 	ret = fxos8700_read_data(pdata->client, &data, type);
 	if (!ret) {
 		fxos8700_data_convert(&data, position);
-		input_report_abs(idev, ABS_X, data.x);
-		input_report_abs(idev, ABS_Y, data.y);
-		input_report_abs(idev, ABS_Z, data.z);
-		input_sync(idev);
+
+		if(type == FXOS8700_TYPE_ACC){
+			input_report_abs(idev_acc, ABS_X, data.x);
+			input_report_abs(idev_acc, ABS_Y, data.y);
+			input_report_abs(idev_acc, ABS_Z, data.z);
+			input_sync(idev_acc);
+		}
+
+		if(type == FXOS8700_TYPE_MAG){
+			input_report_abs(idev_mag, ABS_X, data.x);
+			input_report_abs(idev_mag, ABS_Y, data.y);
+			input_report_abs(idev_mag, ABS_Z, data.z);
+			input_sync(idev_mag);
+		}
 	}
 }
 
@@ -788,53 +802,84 @@ static void fxos8700_poll(struct input_polled_dev *dev)
 	struct fxos8700_data *pdata = g_fxos8700_data;
 	int type;
 
-	if (!(atomic_read(&pdata->acc_active_poll) ||
-	    atomic_read(&pdata->mag_active_poll)))
-		return;
-
-	if ((atomic_read(&pdata->acc_active_poll) &&
-	    atomic_read(&pdata->mag_active_poll)))
-		return;
-
-	if (atomic_read(&pdata->acc_active_poll))
+	if (atomic_read(&pdata->acc_active_poll)){
 		type = FXOS8700_TYPE_ACC;
-	if (atomic_read(&pdata->mag_active_poll))
+		fxos8700_report(dev, type);
+	}
+	if (atomic_read(&pdata->mag_active_poll)){
 		type =FXOS8700_TYPE_MAG;
-	fxos8700_report(dev, type);
+		fxos8700_report(dev, type);
+	}
 }
+
 
 static int fxo8700_register_polled_device(struct fxos8700_data *pdata)
 {
-	struct input_polled_dev *ipoll_dev;
-	struct input_dev *idev;
+	struct input_polled_dev *ipoll_dev_acc;
+	struct input_polled_dev *ipoll_dev_mag;
+	struct input_dev *idev_acc;
+	struct input_dev *idev_mag;
 	int error;
 
-	ipoll_dev = input_allocate_polled_device();
-	if (!ipoll_dev)
+	ipoll_dev_mag = input_allocate_polled_device();
+	if (!ipoll_dev_mag){
 		return -ENOMEM;
+	}
+	ipoll_dev_acc = input_allocate_polled_device();
+	if (!ipoll_dev_acc){
+		kfree(ipoll_dev_mag);
+		return -ENOMEM;
+	}
 
-	ipoll_dev->private = pdata;
-	ipoll_dev->poll = fxos8700_poll;
-	ipoll_dev->poll_interval = FXOS8700_POLL_INTERVAL;
-	ipoll_dev->poll_interval_min = FXOS8700_POLL_MIN;
-	ipoll_dev->poll_interval_max = FXOS8700_POLL_MAX;
-	idev = ipoll_dev->input;
-	idev->name = FXOS8700_DRIVER;
-	idev->id.bustype = BUS_I2C;
-	idev->dev.parent = &pdata->client->dev;
+	ipoll_dev_mag->private = pdata;
+	ipoll_dev_mag->poll = fxos8700_poll;
+	ipoll_dev_mag->poll_interval = FXOS8700_POLL_INTERVAL;
+	ipoll_dev_mag->poll_interval_min = FXOS8700_POLL_MIN;
+	ipoll_dev_mag->poll_interval_max = FXOS8700_POLL_MAX;
+	idev_mag = ipoll_dev_mag->input;
+	idev_mag->name = FXOS8700_MAG_DRIVER;
+	idev_mag->id.bustype = BUS_I2C;
+	idev_mag->dev.parent = &pdata->client->dev;
 
-	idev->evbit[0] = BIT_MASK(EV_ABS);
-	input_set_abs_params(idev, ABS_X, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
-	input_set_abs_params(idev, ABS_Y, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
-	input_set_abs_params(idev, ABS_Z, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
+	idev_mag->evbit[0] = BIT_MASK(EV_ABS);
+	input_set_abs_params(idev_mag, ABS_X, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
+	input_set_abs_params(idev_mag, ABS_Y, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
+	input_set_abs_params(idev_mag, ABS_Z, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
 
-	error = input_register_polled_device(ipoll_dev);
+//**************
+
+	ipoll_dev_acc->private = pdata;
+	ipoll_dev_acc->poll = fxos8700_poll;
+	ipoll_dev_acc->poll_interval = FXOS8700_POLL_INTERVAL;
+	ipoll_dev_acc->poll_interval_min = FXOS8700_POLL_MIN;
+	ipoll_dev_acc->poll_interval_max = FXOS8700_POLL_MAX;
+
+	idev_acc = ipoll_dev_acc->input;
+	idev_acc->name = FXOS8700_ACC_DRIVER;
+	idev_acc->id.bustype = BUS_I2C;
+	idev_acc->dev.parent = &pdata->client->dev;
+
+	idev_acc->evbit[0] = BIT_MASK(EV_ABS);
+	input_set_abs_params(idev_acc, ABS_X, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
+	input_set_abs_params(idev_acc, ABS_Y, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
+	input_set_abs_params(idev_acc, ABS_Z, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
+
+//**************
+
+	error = input_register_polled_device(ipoll_dev_mag);
 	if (error) {
-		input_free_polled_device(ipoll_dev);
+		input_free_polled_device(ipoll_dev_mag);
+		return error;
+	}
+	error = input_register_polled_device(ipoll_dev_acc);
+	if (error) {
+		input_free_polled_device(ipoll_dev_mag);
+		input_free_polled_device(ipoll_dev_acc);
 		return error;
 	}
 
-	pdata->input_polled = ipoll_dev;
+	pdata->input_polled_mag = ipoll_dev_mag;
+	pdata->input_polled_acc = ipoll_dev_acc;
 
 	return 0;
 }
@@ -925,8 +970,10 @@ static int fxos8700_remove(struct i2c_client *client)
 		return 0;
 	fxos8700_device_stop(client);
 	/* if (client->irq <= 0) { */
-		input_unregister_polled_device(pdata->input_polled);
-		input_free_polled_device(pdata->input_polled);
+		input_unregister_polled_device(pdata->input_polled_mag);
+		input_free_polled_device(pdata->input_polled_mag);
+		input_unregister_polled_device(pdata->input_polled_acc);
+		input_free_polled_device(pdata->input_polled_acc);
 	/* } */
 	fxos8700_unregister_sysfs_device(pdata);
 	misc_deregister(&fxos8700_acc_device);
