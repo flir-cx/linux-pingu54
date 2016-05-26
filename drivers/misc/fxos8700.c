@@ -585,10 +585,8 @@ static ssize_t fxos8700_enable_show(struct device *dev,
 static ssize_t fxos8700_temperature_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct miscdevice *misc_dev = dev_get_drvdata(dev);
 	struct fxos8700_data *pdata = g_fxos8700_data;
 	int ret;
-	float temperature;
 	s8 data;
 	ret = i2c_smbus_read_i2c_block_data(pdata->client, FXOS8700_M_TEMP, 1, &data);
 	return sprintf(buf, "0x%02X\n", data);
