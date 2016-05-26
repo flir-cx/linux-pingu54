@@ -1596,16 +1596,15 @@ EXPORT_SYMBOL(bq24298_set_iinlim);
 int bq24298_set_iinlim_helper(s16 currentlim,u8 source)
 {
 	static DEFINE_SPINLOCK(set_iinlim_lock);
-	unsigned long flags;
 	static s16 currentlim_type0_d=0;
 	static s16 currentlim_type1_d=0;
 	static s16 currentlim_type2_d=0;
-	spin_lock(&set_iinlim_lock);
-
 	static u8 source_d=0;
 	bool bq24392_exist = false;
 	bool usblegacy12 = false;
 	bool setcurrent = false;
+
+	spin_lock(&set_iinlim_lock);
 
 	pr_debug("%s: set ilim from fusb30x to %i (%i), source is %i (%i)\n", __func__, currentlim,currentlim_type0_d,source,source_d);
 
