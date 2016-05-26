@@ -581,6 +581,19 @@ static ssize_t fxos8700_enable_show(struct device *dev,
 	return sprintf(buf, "%d\n", enable);
 }
 
+
+static ssize_t fxos8700_temperature_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct miscdevice *misc_dev = dev_get_drvdata(dev);
+	struct fxos8700_data *pdata = g_fxos8700_data;
+	int ret;
+	float temperature;
+	s8 data;
+	ret = i2c_smbus_read_i2c_block_data(pdata->client, FXOS8700_M_TEMP, 1, &data);
+	return sprintf(buf, "0x%02X\n", data);
+}
+
 static ssize_t fxos8700_enable_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
@@ -713,6 +726,7 @@ static ssize_t fxos8700_range_store(struct device *dev,
 	return count;
 }
 
+static DEVICE_ATTR(temperature, S_IWUSR | S_IRUGO, fxos8700_temperature_show, NULL);
 static DEVICE_ATTR(enable, S_IWUSR | S_IRUGO, fxos8700_enable_show, fxos8700_enable_store);
 static DEVICE_ATTR(poll_delay, S_IWUSR | S_IRUGO, fxos8700_poll_delay_show, fxos8700_poll_delay_store);
 static DEVICE_ATTR(position, S_IWUSR | S_IRUGO, fxos8700_position_show, fxos8700_position_store);
@@ -720,6 +734,7 @@ static DEVICE_ATTR(range, S_IWUSR | S_IRUGO, fxos8700_range_show, fxos8700_range
 
 static struct attribute *fxos8700_attributes[] = {
 	&dev_attr_enable.attr,
+	&dev_attr_temperature.attr,
 	&dev_attr_poll_delay.attr,
 	&dev_attr_position.attr,
 	&dev_attr_range.attr,
