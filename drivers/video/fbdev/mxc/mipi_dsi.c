@@ -10,6 +10,7 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
+
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -29,6 +30,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <video/mipi_display.h>
@@ -56,6 +58,12 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 	{
 	 "TRULY-WVGA",
 	 {mipid_hx8369_get_lcd_videomode, mipid_hx8369_lcd_setup}
+	},
+#endif
+#ifdef CONFIG_FB_MXC_ORISE_OTM1287A
+	{
+	 "ORISE-VGA",
+	 {mipid_otm1287a_get_lcd_videomode, mipid_otm1287a_lcd_setup}
 	},
 #endif
 	{
@@ -364,6 +372,8 @@ static void mipi_dsi_enable_controller(struct mipi_dsi_info *mipi_dsi,
 
 		val = DSI_PCKHDL_CFG_EN_BTA |
 				DSI_PCKHDL_CFG_EN_ECC_RX |
+				DSI_PCKHDL_CFG_EN_EOTP_RX |
+				DSI_PCKHDL_CFG_EN_EOTP_TX |
 				DSI_PCKHDL_CFG_EN_CRC_RX;
 
 		mipi_dsi_write_register(mipi_dsi, MIPI_DSI_PCKHDL_CFG, val);
@@ -485,7 +495,7 @@ static inline void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
 		mipi_dsi_read_register(mipi_dsi, MIPI_DSI_CMD_MODE_CFG, &val);
 		val &= ~MIPI_DSI_CMD_MODE_CFG_EN_CMD_MODE;
 		mipi_dsi_write_register(mipi_dsi, MIPI_DSI_CMD_MODE_CFG, val);
-		val = DSI_VID_MODE_CFG_EN | DSI_VID_MODE_CFG_EN_BURSTMODE |
+		val = DSI_VID_MODE_CFG_EN | /*DSI_VID_MODE_CFG_EN_BURSTMODE |*/
 				DSI_VID_MODE_CFG_EN_LP_MODE;
 		mipi_dsi_write_register(mipi_dsi, MIPI_DSI_VID_MODE_CFG, val);
 		mipi_dsi_write_register(mipi_dsi, MIPI_DSI_PWR_UP,
@@ -837,7 +847,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	struct resource *res;
 	u32 dev_id, disp_id;
 	const char *lcd_panel;
-	int mux;
+	unsigned int mux;
 	int ret = 0;
 
 	if (!np) {
@@ -921,15 +931,18 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		}
 	} else {
 		mipi_dsi->disp_power_on = NULL;
+		return -EPROBE_DEFER;
 	}
-
-	ret = device_reset(&pdev->dev);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to reset: %d\n", ret);
+/*
+*	ret = device_reset(&pdev->dev);
+*	if (ret) {
+*		if (ret != -EPROBE_DEFER)
+*			dev_err(&pdev->dev, "failed to reset: %d\n", ret);
+*		goto dev_reset_fail;
+*	}
+*/
+	if 0
 		goto dev_reset_fail;
-	}
-
 	if (of_id)
 		mipi_dsi->bus_mux = of_id->data;
 
@@ -943,7 +956,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	mux = mipi_dsi->bus_mux->get_mux(dev_id, disp_id);
 	if (mux >= 0)
 		regmap_update_bits(mipi_dsi->regmap, mipi_dsi->bus_mux->reg,
-				   mipi_dsi->bus_mux->mask, (unsigned int)mux);
+				   mipi_dsi->bus_mux->mask, mux);
 	else
 		dev_warn(&pdev->dev, "invalid dev_id or disp_id muxing\n");
 
@@ -1023,7 +1036,7 @@ static int __init mipi_dsi_init(void)
 		pr_err("mipi_dsi_driver register failed\n");
 		return -ENODEV;
 	}
-	pr_debug("MIPI DSI driver module loaded: %s\n", mipi_dsi_driver.driver.name);
+	pr_info("MIPI DSI driver module loaded\n");
 	return 0;
 }
 

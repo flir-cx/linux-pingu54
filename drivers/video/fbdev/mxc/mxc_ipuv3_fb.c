@@ -3020,7 +3020,7 @@ static int mxcfb_dispdrv_init(struct platform_device *pdev,
 	if (IS_ERR(mxcfbi->dispdrv)) {
 		ret = PTR_ERR(mxcfbi->dispdrv);
 		dev_err(&pdev->dev, "NO mxc display driver found!\n");
-		return ret;
+		return -EPROBE_DEFER;
 	} else {
 		/* fix-up  */
 		mxcfbi->ipu_di_pix_fmt = setting.if_fmt;
