@@ -17,13 +17,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
-
-/*
+ *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
  * Version 2 or later at the following locations:
@@ -163,5 +157,9 @@ void mipid_rm68191_get_lcd_videomode(struct fb_videomode **mode, int *size,
                                      struct mipi_lcd_config **data);
 int mipid_rm68191_lcd_setup(struct mipi_dsi_info *mipi_dsi);
 #endif
-
+#ifdef CONFIG_FB_MXC_ORISE_OTM1287A
+void mipid_otm1287a_get_lcd_videomode(struct fb_videomode **mode, int *size,
+		struct mipi_lcd_config **data);
+int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *);
+#endif
 #endif
