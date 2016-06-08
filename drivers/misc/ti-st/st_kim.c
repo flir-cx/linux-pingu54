@@ -862,47 +862,11 @@ static int kim_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int kim_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	struct ti_st_plat_data	*pdata;
-
-	if (pdev->dev.of_node) {
-		pr_debug("use device tree data");
-		pdata = dt_pdata;
-	} else {
-		pdata = pdev->dev.platform_data;
-	}
-
-	if (pdata->suspend)
-		return pdata->suspend(pdev, state);
-
-	return 0;
-}
-
-static int kim_resume(struct platform_device *pdev)
-{
-	struct ti_st_plat_data	*pdata;
-
-	if (pdev->dev.of_node) {
-		pr_debug("use device tree data");
-		pdata = dt_pdata;
-	} else {
-		pdata = pdev->dev.platform_data;
-	}
-
-	if (pdata->resume)
-		return pdata->resume(pdev);
-
-	return 0;
-}
-
 /**********************************************************************/
 /* entry point for ST KIM module, called in from ST Core */
 static struct platform_driver kim_platform_driver = {
 	.probe = kim_probe,
 	.remove = kim_remove,
-	.suspend = kim_suspend,
-	.resume = kim_resume,
 	.driver = {
 		.name = "kim",
 		.of_match_table = of_match_ptr(kim_of_match),
