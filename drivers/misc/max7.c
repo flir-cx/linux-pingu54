@@ -456,7 +456,12 @@ ssize_t max7_i2c_read(struct file *file, char __user *buf, size_t count, loff_t 
 		len=kfifo_len(&i2cfifo);
 	}
 	if(count < len) len = count;
-	kfifo_to_user(&i2cfifo,buf,len,&copied);
+
+	if(kfifo_to_user(&i2cfifo,buf,len, &copied)){
+	  pr_err("%s: can't copy %d bytes to buf\n", __func__, len);
+	  return -EFAULT;
+	  return 0;
+	}
 	return len;
 }
 
