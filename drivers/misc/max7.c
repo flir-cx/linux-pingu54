@@ -39,8 +39,11 @@
 #include <linux/spinlock.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/consumer.h>
+#include <linux/kfifo.h>
 
+#define FIFO_SIZE       512
 
+static DECLARE_KFIFO(i2cfifo, unsigned char, FIFO_SIZE);
 
 //static DEFINE_SPINLOCK(spinlockp);
 
@@ -122,11 +125,7 @@ static irqreturn_t max7_isr(int irq, void *dev_id)
 		{
 			dev_err(&client->dev, "Fail reading message stream..\n");
 		}
-		if(strlen(max7->rdkbuf) > 0){
-		  atomic_set(&max7->write, 1);
-		}
-	} else if (streamlen < 0){
-		dev_err(&client->dev, "Failed reciving streamlength\n");
+		kfifo_in(&i2cfifo, max7->rdkbuf, strlen(max7->rdkbuf));
 	}
 
 	return IRQ_HANDLED;
@@ -448,19 +447,16 @@ ssize_t max7_i2c_write(struct file *file, const char __user *buf, size_t count, 
 
 ssize_t max7_i2c_read(struct file *file, char __user *buf, size_t count, loff_t *p_off)
 {
-	struct i2c_client *client = max7->client;
 	size_t len = 0;	
-	while(!atomic_read(&max7->write)){
-		usleep_range(100,2000);
-	};
-	len=strlen(max7->rdkbuf);
-	if(copy_to_user((void __user *)buf, max7->rdkbuf, len)){
-		dev_err(&client->dev, "can't copy %d bytes to buf\n", len);
-		//return -EFAULT;
-		return 0;
+	unsigned int copied;
+
+	len=kfifo_len(&i2cfifo);
+	while(len == 0){ //block call until we have data in buffer...
+		usleep_range(1,10);
+		len=kfifo_len(&i2cfifo);
 	}
-	max7->rdkbuf[0]=0;
-	atomic_set(&max7->write, 0);
+	if(count < len) len = count;
+	kfifo_to_user(&i2cfifo,buf,len,&copied);
 	return len;
 }
 
@@ -573,7 +569,6 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
                 goto err_free_pdata;
 	}
 
-	atomic_set(&max7->write,0);
 	max7->irqpin = of_get_named_gpio_flags(node, "interrupt-pin", 0, NULL);
 
 	if(max7->irqpin < 0){
@@ -606,6 +601,9 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
                 dev_err(dev, "Miscdevice register failed\n");
                 goto err_0;
         }
+
+
+	INIT_KFIFO(i2cfifo);
 
 	max7->rdkbuf = kzalloc(GPSSIZE, GFP_KERNEL);
 	if (!max7->rdkbuf) {
