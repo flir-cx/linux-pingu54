@@ -20,6 +20,7 @@ struct as3649_platform_data {
 	void (*enable)(struct device *dev, bool on); /* callback to get/
 					release resources for AS3649*/
 	int autosuspend_delay_ms; /* For pm_runtime_set_autosuspend_delay*/
+	int reset_gpio;
 	bool use_tx_mask; /* enable current reduction in flash mode using
 			     TXMASK_TORCH pin */
 	u16 I_limit_mA; /* AS3649: 2500, 2900, 3300, 3700 mA for the coil*/
