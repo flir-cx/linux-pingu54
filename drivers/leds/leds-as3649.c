@@ -29,6 +29,8 @@
 #include <linux/slab.h>
 #include <linux/leds-as3649.h>
 #include <linux/leds.h>
+#include <linux/reset.h>
+#include <linux/of_gpio.h>
 
 #define AS3649_CURR_STEP          3922 /* uA */
 #define AS3649_CURR_STEP_BOOST    4902 /* uA */
@@ -1226,12 +1228,20 @@ static struct as3649_platform_data *as3649_setup_dt(struct i2c_client *client)
 {
 	struct as3649_platform_data *pdata;
 	struct device_node *np = client->dev.of_node;
-
+	int ret;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
+	pdata->reset_gpio  = of_get_named_gpio(np, "reset-gpio", 0);
+	if (gpio_is_valid(pdata->reset_gpio)) {
+		ret = devm_gpio_request_one(&client->dev, pdata->reset_gpio,
+						GPIOF_OUT_INIT_HIGH, "leds-as3649 reset");
+		if (ret) {
+			dev_err(&client->dev, "unable to get reset gpio\n");
+		}
+	}
 	if (of_property_read_bool(np, "use_tx_mask"))
 		pdata->use_tx_mask = true;
 
@@ -1337,7 +1347,6 @@ static int as3649_probe(struct i2c_client *client,
 	struct as3649_platform_data *as3649_pdata = client->dev.platform_data;
 	int id1, i;
 	int err = 0;
-
 	if (client->dev.of_node)
 	{
 		as3649_pdata = as3649_setup_dt(client);
