@@ -173,7 +173,7 @@
 #define FXOS8700_PRE_DEVICE_ID 		0xC4
 #define FXOS8700_DATA_BUF_SIZE		6
 #define FXOS8700_DELAY_DEFAULT		200 	/* msecs */
-#define FXOS8700_POSITION_DEFAULT	1 	/* msecs */
+#define FXOS8700_POSITION_DEFAULT	8
 
 #define FXOS8700_TYPE_ACC 	0x00
 #define FXOS8700_TYPE_MAG 	0x01
@@ -225,7 +225,8 @@ static int fxos8700_position_settings[8][3][3] = {
 	{ { 0, -1, 0}, {-1, 0, 0}, {0, 0, -1} },
 	{ {-1, 0, 0}, { 0, 1, 0}, {0, 0, -1} },
 	{ { 0, 1, 0}, { 1, 0, 0}, {0, 0, -1} },
-	{ { 1, 0, 0}, { 0, -1, 0}, {0, 0, -1} },
+	{ { 1, 0, 0}, { 0, -1, 0}, {0, 0, 1} }  //Axis X forward, Y to the right, Z down
+	                                         //Matches Accelerometer calculations...
 };
 
 static int fxos8700_data_convert(struct fxos8700_data_axis *axis_data, int position)
@@ -301,10 +302,10 @@ static int fxos8700_device_init(struct i2c_client *client)
 	result = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, 0x00);
 	if (result < 0)
 		goto out;
-	result = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG1, 0x1F);
+	result = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG1, 0xDF);
 	if (result < 0)
 		goto out;
-	result = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG2, 0x5c);
+	result = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG2, 0x4c);
 	if (result < 0)
 		goto out;
 	result = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, 0x03 << 3);
