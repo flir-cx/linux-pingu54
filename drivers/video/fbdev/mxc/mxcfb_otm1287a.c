@@ -110,7 +110,7 @@ static struct reg_value lcd_setup[] =
 	{0xC000,12,{0xcf,0x3D, 0x3D, 0x20, 0x20, 0x00, 0x00, 0x01, 0x80, 0x10, 0x03, 0x03}},//GOA ECLK Setting
 
 	{0xB500, 7,{0xc5,0x3F, 0xFF, 0xFF, 0x3F, 0xFF, 0xFF}},//TCON_GOA_OUT Setting
-	{0x0000,21,{0xe1,0x08, 0x12, 0x18, 0x25, 0x2E, 0x3A, 0x37, 0x5F, 0x51, 0x6B, 0x98, 0x80, 0x91, 0x5F, 0x47, 0x39, 0x37, 0x29, 0x21, 0x00}},//Gamma Correction Characteristics Setting (2.2 + )
+	{0x0000,21,{0xe1,0x08, 0x12, 0x18, 0x25, 0x2E, 0x3A, 0x37, 0x5F, 0x51, 0x6B, 0x98, 0x80, 0x91, 0x5F, 0x47, 0x39, 0x37, 0x29, 0x21, 0x1A}},//Gamma Correction Characteristics Setting (2.2 + )
 	{0x0000,21,{0xe2,0x08, 0x12, 0x18, 0x25, 0x2E, 0x3A, 0x37, 0x5F, 0x51, 0x6B, 0x98, 0x80, 0x91, 0x5F, 0x47, 0x39, 0x37, 0x29, 0x21, 0x1A}},//Gamma Correction Characteristics Setting (2.2 - )
 
 	{0x9300, 2,{0xb0,0x8c}},							//cd err sel.
@@ -131,8 +131,8 @@ static struct reg_value lcd_setup[] =
 
 static struct fb_videomode otm_lcd_modedb[] = {
 	{
-	 "ORISE-VGA", 60, 640, 480, 43466,
-	 52, 52,
+	 "ORISE-VGA", 60, 640, 480, 34422,
+	 150, 150,
 	 16, 16,
 	 2,2,
 	 FB_SYNC_OE_LOW_ACT,
@@ -160,8 +160,8 @@ static int otm1287a_write_reg(struct mipi_dsi_info *mipi_dsi, u32 reg, u32 data)
 	int err;
 	int buf = reg | (data <<8);
 
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
-		&buf, 2);
+	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		&buf, 0);
 	if(err)
 		dev_err(&mipi_dsi->pdev->dev,"otm1287a_write_reg err:%d \n",err);
 	return err;
@@ -169,8 +169,9 @@ static int otm1287a_write_reg(struct mipi_dsi_info *mipi_dsi, u32 reg, u32 data)
 
 static int otm1287a_write_cmd(struct mipi_dsi_info *mipi_dsi, u32 cmd)
 {
-	int err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
-		&cmd, 1);
+	int err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE,
+		&cmd, 0);
+	msleep(1);
 	if(err)
 		dev_err(&mipi_dsi->pdev->dev,"otm1287a_write_cmd err:%d \n",err);
 	return err;
@@ -184,10 +185,14 @@ int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 
 	for(i=0;i<ARRAY_SIZE(lcd_setup);i++)
 	{
-		mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_LONG_WRITE,
-				&lcd_setup[i].address_shift, 2);
-		mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_LONG_WRITE,
-				(u32*) lcd_setup[i].buf, lcd_setup[i].buf_size);
+		mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+				&lcd_setup[i].address_shift, 0);
+		if(lcd_setup[i].buf_size == 2)
+			mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+					(u32*) lcd_setup[i].buf, 0);
+		else
+			mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_LONG_WRITE,
+					(u32*) lcd_setup[i].buf, lcd_setup[i].buf_size);
 	}
 
 	otm1287a_write_reg(mipi_dsi,OTM1287A_REG_MADCTL,0x2);
