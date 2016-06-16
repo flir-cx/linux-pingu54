@@ -148,7 +148,7 @@ static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 				MIPI_DSI_CMD_PKT_STATUS, &status);
 			while ((status & DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL) ==
 					 DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL) {
-				msleep(1);
+				udelay(50);
 				timeout++;
 				if (timeout == MIPI_DSI_REG_RW_TIMEOUT)
 					return -EIO;
@@ -160,7 +160,7 @@ static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 		if (len > 0) {
 			while ((status & DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL) ==
 					 DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL) {
-				msleep(1);
+				udelay(50);
 				timeout++;
 				if (timeout == MIPI_DSI_REG_RW_TIMEOUT)
 					return -EIO;
@@ -182,7 +182,7 @@ static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 	mipi_dsi_read_register(mipi_dsi, MIPI_DSI_CMD_PKT_STATUS, &status);
 	while ((status & DSI_CMD_PKT_STATUS_GEN_CMD_FULL) ==
 			 DSI_CMD_PKT_STATUS_GEN_CMD_FULL) {
-		msleep(1);
+		udelay(50);
 		timeout++;
 		if (timeout == MIPI_DSI_REG_RW_TIMEOUT)
 			return -EIO;
@@ -196,7 +196,7 @@ static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 			 DSI_CMD_PKT_STATUS_GEN_CMD_EMPTY) ||
 			!((status & DSI_CMD_PKT_STATUS_GEN_PLD_W_EMPTY) ==
 			DSI_CMD_PKT_STATUS_GEN_PLD_W_EMPTY)) {
-		msleep(1);
+		udelay(50);
 		timeout++;
 		if (timeout == MIPI_DSI_REG_RW_TIMEOUT)
 			return -EIO;
@@ -372,8 +372,8 @@ static void mipi_dsi_enable_controller(struct mipi_dsi_info *mipi_dsi,
 
 		val = DSI_PCKHDL_CFG_EN_BTA |
 				DSI_PCKHDL_CFG_EN_ECC_RX |
-				DSI_PCKHDL_CFG_EN_EOTP_RX |
-				DSI_PCKHDL_CFG_EN_EOTP_TX |
+				//DSI_PCKHDL_CFG_EN_EOTP_RX |
+				//DSI_PCKHDL_CFG_EN_EOTP_TX |
 				DSI_PCKHDL_CFG_EN_CRC_RX;
 
 		mipi_dsi_write_register(mipi_dsi, MIPI_DSI_PCKHDL_CFG, val);
