@@ -643,7 +643,7 @@ err_01:
 err_free_pdata:
 	devm_gpio_free(&client->dev, max7->resetpin);
 err_001:
-//	error = regulator_disable(max7->supply);
+	regulator_disable(max7->supply);
 	kfree(max7);
 	max7=0;
 err_out:
@@ -671,6 +671,21 @@ static const struct i2c_device_id max7_id[] = {
         { }
 };
 
+static int max7_resume(struct device *dev)
+{
+	return regulator_enable(max7->supply);
+}
+
+static int max7_suspend(struct device *dev)
+{
+	return regulator_disable(max7->supply);
+}
+
+static const struct dev_pm_ops max7_pmops = {
+	.suspend = max7_suspend,
+	.resume = max7_resume,
+};
+
 MODULE_DEVICE_TABLE(i2c, max7_id);
 #ifdef CONFIG_OF
 static const struct of_device_id ublox_of_match[] = {
@@ -689,7 +704,7 @@ static struct i2c_driver max7_driver = {
                 .owner  = THIS_MODULE,
                 .name   = "max7",
 		.of_match_table	= of_match_ptr(ublox_of_match),
-		
+		.pm	= &max7_pmops,
         },
         .id_table       = max7_id,
         .probe          = max7_probe,
