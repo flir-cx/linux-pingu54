@@ -167,13 +167,19 @@
 #define	SENSOR_GET_DELAY_TIME		_IOR(SENSOR_IOCTL_BASE, 4, int)
 #define	SENSOR_SET_DELAY_TIME		_IOR(SENSOR_IOCTL_BASE, 5, int)
 #define	SENSOR_GET_RAW_DATA		_IOR(SENSOR_IOCTL_BASE, 6, short[3])
+#define SENSOR_MAG_ENABLE_HARDIRON_CALIBRATION _IOR(SENSOR_IOCTL_BASE, 7, int)
+#define SENSOR_MAG_RESET_HARDIRON_RESET  _IOR(SENSOR_IOCTL_BASE, 8, int)
+#define SENSOR_MAG_DISABLE_MAXMIN_DETECTION _IOR(SENSOR_IOCTL_BASE,9,int)
+#define SENSOR_MAG_ENABLE_MAXMIN_DETECTION _IOR(SENSOR_IOCTL_BASE,10,int)
+#define SENSOR_MAG_GET_MINMAX _IOR(SENSOR_IOCTL_BASE,11,short[6])
+#define SENSOR_MAG_SET_MINMAX _IOW(SENSOR_IOCTL_BASE,12,short[6])
 
 #define FXOS8700_I2C_ADDR		0x1E
 #define FXOS8700_DEVICE_ID		0xC7
 #define FXOS8700_PRE_DEVICE_ID 		0xC4
 #define FXOS8700_DATA_BUF_SIZE		6
 #define FXOS8700_DELAY_DEFAULT		200 	/* msecs */
-#define FXOS8700_POSITION_DEFAULT	8
+#define FXOS8700_POSITION_DEFAULT	7
 
 #define FXOS8700_TYPE_ACC 	0x00
 #define FXOS8700_TYPE_MAG 	0x01
@@ -187,6 +193,8 @@
 
 #define ABSMAX_ACC_VAL          0x01FF
 #define ABSMIN_ACC_VAL          -(ABSMAX_ACC_VAL)
+#define ABSMAX_MAG_VAL          0x01FF
+#define ABSMIN_MAG_VAL          -(ABSMAX_MAG_VAL)
 #define FXOS8700_POLL_INTERVAL	400
 #define FXOS8700_POLL_MAX	800
 #define FXOS8700_POLL_MIN	100
@@ -225,7 +233,7 @@ static int fxos8700_position_settings[8][3][3] = {
 	{ { 0, -1, 0}, {-1, 0, 0}, {0, 0, -1} },
 	{ {-1, 0, 0}, { 0, 1, 0}, {0, 0, -1} },
 	{ { 0, 1, 0}, { 1, 0, 0}, {0, 0, -1} },
-	{ { 1, 0, 0}, { 0, -1, 0}, {0, 0, 1} }  //Axis X forward, Y to the right, Z down
+	{ { 1,0, 0}, { 0,-1, 0}, {0, 0, 1} }  //Axis X forward, Y to the right, Z down
 	                                         //Matches Accelerometer calculations...
 };
 
@@ -356,6 +364,50 @@ fxos8700_read_data(struct i2c_client *client, struct fxos8700_data_axis *data, i
 	return 0;
 }
 
+static int
+fxos8700_read_minmax(struct i2c_client *client, struct fxos8700_data_axis *datamax, struct fxos8700_data_axis *datamin, int type)
+{
+	u8 tmp_max_data[FXOS8700_DATA_BUF_SIZE];
+	u8 tmp_min_data[FXOS8700_DATA_BUF_SIZE];
+	int ret;
+	u8 reg;
+
+	if (type == FXOS8700_TYPE_ACC)
+		reg = FXOS8700_MAX_X_MSB;
+	else
+		reg = FXOS8700_MAX_X_MSB;
+
+	ret = i2c_smbus_read_i2c_block_data(client, reg, FXOS8700_DATA_BUF_SIZE, tmp_max_data);
+	if (ret < FXOS8700_DATA_BUF_SIZE) {
+		dev_err(&client->dev, "i2c block read %s failed\n",
+			(type == FXOS8700_TYPE_ACC ? "acc" : "mag"));
+		return -EIO;
+	}
+
+	if (type == FXOS8700_TYPE_ACC)
+		reg = FXOS8700_MIN_X_MSB;
+	else
+		reg = FXOS8700_MIN_X_MSB;
+
+	ret = i2c_smbus_read_i2c_block_data(client, reg, FXOS8700_DATA_BUF_SIZE, tmp_min_data);
+	if (ret < FXOS8700_DATA_BUF_SIZE) {
+		dev_err(&client->dev, "i2c block read %s failed\n",
+			(type == FXOS8700_TYPE_ACC ? "acc" : "mag"));
+		return -EIO;
+	}
+
+
+	datamax->x = ((tmp_max_data[0] << 8) & 0xff00) | tmp_max_data[1];
+	datamax->y = ((tmp_max_data[2] << 8) & 0xff00) | tmp_max_data[3];
+	datamax->z = ((tmp_max_data[4] << 8) & 0xff00) | tmp_max_data[5];
+	datamin->x = ((tmp_min_data[0] << 8) & 0xff00) | tmp_min_data[1];
+	datamin->y = ((tmp_min_data[2] << 8) & 0xff00) | tmp_min_data[3];
+	datamin->z = ((tmp_min_data[4] << 8) & 0xff00) | tmp_min_data[5];
+	return 0;
+}
+
+
+
 static long fxos8700_acc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct fxos8700_data *pdata = file->private_data;
@@ -461,11 +513,16 @@ static long fxos8700_mag_ioctl(struct file *file, unsigned int cmd, unsigned lon
 	struct fxos8700_data *pdata = file->private_data;
 	void __user *argp = (void __user *)arg;
 	struct fxos8700_data_axis data;
+	struct fxos8700_data_axis datamin;
+	struct fxos8700_data_axis datamax;
 	long ret = 0;
 	short sdata[3];
+	short minmaxdata[6];
 	int enable;
 	int delay;
 	int position;
+	int tmp;
+
 
 	if (!pdata) {
 		printk(KERN_ERR "fxos8700 struct datt point is NULL.");
@@ -530,6 +587,50 @@ static long fxos8700_mag_ioctl(struct file *file, unsigned int cmd, unsigned lon
 			}
 		}
 		break;
+
+	case SENSOR_MAG_ENABLE_HARDIRON_CALIBRATION:
+		tmp = i2c_smbus_read_byte_data(pdata->client, FXOS8700_M_CTRL_REG1);
+		tmp = tmp | 1<<7; //Enable m_acal bit
+		i2c_smbus_write_byte_data(pdata->client, FXOS8700_M_CTRL_REG1, tmp);
+
+		tmp = i2c_smbus_read_byte_data(pdata->client, FXOS8700_M_CTRL_REG2);
+		tmp = tmp | 1<<4; //Enable  m_maxim bit
+		i2c_smbus_write_byte_data(pdata->client, FXOS8700_M_CTRL_REG2, tmp);
+
+		break;
+	case SENSOR_MAG_RESET_HARDIRON_RESET:
+		tmp=i2c_smbus_read_byte_data(pdata->client, FXOS8700_M_CTRL_REG2);
+		tmp = tmp | 1<<2;  //Enable m_maxim_rst, reset calibration values..
+		i2c_smbus_write_byte_data(pdata->client, FXOS8700_M_CTRL_REG2,tmp);
+		break;
+	case SENSOR_MAG_DISABLE_MAXMIN_DETECTION:
+		tmp=i2c_smbus_read_byte_data(pdata->client, FXOS8700_M_CTRL_REG2);
+		tmp = tmp | (1<<4);  //Disble m_maxim_rst, reset calibration values..
+		i2c_smbus_write_byte_data(pdata->client, FXOS8700_M_CTRL_REG2,tmp);
+		break;
+	case SENSOR_MAG_ENABLE_MAXMIN_DETECTION:
+		tmp=i2c_smbus_read_byte_data(pdata->client, FXOS8700_M_CTRL_REG2);
+		tmp = tmp & ~(1<<4);  //Disble m_maxim_rst, reset calibration values..
+		i2c_smbus_write_byte_data(pdata->client, FXOS8700_M_CTRL_REG2,tmp);
+		break;
+	case SENSOR_MAG_GET_MINMAX:
+		ret = fxos8700_read_minmax(pdata->client, &datamax, &datamin, FXOS8700_TYPE_MAG);
+		if (!ret) {
+			minmaxdata[0] = datamax.x;
+			minmaxdata[1] = datamax.y;
+			minmaxdata[2] = datamax.z;
+			minmaxdata[3] = datamin.x;
+			minmaxdata[4] = datamin.y;
+			minmaxdata[5] = datamin.z;
+			if (copy_to_user(argp, minmaxdata, sizeof(minmaxdata))) {
+				printk(KERN_ERR "SENSOR_GET_RAW_DATA copy_to_user failed.");
+				ret = -EFAULT;
+			}
+		}
+		break;
+	case SENSOR_MAG_SET_MINMAX:
+		break;
+
 	default:
 		ret = -1;
 	}
@@ -856,9 +957,9 @@ static int fxo8700_register_polled_device(struct fxos8700_data *pdata)
 	idev_mag->dev.parent = &pdata->client->dev;
 
 	idev_mag->evbit[0] = BIT_MASK(EV_ABS);
-	input_set_abs_params(idev_mag, ABS_X, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
-	input_set_abs_params(idev_mag, ABS_Y, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
-	input_set_abs_params(idev_mag, ABS_Z, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
+	input_set_abs_params(idev_mag, ABS_X, ABSMIN_MAG_VAL, ABSMAX_MAG_VAL, 0, 0);
+	input_set_abs_params(idev_mag, ABS_Y, ABSMIN_MAG_VAL, ABSMAX_MAG_VAL, 0, 0);
+	input_set_abs_params(idev_mag, ABS_Z, ABSMIN_MAG_VAL, ABSMAX_MAG_VAL, 0, 0);
 
 //**************
 
