@@ -446,8 +446,11 @@ static long fxos8700_acc_ioctl(struct file *file, unsigned int cmd, unsigned lon
 		if (pdata->client) {
 			ret = fxos8700_change_mode(pdata->client, FXOS8700_TYPE_ACC,
 						   enable ? FXOS8700_ACTIVED : FXOS8700_STANDBY);
-			if (!ret)
+			if (!ret){
 				atomic_set(&pdata->acc_active, enable);
+				atomic_set(&pdata->acc_active_poll, enable);
+			}
+
 		}
 		break;
 	case SENSOR_GET_DELAY_TIME:
@@ -551,8 +554,10 @@ static long fxos8700_mag_ioctl(struct file *file, unsigned int cmd, unsigned lon
 		if (pdata->client) {
 			ret = fxos8700_change_mode(pdata->client, FXOS8700_TYPE_MAG,
 						   enable ? FXOS8700_ACTIVED : FXOS8700_STANDBY);
-			if (!ret)
+			if (!ret){
 				atomic_set(&pdata->mag_active, enable);
+				atomic_set(&pdata->mag_active_poll, enable);
+			}
 		}
 		break;
 	case SENSOR_GET_DELAY_TIME:
