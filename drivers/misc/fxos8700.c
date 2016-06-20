@@ -310,10 +310,10 @@ static int fxos8700_device_init(struct i2c_client *client)
 	result = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, 0x00);
 	if (result < 0)
 		goto out;
-	result = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG1, 0xDF);
+	result = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG1, 0x1F);
 	if (result < 0)
 		goto out;
-	result = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG2, 0x4c);
+	result = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG2, 0x0c);
 	if (result < 0)
 		goto out;
 	result = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, 0x03 << 3);
