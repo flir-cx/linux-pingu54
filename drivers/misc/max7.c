@@ -40,6 +40,7 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/consumer.h>
 #include <linux/kfifo.h>
+#include <asm/ioctls.h>
 
 #define FIFO_SIZE       512
 
@@ -310,8 +311,8 @@ static long max7_i2c_ioctl(struct file *filep,unsigned int cmd, unsigned long ar
 
 	switch(cmd) {
 
-	case 0x541b:
-		len=strlen(max7->rdkbuf);
+	case FIONREAD:
+		len=kfifo_len(&i2cfifo);
 		ret = __put_user(len, (int __user *)arg);
 		break;
 
