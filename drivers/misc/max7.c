@@ -600,7 +600,7 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	//regulator has been enabled, sleep a while 
 	// for gps to become ready
-	usleep_range(3000,8000);
+	usleep_range(100000,250000);
 	
         max7->client = client;
 	ret = max7_initialise(client);
