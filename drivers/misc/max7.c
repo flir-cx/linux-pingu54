@@ -41,6 +41,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/kfifo.h>
 #include <asm/ioctls.h>
+#include <linux/pm_runtime.h>
 
 #define FIFO_SIZE       512
 
@@ -265,8 +266,7 @@ static int max7_read_msg_stream_len(struct i2c_client *client)
 		}
 		streamlen = ((buf[0] << 8) | buf[1]);
 		retry++; 
-		//		udelay(100);
-		//		mdelay(100);  
+
 	} 
 	return streamlen;
 }
@@ -387,7 +387,7 @@ static int process_ublox_ack(struct i2c_client *client, u8 msg_class, u16 msg_ID
 static int max7_i2c_open(struct inode *inode, struct file *file)
 {
 	struct i2c_client *client = max7->client;
-
+	pm_runtime_get(&client->dev);
  	if(max7_device_Open)
 	{
 		dev_err(&client->dev, "%s:Device Busy \n", __func__);
@@ -404,12 +404,15 @@ static int max7_i2c_open(struct inode *inode, struct file *file)
 
 static int max7_i2c_release(struct inode *inode, struct file *file)
 {
+	
+	struct i2c_client *client = max7->client;
         if(max7_device_Open)
 	{
 		max7_device_Open--;                
 	}
 	disable_irq(gpio_to_irq(max7->irqpin));
-
+	pm_runtime_put(&client->dev);
+	pm_runtime_suspend(&client->dev);
         return 0;
 }
 
@@ -489,7 +492,6 @@ static int max7_initialise(struct i2c_client *client)
 	char data_enablei2cirq[] ={0x00,0x00,0x1b,0x00,0x84,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x07,0x00,0x07,0x00,0x02,0x00,0x00,0x00};
 	//Enable enhanced timeout, (does not shutdown DDC port)
 
-//	mdelay(100);
 	ret = send_ublox_request(client, UBX_CLASS_CFG, 0, &data_disableuart, sizeof(data_disableuart));
 	if( ret < 0 ){
 //		dev_err(&client->dev, "Failed to send disableuart request\n");
@@ -526,7 +528,7 @@ out:
 
 static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	int error;
+	int ret;
 	struct device *dev = &client->dev;
 	struct device_node *node;
 
@@ -539,32 +541,34 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
         if (!max7){
 		return -ENOMEM;
 	}
-
+	
 	max7->supply = devm_regulator_get(dev, "vin");
 	if(IS_ERR(max7->supply)){
-	       dev_err(dev,"can't get regulator vin-supply");
-               error = PTR_ERR(max7->supply);
+               ret = PTR_ERR(max7->supply);
+	       if (ret != -EPROBE_DEFER){
+		       dev_err(dev,"can't get regulator vin-supply (%i)", ret);
+	       }
                max7->supply=NULL;
-               return error;
-
+               return ret;
 	}
-	error = regulator_enable(max7->supply);
+
+	ret = regulator_enable(max7->supply);
 
 	max7->resetpin = of_get_named_gpio_flags(node, "reset-pin", 0, NULL);
 	if(max7->resetpin < 0){
 		dev_err(dev, "Failed reading reset pin\n");
-		error = -EINVAL;
+		ret = -EINVAL;
 		goto err_001;
 	};
 
 	if (gpio_is_valid(max7->resetpin)) {
-		error = devm_gpio_request_one(&client->dev, max7->resetpin,
+		ret = devm_gpio_request_one(&client->dev, max7->resetpin,
 					      GPIOF_OUT_INIT_HIGH, "Ublox reset");
 
-		if (error) {
+		if (ret) {
 			dev_err(&client->dev,
 				"Failed to request GPIO %d, error %d\n",
-				max7->resetpin, error);
+				max7->resetpin, ret);
 			goto err_001;
 		}
 	}
@@ -579,31 +583,34 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	if(max7->irqpin < 0){
 		dev_err(dev, "Failed reading interrupt pin\n");
-		error = -EINVAL;
+		ret = -EINVAL;
 		goto err_free_pdata;
 	};
 
 	if (gpio_is_valid(max7->irqpin)) {
-		error = devm_gpio_request_one(&client->dev, max7->irqpin,
+		ret = devm_gpio_request_one(&client->dev, max7->irqpin,
 					      GPIOF_IN, "Ublox IRQ");
-		if (error) {
+		if (ret) {
 			dev_err(&client->dev,
 				"Failed to request GPIO %d, error %d\n",
-				max7->irqpin, error);
+				max7->irqpin, ret);
 			goto err_01;
 		}
 	}
 
-//	msleep(200);
+	//regulator has been enabled, sleep a while 
+	// for gps to become ready
+	usleep_range(3000,8000);
+	
         max7->client = client;
-	error = max7_initialise(client);
-	if(error < 0){
-		error = -EPROBE_DEFER;
+	ret = max7_initialise(client);
+	if(ret < 0){
+		ret = -EPROBE_DEFER;
 		goto err_0;
 	}
 	i2c_set_clientdata(client, max7);
-        error = misc_register(&max7_gps_miscdevice);
-        if (error < 0) {
+        ret = misc_register(&max7_gps_miscdevice);
+        if (ret < 0) {
                 dev_err(dev, "Miscdevice register failed\n");
                 goto err_0;
         }
@@ -614,24 +621,33 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	max7->rdkbuf = kzalloc(GPSSIZE, GFP_KERNEL);
 	if (!max7->rdkbuf) {
 		dev_err(dev, "Failed allocating memory...\n");
-		error = -ENOMEM;
+		ret = -ENOMEM;
 		goto err_1;
 	}
-	error = devm_request_threaded_irq(&client->dev,
+	ret = devm_request_threaded_irq(&client->dev,
 					  gpio_to_irq(max7->irqpin),
 					  NULL, max7_isr,
 					  IRQF_TRIGGER_LOW|IRQF_ONESHOT,
 					  client->name, max7);
-	if (error) {
+	if (ret) {
 		dev_err(dev, "Unable to request IRQ.\n");
 		goto err_2;
 	}
 	disable_irq(gpio_to_irq(max7->irqpin));
-	
+
+	dev_err(dev, "Enableing pm_runtime support\n");
+	pm_runtime_enable(&client->dev);
+	pm_runtime_set_autosuspend_delay(&client->dev,2000);
+	pm_runtime_use_autosuspend(&client->dev);
+	pm_runtime_suspend(&client->dev);
+	ret = regulator_disable(max7->supply);
+
 	goto err_out;
 
 
 	devm_free_irq(&client->dev, gpio_to_irq(max7->irqpin), max7);
+
+
 err_2:
 	kfree(max7->rdkbuf);
 	max7->rdkbuf = 0;
@@ -649,7 +665,7 @@ err_001:
 	max7=0;
 err_out:
 
-	return error;
+	return ret;
 }
 
 static int max7_remove(struct i2c_client *client)
@@ -682,9 +698,12 @@ static int max7_suspend(struct device *dev)
 	return regulator_disable(max7->supply);
 }
 
+
 static const struct dev_pm_ops max7_pmops = {
 	.suspend = max7_suspend,
 	.resume = max7_resume,
+	.runtime_suspend = max7_suspend,
+	.runtime_resume = max7_resume,
 };
 
 MODULE_DEVICE_TABLE(i2c, max7_id);
