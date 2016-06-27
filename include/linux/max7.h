@@ -160,6 +160,7 @@ struct max7_data {
 	int resetpin;
 	unsigned char *rdkbuf;
 	atomic_t write;
+	atomic_t runtimesuspend;
 //	spinlock_t  spinlock;
 
 };
