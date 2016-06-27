@@ -695,7 +695,10 @@ static int max7_resume(struct device *dev)
 
 static int max7_suspend(struct device *dev)
 {
-	return regulator_disable(max7->supply);
+	if(regulator_is_enabled(max7->supply)){
+		return regulator_disable(max7->supply);
+	}
+	return 0;
 }
 
 
