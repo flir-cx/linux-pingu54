@@ -42,6 +42,7 @@
 #include <linux/kfifo.h>
 #include <asm/ioctls.h>
 #include <linux/pm_runtime.h>
+#include <linux/atomic.h>
 
 #define FIFO_SIZE       512
 
@@ -690,23 +691,40 @@ static const struct i2c_device_id max7_id[] = {
 
 static int max7_resume(struct device *dev)
 {
-	return regulator_enable(max7->supply);
+	if(atomic_read(&(max7->runtimesuspend)) == 0){
+		//max7 has not been suspended by runtime pm, disable max7
+		return regulator_enable(max7->supply);
+	}
+	return 0;
 }
 
 static int max7_suspend(struct device *dev)
 {
-	if(regulator_is_enabled(max7->supply)){
+	if(atomic_read(&(max7->runtimesuspend)) == 0){
+		//max7 has not been suspended by runtime pm, enable max7
 		return regulator_disable(max7->supply);
 	}
 	return 0;
+}
+
+static int max7_runtime_resume(struct device *dev)
+{
+	atomic_set(&(max7->runtimesuspend), 0);
+	return regulator_enable(max7->supply);
+}
+
+static int max7_runtime_suspend(struct device *dev)
+{
+	atomic_set(&(max7->runtimesuspend), 1);
+	return regulator_disable(max7->supply);
 }
 
 
 static const struct dev_pm_ops max7_pmops = {
 	.suspend = max7_suspend,
 	.resume = max7_resume,
-	.runtime_suspend = max7_suspend,
-	.runtime_resume = max7_resume,
+	.runtime_suspend = max7_runtime_suspend,
+	.runtime_resume = max7_runtime_resume,
 };
 
 MODULE_DEVICE_TABLE(i2c, max7_id);
