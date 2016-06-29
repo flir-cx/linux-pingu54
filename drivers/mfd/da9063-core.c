@@ -70,6 +70,15 @@ static struct resource da9063_hwmon_resources[] = {
 	},
 };
 
+static struct resource da9063_wake_resources[] = {
+	{
+		 .name	= "WAKE",
+		.start	= DA9063_IRQ_WAKE,
+		.end	= DA9063_IRQ_WAKE,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 
 static const struct mfd_cell da9063_common_devs[] = {
 	{
@@ -111,6 +120,12 @@ static const struct mfd_cell da9063_devs[] = {
 	{
 		.name		= DA9063_DRVNAME_POWEROFF,
 		.of_compatible	= "dlg,da9063-poweroff",
+	},
+	{
+		.name		= DA9063_DRVNAME_WAKE,
+		.num_resources	= ARRAY_SIZE(da9063_wake_resources),
+		.resources	= da9063_wake_resources,
+		.of_compatible	= "dlg,da9063-wake",
 	},
 };
 

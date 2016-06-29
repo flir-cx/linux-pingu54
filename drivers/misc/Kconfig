@@ -486,6 +486,13 @@ config HISI_HIKEY_USB
 	  switching between the dual-role USB-C port and the USB-A host ports
 	  using only one USB controller.
 
+config DA9063_WAKE
+	tristate "Dialog DA9063 wake"
+	depends on MFD_DA9063
+	help
+	  Support the wake function of Dialog DA9063 Power Management IC as a
+	   device wakeing the system from suspend.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
