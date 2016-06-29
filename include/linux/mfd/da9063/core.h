@@ -25,6 +25,7 @@
 #define DA9063_DRVNAME_RTC		"da9063-rtc"
 #define DA9063_DRVNAME_POWEROFF		"da9063-poweroff"
 #define DA9063_DRVNAME_VIBRATION	"da9063-vibration"
+#define DA9063_DRVNAME_WAKE		"da9063-wake"
 
 #define PMIC_CHIP_ID_DA9063		0x61
 
