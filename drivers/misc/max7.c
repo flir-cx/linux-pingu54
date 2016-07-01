@@ -642,6 +642,7 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_suspend(&client->dev);
 	ret = regulator_disable(max7->supply);
+	atomic_set(&(max7->runtimesuspend), 1);
 
 	goto err_out;
 
