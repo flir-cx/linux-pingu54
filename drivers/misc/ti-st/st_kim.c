@@ -184,7 +184,7 @@ static void kim_int_recv(struct kim_data_s *kim_gdata,
 			kim_gdata->rx_count = 2;
 			break;
 		default:
-			pr_info("unknown packet");
+			pr_info("unknown packet\n");
 			ptr++;
 			count--;
 			continue;
@@ -194,7 +194,7 @@ static void kim_int_recv(struct kim_data_s *kim_gdata,
 		kim_gdata->rx_skb =
 			alloc_skb(1024+8, GFP_ATOMIC);
 		if (!kim_gdata->rx_skb) {
-			pr_err("can't allocate mem for new packet");
+			pr_err("can't allocate mem for new packet\n");
 			kim_gdata->rx_state = ST_W4_PACKET_TYPE;
 			kim_gdata->rx_count = 0;
 			return;
@@ -252,7 +252,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	kim_gdata->version.maj_ver = maj_ver;
 	kim_gdata->version.min_ver = min_ver;
 
-	pr_info("%s", bts_scr_name);
+	pr_info("%s\n", bts_scr_name);
 	return 0;
 }
 
@@ -272,7 +272,7 @@ static void skip_change_remote_baud(unsigned char **ptr, long *len)
 		*len = *len - (sizeof(struct bts_action) +
 				((struct bts_action *)cur_action)->size);
 		/* warn user on not commenting these in firmware */
-		pr_warn("skipping the wait event of change remote baud");
+		pr_debug("skipping the wait event of change remote baud");
 	}
 }
 
@@ -331,7 +331,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 				 * ignore remote change
 				 * baud rate HCI VS command
 				 */
-				pr_warn("change remote baud"
+				pr_debug("change remote baud"
 				    " rate command in firmware");
 				skip_change_remote_baud(&ptr, &len);
 				break;
@@ -406,7 +406,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 			reinit_completion(&kim_gdata->kim_rcvd);
 			break;
 		case ACTION_DELAY:	/* sleep */
-			pr_info("sleep command in scr");
+			pr_debug("sleep command in scr");
 			action_ptr = &(((struct bts_action *)ptr)->data[0]);
 			mdelay(((struct bts_action_delay *)action_ptr)->msec);
 			break;
@@ -467,7 +467,7 @@ long st_kim_start(void *kim_data)
 	struct ti_st_plat_data	*pdata;
 	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
 
-	pr_info(" %s", __func__);
+	pr_debug(" %s", __func__);
 	if (kim_gdata->kim_pdev->dev.of_node) {
 		pr_debug("use device tree data");
 		pdata = dt_pdata;
@@ -487,7 +487,7 @@ long st_kim_start(void *kim_data)
 		reinit_completion(&kim_gdata->ldisc_installed);
 		/* send notification to UIM */
 		kim_gdata->ldisc_install = 1;
-		pr_info("ldisc_install = 1");
+		pr_debug("ldisc_install = 1");
 		sysfs_notify(&kim_gdata->kim_pdev->dev.kobj,
 				NULL, "install");
 		/* wait for ldisc to be installed */
@@ -503,7 +503,7 @@ long st_kim_start(void *kim_data)
 			continue;
 		} else {
 			/* ldisc installed now */
-			pr_info("line discipline installed");
+			pr_debug("line discipline installed");
 			err = download_firmware(kim_gdata);
 			if (err != 0) {
 				/*
@@ -554,7 +554,7 @@ long st_kim_stop(void *kim_data)
 	}
 
 	/* send uninstall notification to UIM */
-	pr_info("ldisc_install = 0");
+	pr_debug("ldisc_install = 0");
 	kim_gdata->ldisc_install = 0;
 	sysfs_notify(&kim_gdata->kim_pdev->dev.kobj, NULL, "install");
 
@@ -809,7 +809,7 @@ static int kim_probe(struct platform_device *pdev)
 	strncpy(kim_gdata->dev_name, pdata->dev_name, UART_DEV_NAME_LEN);
 	kim_gdata->flow_cntrl = pdata->flow_cntrl;
 	kim_gdata->baud_rate = pdata->baud_rate;
-	pr_info("sysfs entries created\n");
+	pr_debug("sysfs entries created\n");
 
 	kim_debugfs_dir = debugfs_create_dir("ti-st", NULL);
 
@@ -849,7 +849,7 @@ static int kim_remove(struct platform_device *pdev)
 	 */
 	debugfs_remove_recursive(kim_debugfs_dir);
 	sysfs_remove_group(&pdev->dev.kobj, &uim_attr_grp);
-	pr_info("sysfs entries removed");
+	pr_debug("sysfs entries removed");
 
 	kim_gdata->kim_pdev = NULL;
 	st_core_exit(kim_gdata->core_data);
