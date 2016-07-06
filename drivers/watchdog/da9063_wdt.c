@@ -18,6 +18,7 @@
 #include <linux/mfd/da9063/registers.h>
 #include <linux/mfd/da9063/core.h>
 #include <linux/regmap.h>
+#include <linux/jiffies.h>
 
 /*
  * Watchdog selector to timeout in seconds.
@@ -31,7 +32,7 @@ static const unsigned int wdt_timeout[] = { 0, 2, 4, 8, 16, 32, 65, 131 };
 #define DA9063_WDT_MIN_TIMEOUT		wdt_timeout[DA9063_TWDSCALE_MIN]
 #define DA9063_WDT_MAX_TIMEOUT		wdt_timeout[DA9063_TWDSCALE_MAX]
 #define DA9063_WDG_TIMEOUT		wdt_timeout[3]
-#define DA9063_RESET_PROTECTION_MS	256
+#define DA9063_RESET_PROTECTION_MS	512
 
 static unsigned int da9063_wdt_timeout_to_sel(unsigned int secs)
 {
@@ -119,13 +120,21 @@ static int da9063_wdt_stop(struct watchdog_device *wdd)
 static int da9063_wdt_ping(struct watchdog_device *wdd)
 {
 	struct da9063 *da9063 = watchdog_get_drvdata(wdd);
-	int ret;
+	int ret = 0;
+	static unsigned long last_ping = 0;
+	unsigned long nextpingdelta = msecs_to_jiffies(wdd->min_hw_heartbeat_ms);
 
-	ret = regmap_write(da9063->regmap, DA9063_REG_CONTROL_F,
+	if(last_ping + nextpingdelta < jiffies)
+	{
+//		dev_err(wdt->da9063->dev, "Time for a new ping...\n");
+		last_ping = jiffies;
+
+		ret = regmap_write(da9063->regmap, DA9063_REG_CONTROL_F,
 			   DA9063_WATCHDOG);
-	if (ret)
-		dev_alert(da9063->dev, "Failed to ping the watchdog (err = %d)\n",
-			  ret);
+		if (ret)
+			dev_alert(da9063->dev, "Failed to ping the watchdog (err = %d)\n",
+				  ret);
+	}
 
 	return ret;
 }
