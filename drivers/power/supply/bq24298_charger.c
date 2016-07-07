@@ -1603,6 +1603,7 @@ int bq24298_set_iinlim_helper(s16 currentlim,u8 source)
 	bool bq24392_exist = false;
 	bool usblegacy12 = false;
 	bool setcurrent = false;
+	static s16 lastCurrentlim;
 
 	spin_lock(&set_iinlim_lock);
 
@@ -1707,7 +1708,10 @@ int bq24298_set_iinlim_helper(s16 currentlim,u8 source)
 		bq24298_write_mask(bdi, BQ24298_REG_ISC,
 				   BQ24298_REG_ISC_IINLIM_MASK,
 				   BQ24298_REG_ISC_IINLIM_SHIFT, bdi->iinlim);
-		pr_info("Current input limit set to %i mA\n", currentlim);
+		if (lastCurrentlim != currentlim) {
+			pr_info("Current input limit set to %i mA\n", currentlim);
+			lastCurrentlim = currentlim;
+		}
 	}
 	return bdi->iinlim;
 }
