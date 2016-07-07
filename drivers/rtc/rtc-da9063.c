@@ -494,11 +494,42 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
 			irq_alarm, ret);
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	return rtc_register_device(rtc->rtc_dev);
 }
 
+#ifdef CONFIG_PM
+static int da9063_rtc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
+
+	dev_dbg(&pdev->dev, "da9063_rtc_suspend %d %d\n", da9063->chip_irq, device_may_wakeup(&pdev->dev));
+
+	if (da9063->chip_irq && device_may_wakeup(&pdev->dev))
+		enable_irq_wake(da9063->chip_irq);
+	return 0;
+}
+
+static int da9063_rtc_resume(struct platform_device *pdev)
+{
+	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
+
+	dev_dbg(&pdev->dev, "da9063_rtc_resume %d %d\n", da9063->chip_irq, device_may_wakeup(&pdev->dev));
+
+	if (da9063->chip_irq && device_may_wakeup(&pdev->dev))
+		disable_irq_wake(da9063->chip_irq);
+	return 0;
+}
+#else
+#define da9063_rtc_suspend	NULL
+#define da9063_rtc_resume	NULL
+#endif
+
 static struct platform_driver da9063_rtc_driver = {
 	.probe		= da9063_rtc_probe,
+	.suspend	= da9063_rtc_suspend,
+	.resume		= da9063_rtc_resume,
 	.driver		= {
 		.name	= DA9063_DRVNAME_RTC,
 		.of_match_table = da9063_compatible_reg_id_table,
