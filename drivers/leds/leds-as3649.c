@@ -1332,6 +1332,7 @@ static int as3649_setup_cdev(struct i2c_client *client, struct as3649_data *data
 	if (err < 0)
 		goto err_create_torch_file;
 
+	data->cdev_torch.flags |= LED_CORE_SUSPENDRESUME;
 	return 0;
 
 err_create_torch_file:
