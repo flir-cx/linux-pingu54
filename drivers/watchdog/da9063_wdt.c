@@ -124,9 +124,9 @@ static int da9063_wdt_ping(struct watchdog_device *wdd)
 	static unsigned long last_ping = 0;
 	unsigned long nextpingdelta = msecs_to_jiffies(wdd->min_hw_heartbeat_ms);
 
-	if(last_ping + nextpingdelta < jiffies)
+	if ((last_ping == 0) ||
+	   (time_after(jiffies, last_ping+nextpingdelta)))
 	{
-//		dev_err(wdt->da9063->dev, "Time for a new ping...\n");
 		last_ping = jiffies;
 
 		ret = regmap_write(da9063->regmap, DA9063_REG_CONTROL_F,
