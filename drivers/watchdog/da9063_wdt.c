@@ -20,6 +20,7 @@
 #include <linux/regmap.h>
 #include <linux/jiffies.h>
 
+
 /*
  * Watchdog selector to timeout in seconds.
  *   0: WDT disabled;
@@ -245,10 +246,53 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, wdd);
 }
 
+#ifdef CONFIG_PM
+static int da9063_wdt_suspend(struct device *dev)
+{
+	struct da9063_watchdog *wdt;
+	int ret;
+	wdt = (struct da9063_watchdog *)dev_get_drvdata(dev);
+
+	/* Stop watchdog */
+	ret = regmap_update_bits(wdt->da9063->regmap, DA9063_REG_CONTROL_D,
+				 DA9063_TWDSCALE_MASK, DA9063_TWDSCALE_DISABLE);
+	if (ret)
+		dev_alert(wdt->da9063->dev, "Watchdog failed to stop (err = %d)\n",
+			  ret);
+
+	return ret;
+}
+
+static int da9063_wdt_resume(struct device *dev)
+{
+	struct da9063_watchdog *wdt;
+	unsigned int selector;
+	int ret;
+	wdt = (struct da9063_watchdog *)dev_get_drvdata(dev);
+
+	/* Restart watchdog */
+
+	selector = da9063_wdt_timeout_to_sel(wdt->wdtdev.timeout);
+	ret = _da9063_wdt_set_timeout(wdt->da9063, selector);
+	if (ret)
+		dev_err(wdt->da9063->dev, "Watchdog failed to start (err = %d)\n",
+			ret);
+	return ret;
+}
+#endif
+
+
+#if CONFIG_PM
+SIMPLE_DEV_PM_OPS(da9063_wdt_pm, da9063_wdt_suspend, da9063_wdt_resume);
+#endif
+
 static struct platform_driver da9063_wdt_driver = {
 	.probe = da9063_wdt_probe,
 	.driver = {
 		.name = DA9063_DRVNAME_WATCHDOG,
+#if CONFIG_PM
+		.pm = &da9063_wdt_pm,
+#endif
 	},
 };
 module_platform_driver(da9063_wdt_driver);
