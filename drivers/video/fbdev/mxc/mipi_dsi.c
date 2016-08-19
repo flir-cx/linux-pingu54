@@ -943,6 +943,19 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 */
 	if 0
 		goto dev_reset_fail;
+
+	mipi_dsi->lcd_mipi_sel_gpio = of_get_named_gpio(np, "lcd_mipi_sel", 0);
+	if (gpio_is_valid(mipi_dsi->lcd_mipi_sel_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->lcd_mipi_sel_gpio,
+					    GPIOF_OUT_INIT_LOW, "lcd MIPI select");
+		if (ret) {
+			dev_err(&pdev->dev, "unable to get lcd_mipi_sel gpio\n");
+			return ret;
+		}
+	}
+	else
+		mipi_dsi->lcd_mipi_sel_gpio = 0;
+
 	if (of_id)
 		mipi_dsi->bus_mux = of_id->data;
 

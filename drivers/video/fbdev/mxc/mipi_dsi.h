@@ -25,6 +25,7 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
+
 #ifndef __MIPI_DSI_H__
 #define __MIPI_DSI_H__
 
@@ -102,6 +103,7 @@ struct mipi_dsi_info {
 	int				disp_id;
 	char				*lcd_panel;
 	int				irq;
+	int				lcd_mipi_sel_gpio;
 	uint32_t			phy_ref_clkfreq;
 #ifdef CONFIG_FB_IMX64
 	struct clk			*core_clk;

@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/mipi_dsi.h>
 #include <linux/mxcfb.h>
+#include <linux/of_gpio.h>
 #include <video/mipi_display.h>
 #include "mipi_dsi.h"
 
@@ -180,6 +181,9 @@ static int otm1287a_write_cmd(struct mipi_dsi_info *mipi_dsi, u32 cmd)
 int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 {
 	int i;
+	if(mipi_dsi->lcd_mipi_sel_gpio)
+		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
+
 	otm1287a_write_cmd(mipi_dsi,OTM1287A_CMD_SWRESET);
 	msleep(20);
 
