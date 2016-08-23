@@ -66,6 +66,12 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 	 {mipid_otm1287a_get_lcd_videomode, mipid_otm1287a_lcd_setup}
 	},
 #endif
+#ifdef CONFIG_FB_MXC_KOPIN_KCDA914
+	{
+	 "KOPIN-VGA",
+	 {mipid_kcda914_get_lcd_videomode, mipid_kcda914_lcd_setup}
+	},
+#endif
 	{
 	"", {NULL, NULL}
 	}
@@ -372,8 +378,8 @@ static void mipi_dsi_enable_controller(struct mipi_dsi_info *mipi_dsi,
 
 		val = DSI_PCKHDL_CFG_EN_BTA |
 				DSI_PCKHDL_CFG_EN_ECC_RX |
-				//DSI_PCKHDL_CFG_EN_EOTP_RX |
-				//DSI_PCKHDL_CFG_EN_EOTP_TX |
+				DSI_PCKHDL_CFG_EN_EOTP_RX |
+				DSI_PCKHDL_CFG_EN_EOTP_TX |
 				DSI_PCKHDL_CFG_EN_CRC_RX;
 
 		mipi_dsi_write_register(mipi_dsi, MIPI_DSI_PCKHDL_CFG, val);
@@ -947,7 +953,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	mipi_dsi->lcd_mipi_sel_gpio = of_get_named_gpio(np, "lcd_mipi_sel", 0);
 	if (gpio_is_valid(mipi_dsi->lcd_mipi_sel_gpio)) {
 		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->lcd_mipi_sel_gpio,
-					    GPIOF_OUT_INIT_LOW, "lcd MIPI select");
+					    GPIOF_OUT_INIT_LOW, "lcd_mipi_sel");
 		if (ret) {
 			dev_err(&pdev->dev, "unable to get lcd_mipi_sel gpio\n");
 			return ret;
@@ -955,6 +961,43 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	}
 	else
 		mipi_dsi->lcd_mipi_sel_gpio = 0;
+
+
+	mipi_dsi->lcd_mipi_en_gpio = of_get_named_gpio(np, "lcd_mipi_en", 0);
+	if (gpio_is_valid(mipi_dsi->lcd_mipi_en_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->lcd_mipi_en_gpio,
+					    GPIOF_OUT_INIT_LOW, "lcd_mipi_en");
+		if (ret) {
+			dev_err(&pdev->dev, "unable to get lcd_mipi_en gpio\n");
+			return ret;
+		}
+	}
+	else
+		mipi_dsi->lcd_mipi_en_gpio = 0;
+
+	mipi_dsi->vf_pow_en_gpio = of_get_named_gpio(np, "vf_pow_en", 0);
+	if (gpio_is_valid(mipi_dsi->vf_pow_en_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->vf_pow_en_gpio,
+					    GPIOF_OUT_INIT_LOW, "vf_pow_en");
+		if (ret) {
+			dev_err(&pdev->dev, "unable to get vf_pow_en gpio\n");
+			return ret;
+		}
+	}
+	else
+		mipi_dsi->vf_pow_en_gpio = 0;
+
+	mipi_dsi->vf_rst_gpio = of_get_named_gpio(np, "vf_rst", 0);
+	if (gpio_is_valid(mipi_dsi->vf_rst_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->vf_rst_gpio,
+					    GPIOF_OUT_INIT_LOW, "vf_rst");
+		if (ret) {
+			dev_err(&pdev->dev, "unable to get vf_rst gpio\n");
+			return ret;
+		}
+	}
+	else
+		mipi_dsi->vf_rst_gpio = 0;
 
 	if (of_id)
 		mipi_dsi->bus_mux = of_id->data;
