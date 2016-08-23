@@ -104,6 +104,11 @@ struct mipi_dsi_info {
 	char				*lcd_panel;
 	int				irq;
 	int				lcd_mipi_sel_gpio;
+	int				lcd_mipi_en_gpio;
+	int				vf_pow_en_gpio;
+	int				vf_rst_gpio;
+
+
 	uint32_t			phy_ref_clkfreq;
 #ifdef CONFIG_FB_IMX64
 	struct clk			*core_clk;
@@ -163,5 +168,10 @@ int mipid_rm68191_lcd_setup(struct mipi_dsi_info *mipi_dsi);
 void mipid_otm1287a_get_lcd_videomode(struct fb_videomode **mode, int *size,
 		struct mipi_lcd_config **data);
 int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *);
+#endif
+#ifdef CONFIG_FB_MXC_KOPIN_KCDA914
+void mipid_kcda914_get_lcd_videomode(struct fb_videomode **mode, int *size,
+		struct mipi_lcd_config **data);
+int mipid_kcda914_lcd_setup(struct mipi_dsi_info *);
 #endif
 #endif
