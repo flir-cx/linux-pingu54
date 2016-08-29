@@ -40,6 +40,8 @@ struct mxc_dispdrv_driver {
 	void (*disable) (struct mxc_dispdrv_handle *, struct fb_info *);
 	/* display driver setup function, called at early part of fb_set_par */
 	int (*setup) (struct mxc_dispdrv_handle *, struct fb_info *fbi);
+	/* display driver swap panel function */
+	int (*swap_panel) (struct mxc_dispdrv_handle *, struct fb_info *fbi, int active);
 };
 
 struct mxc_dispdrv_handle *mxc_dispdrv_register(struct mxc_dispdrv_driver *drv);

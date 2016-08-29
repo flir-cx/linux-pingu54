@@ -129,7 +129,7 @@ static struct reg_value lcd_setup[] =
 	{0x0000,4,{0xff,0xff,0xff,0xff}	}					//Disable Access Command 2 & Software EXTC Enable
 };
 
-
+#if 0
 static struct fb_videomode otm_lcd_modedb[] = {
 	{
 	 "ORISE-VGA", 60, 640, 480, 34422,
@@ -141,6 +141,20 @@ static struct fb_videomode otm_lcd_modedb[] = {
 	 0,
 	},
 };
+#endif
+static struct fb_videomode otm_lcd_modedb[] = {
+	{
+	 "KOPIN-VGA", 60, 640, 480, 37000,
+	 100, 100,
+	 31, 10,
+	 96,4,
+	 FB_SYNC_OE_LOW_ACT,
+	 FB_VMODE_NONINTERLACED,
+	 0,
+	},
+};
+
+
 
 static struct mipi_lcd_config lcd_config = {
 	.virtual_ch		= 0x0,
@@ -206,3 +220,18 @@ int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	otm1287a_write_cmd(mipi_dsi,OTM1287A_CMD_DISPON);
 	return 0;
 }
+
+int mipid_otm1287a_lcd_power_on(struct mipi_dsi_info *mipi_dsi)
+{
+	if(mipi_dsi->lcd_mipi_sel_gpio)
+		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
+	return 0;
+}
+
+
+int mipid_otm1287a_lcd_power_off(struct mipi_dsi_info *mipi_dsi)
+{
+	return 0;
+}
+
+
