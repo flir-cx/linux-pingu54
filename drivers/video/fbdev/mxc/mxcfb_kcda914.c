@@ -43,6 +43,11 @@
 #define KCDA914_TWO_DATA_LANE					(0x2)
 
 #define KCDA914_I2C_ADDRESS						(0x68>>1)
+#define KCDA914_I2C_BUS							(2)
+
+#define KCDA914_REG_POWER_DOWN_CONTROL			(0x0F)
+#define KCDA914_REG_PWM1						(0x76)
+#define KCDA914_REG_PWM2						(0x77)
 
 struct reg_value {
     u8 reg;
@@ -340,11 +345,11 @@ void mipid_kcda914_get_lcd_videomode(struct fb_videomode **mode, int *size,
 
 
 /* write a register to the display */
-static int kcda914_i2c_reg_write(struct mipi_dsi_info *mipi_dsi, struct i2c_adapter
-								 *hI2C, u8 reg, u8 val)
+static int kcda914_i2c_reg_write(struct mipi_dsi_info *mipi_dsi,u8 reg, u8 val)
 {
 	int ret;
 	unsigned char data[2] = { reg, val };
+	struct i2c_adapter 	*hI2C = i2c_get_adapter(KCDA914_I2C_BUS);
 	struct i2c_msg msg = {
 		.addr	= KCDA914_I2C_ADDRESS,
 		.flags	= 0,
@@ -357,9 +362,9 @@ static int kcda914_i2c_reg_write(struct mipi_dsi_info *mipi_dsi, struct i2c_adap
 
 	if (ret < 0) {
 		dev_err(&mipi_dsi->pdev->dev, "Failed writing register 0x%02x! %d \n", reg,ret);
-		return ret;
 	}
-	return 0;
+	i2c_put_adapter(hI2C);
+	return ret;
 }
 
 
@@ -367,7 +372,6 @@ static int kcda914_i2c_reg_write(struct mipi_dsi_info *mipi_dsi, struct i2c_adap
 int mipid_kcda914_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 {
 	int err;
-    struct i2c_adapter 	*hI2C = i2c_get_adapter(2);
 
 	if(mipi_dsi->lcd_mipi_sel_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 0);
@@ -382,10 +386,8 @@ int mipid_kcda914_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 
 	for(int i=0; i<ARRAY_SIZE(vf_setup);i++)
 	{
-		kcda914_i2c_reg_write(mipi_dsi,hI2C,vf_setup[i].reg,vf_setup[i].val);
+		kcda914_i2c_reg_write(mipi_dsi,vf_setup[i].reg,vf_setup[i].val);
 	}
-
-	i2c_put_adapter(hI2C);
 
 	err = mipid_init_backlight(mipi_dsi);
 	return err;
@@ -393,7 +395,6 @@ int mipid_kcda914_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 
 static int mipid_bl_update_status(struct backlight_device *bl)
 {
-	struct i2c_adapter 	*hI2C = i2c_get_adapter(2);
 	int brightness = bl->props.brightness;
 	int temp;
 	struct mipi_dsi_info *mipi_dsi = bl_get_data(bl);
@@ -403,11 +404,10 @@ static int mipid_bl_update_status(struct backlight_device *bl)
 		brightness = 0;
 
 	temp = brightness << 4 ;
-	kcda914_i2c_reg_write(mipi_dsi,hI2C, 0x76 ,temp & 0xff);
-	kcda914_i2c_reg_write(mipi_dsi,hI2C, 0x77 ,0xc0 | ((temp >> 8) & 0xf)) ;
+	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_PWM1 ,temp & 0xff);
+	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_PWM2 ,0xc0 | ((temp >> 8) & 0xf)) ;
 
 	kcda914bl_brightness = brightness & KCDA914BL_MAX_BRIGHT;
-	i2c_put_adapter(hI2C);
 
 	dev_dbg(&bl->dev, "mipid backlight bringtness:%d.\n", brightness);
 	return 0;
@@ -453,5 +453,22 @@ static int mipid_init_backlight(struct mipi_dsi_info *mipi_dsi)
 	bl->props.brightness = KCDA914BL_DEF_BRIGHT;
 
 	mipid_bl_update_status(bl);
+	return 0;
+}
+
+
+int mipid_kcda914_lcd_power_on(struct mipi_dsi_info *mipi_dsi)
+{
+	if(mipi_dsi->lcd_mipi_sel_gpio)
+		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 0);
+
+	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_POWER_DOWN_CONTROL ,0x0);
+	return 0;
+}
+
+
+int mipid_kcda914_lcd_power_off(struct mipi_dsi_info *mipi_dsi)
+{
+	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_POWER_DOWN_CONTROL ,0xf0);
 	return 0;
 }

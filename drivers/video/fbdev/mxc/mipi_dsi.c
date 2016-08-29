@@ -57,19 +57,21 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 #ifdef CONFIG_FB_MXC_TRULY_WVGA_SYNC_PANEL
 	{
 	 "TRULY-WVGA",
-	 {mipid_hx8369_get_lcd_videomode, mipid_hx8369_lcd_setup}
+	 {mipid_hx8369_get_lcd_videomode, mipid_hx8369_lcd_setup, NULL, NULL}
 	},
 #endif
 #ifdef CONFIG_FB_MXC_ORISE_OTM1287A
 	{
 	 "ORISE-VGA",
-	 {mipid_otm1287a_get_lcd_videomode, mipid_otm1287a_lcd_setup}
+	 {mipid_otm1287a_get_lcd_videomode, mipid_otm1287a_lcd_setup,
+	  mipid_otm1287a_lcd_power_on, mipid_otm1287a_lcd_power_off}
 	},
 #endif
 #ifdef CONFIG_FB_MXC_KOPIN_KCDA914
 	{
 	 "KOPIN-VGA",
-	 {mipid_kcda914_get_lcd_videomode, mipid_kcda914_lcd_setup}
+	 {mipid_kcda914_get_lcd_videomode, mipid_kcda914_lcd_setup,
+	  mipid_kcda914_lcd_power_on, mipid_kcda914_lcd_power_off}
 	},
 #endif
 	{
@@ -589,6 +591,17 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 		dev_err(dev, "failed to find supported lcd panel.\n");
 		return -EINVAL;
 	}
+
+	/*Find handle to second display*/
+	for (i = 0; i < ARRAY_SIZE(mipi_dsi_lcd_db); i++) {
+		if (!strcmp(mipi_dsi->vf_panel,
+			mipi_dsi_lcd_db[i].lcd_panel)) {
+			mipi_dsi->vf_callback =
+				&mipi_dsi_lcd_db[i].lcd_callback;
+			break;
+		}
+	}
+
 	/* get the videomode in the order: cmdline->platform data->driver */
 	mipi_dsi->lcd_callback->get_mipi_lcd_videomode(&mipi_lcd_modedb, &size,
 					&mipi_dsi->lcd_config);
@@ -646,6 +659,10 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 			dev_err(&mipi_dsi->pdev->dev,
 				"clk enable error:%d!\n", err);
 		mipi_dsi_enable_controller(mipi_dsi, true);
+		if(mipi_dsi->vf_callback)
+			mipi_dsi->vf_callback->mipi_lcd_setup(
+			mipi_dsi);
+
 		err = mipi_dsi->lcd_callback->mipi_lcd_setup(
 			mipi_dsi);
 		if (err < 0) {
@@ -655,6 +672,7 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 			clk_disable_unprepare(mipi_dsi->cfg_clk);
 			return err;
 		}
+
 		mipi_dsi_set_mode(mipi_dsi, false);
 		mipi_dsi->dsi_power_on = 1;
 		mipi_dsi->lcd_inited = 1;
@@ -735,6 +753,30 @@ static int mipi_dsi_setup(struct mxc_dispdrv_handle *disp,
 	fbi->var.pixclock = pixclock;
 	return 0;
 }
+static int mipi_swap_panel(struct mxc_dispdrv_handle *disp,
+			  struct fb_info *fbi, int active)
+{
+
+	struct mipi_dsi_info    *mipi_dsi;
+	mipi_dsi = mxc_dispdrv_getdata(disp);
+
+	if(!mipi_dsi->lcd_mipi_sel_gpio || !mipi_dsi->vf_callback )
+		return -EINVAL;
+
+	if(active)
+	{
+		mipi_dsi->lcd_callback->mipi_lcd_power_off(mipi_dsi);
+		mipi_dsi->vf_callback->mipi_lcd_power_on(mipi_dsi);
+		mipi_dsi->active_panel = 1;
+	}
+	else
+	{
+		mipi_dsi->vf_callback->mipi_lcd_power_off(mipi_dsi);
+		mipi_dsi->lcd_callback->mipi_lcd_power_on(mipi_dsi);
+		mipi_dsi->active_panel = 0;
+	}
+	return 0;
+}
 
 static struct mxc_dispdrv_driver mipi_dsi_drv = {
 	.name	= DISPDRV_MIPI,
@@ -743,6 +785,7 @@ static struct mxc_dispdrv_driver mipi_dsi_drv = {
 	.enable	= mipi_dsi_enable,
 	.disable = mipi_dsi_disable,
 	.setup	= mipi_dsi_setup,
+	.swap_panel = mipi_swap_panel,
 };
 
 static int device_reset(struct device *dev)
@@ -853,6 +896,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	struct resource *res;
 	u32 dev_id, disp_id;
 	const char *lcd_panel;
+	const char *vf_panel = "dummy";
 	unsigned int mux;
 	int ret = 0;
 
@@ -871,6 +915,9 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to read of property lcd_panel\n");
 		return ret;
 	}
+
+	/*Second panel is optional*/
+	ret = of_property_read_string(np, "vf_panel", &vf_panel);
 
 	ret = of_property_read_u32(np, "dev_id", &dev_id);
 	if (ret) {
@@ -1016,6 +1063,13 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	else
 		dev_warn(&pdev->dev, "invalid dev_id or disp_id muxing\n");
 
+	mipi_dsi->vf_panel = kstrdup(vf_panel, GFP_KERNEL);
+	if (!mipi_dsi->vf_panel) {
+		dev_err(&pdev->dev, "failed to allocate vf panel name\n");
+		ret = -ENOMEM;
+		goto kstrdup_fail;
+	}
+
 	mipi_dsi->lcd_panel = kstrdup(lcd_panel, GFP_KERNEL);
 	if (!mipi_dsi->lcd_panel) {
 		dev_err(&pdev->dev, "failed to allocate lcd panel name\n");
@@ -1041,6 +1095,8 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	return ret;
 
 dispdrv_reg_fail:
+	if(mipi_dsi->vf_panel)
+		kfree(mipi_dsi->vf_panel);
 	kfree(mipi_dsi->lcd_panel);
 kstrdup_fail:
 get_parent_regmap_fail:

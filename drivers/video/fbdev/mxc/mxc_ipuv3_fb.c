@@ -57,6 +57,7 @@
 
 #include "mxc_dispdrv.h"
 
+static int swap_disp_panel(struct fb_info *fbi, int panel);
 /*
  * Driver name
  */
@@ -64,6 +65,7 @@
 
 /* Display port number */
 #define MXCFB_PORT_NUM	2
+
 /*!
  * Structure containing the MXC specific framebuffer information.
  */
@@ -122,6 +124,7 @@ struct mxcfb_info {
 	bool cur_prefetch;
 	spinlock_t spin_lock;	/* for PRE small yres cases */
 	struct ipu_pre_context *pre_config;
+	struct backlight_device * bd;
 };
 
 struct mxcfb_pfmt {
@@ -2304,6 +2307,18 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 						csc.param);
 			break;
 		}
+	case MXCFB_SWAP_PANEL:
+		{
+			int panel;
+			if (get_user(panel, argp))
+				return -EFAULT;
+
+			mxcfb_blank(FB_BLANK_NORMAL, fbi);
+			retval = swap_disp_panel(fbi,panel);
+			mxcfb_blank(FB_BLANK_UNBLANK, fbi);
+			break;
+		}
+
 	default:
 		retval = -EINVAL;
 	}
@@ -2975,6 +2990,36 @@ static ssize_t show_disp_dev(struct device *dev,
 		return sprintf(buf, "%s\n", mxcfbi->dispdrv->drv->name);
 }
 static DEVICE_ATTR(fsl_disp_dev_property, S_IRUGO, show_disp_dev, NULL);
+
+
+
+static int swap_disp_panel(struct fb_info *fbi, int panel)
+{
+	struct mxcfb_info *mxcfbi = (struct mxcfb_info *)fbi->par;
+
+	if(!mxcfbi->dispdrv->drv->swap_panel)
+		return -ENODEV;
+
+	return mxcfbi->dispdrv->drv->swap_panel(mxcfbi->dispdrv, fbi,panel);
+}
+
+static ssize_t disp_panel_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	unsigned long val;
+	struct fb_info *fbi = dev_get_drvdata(dev);
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	swap_disp_panel(fbi,val);
+
+	return count;
+}
+static DEVICE_ATTR(disp_panel, S_IWUGO, NULL, disp_panel_store);
+
+
 
 static int mxcfb_get_crtc(struct device *dev, struct mxcfb_info *mxcfbi,
 			  enum crtc crtc)

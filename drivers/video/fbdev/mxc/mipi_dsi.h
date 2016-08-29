@@ -72,6 +72,8 @@ struct mipi_dsi_lcd_callback {
 	void (*get_mipi_lcd_videomode)(struct fb_videomode **, int *,
 			struct mipi_lcd_config **);
 	int  (*mipi_lcd_setup)(struct mipi_dsi_info *);
+	int  (*mipi_lcd_power_on)(struct mipi_dsi_info *);
+	int  (*mipi_lcd_power_off)(struct mipi_dsi_info *);
 
 };
 
@@ -102,11 +104,13 @@ struct mipi_dsi_info {
 	int				dev_id;
 	int				disp_id;
 	char				*lcd_panel;
+	char				*vf_panel;
 	int				irq;
 	int				lcd_mipi_sel_gpio;
 	int				lcd_mipi_en_gpio;
 	int				vf_pow_en_gpio;
 	int				vf_rst_gpio;
+	int				active_panel;
 
 
 	uint32_t			phy_ref_clkfreq;
@@ -130,6 +134,7 @@ struct mipi_dsi_info {
 	struct backlight_device		*bl;
 	/* callback for lcd panel operation */
 	struct mipi_dsi_lcd_callback	*lcd_callback;
+	struct mipi_dsi_lcd_callback	*vf_callback;
 
 	int (*mipi_dsi_pkt_read)(struct mipi_dsi_info *mipi,
 			u8 data_type, u32 *buf, int len);
@@ -168,10 +173,14 @@ int mipid_rm68191_lcd_setup(struct mipi_dsi_info *mipi_dsi);
 void mipid_otm1287a_get_lcd_videomode(struct fb_videomode **mode, int *size,
 		struct mipi_lcd_config **data);
 int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *);
+int mipid_otm1287a_lcd_power_on(struct mipi_dsi_info *);
+int mipid_otm1287a_lcd_power_off(struct mipi_dsi_info *);
 #endif
 #ifdef CONFIG_FB_MXC_KOPIN_KCDA914
 void mipid_kcda914_get_lcd_videomode(struct fb_videomode **mode, int *size,
 		struct mipi_lcd_config **data);
 int mipid_kcda914_lcd_setup(struct mipi_dsi_info *);
+int mipid_kcda914_lcd_power_on(struct mipi_dsi_info *);
+int mipid_kcda914_lcd_power_off(struct mipi_dsi_info *);
 #endif
 #endif
