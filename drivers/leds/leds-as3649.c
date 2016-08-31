@@ -512,9 +512,8 @@ static ssize_t as3649_ntc_show(struct device *dev,
 	pm_runtime_mark_last_busy(&data->client->dev);
 	pm_runtime_put_autosuspend(dev);
 
-	AS3649_UNLOCK();
-
 exit:
+	AS3649_UNLOCK();
 	if (err < 0)
 		return err;
 	return scnprintf(buf, PAGE_SIZE, "%d mV\n", result);
@@ -1490,6 +1489,16 @@ static int as3649_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void as3649_shutdown(struct i2c_client *client)
+{
+	struct as3649_data *data = i2c_get_clientdata(client);
+
+	dev_info(&client->dev, "Shutting down AS3649 device\n");
+
+	data->enable(&client->dev, false);
+	as3649_set_leds(data, 3, AS3649_REG_Control_mode_etorch, 0);
+}
+
 #if CONFIG_PM
 static const struct dev_pm_ops as3649_pm = {
 	SET_RUNTIME_PM_OPS(as3649_suspend, as3649_resume, NULL)
@@ -1521,6 +1530,7 @@ static struct i2c_driver as3649_driver = {
 	.probe  = as3649_probe,
 	.remove = as3649_remove,
 	.id_table = as3649_id,
+	.shutdown = as3649_shutdown,
 };
 
 static int __init as3649_init(void)
