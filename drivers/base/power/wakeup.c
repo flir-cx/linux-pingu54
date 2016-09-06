@@ -39,6 +39,9 @@ unsigned int pm_wakeup_irq __read_mostly;
 /* If greater than 0 and the system is suspending, terminate the suspend. */
 static atomic_t pm_abort_suspend __read_mostly;
 
+extern int suspended;
+static struct wakeup_source *suspend_wake_ws;
+
 /*
  * Combined counters of registered wakeup events and wakeup events in progress.
  * They need to be modified together atomically, so it's better to use one
@@ -596,6 +599,13 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 			"unregistered wakeup source\n"))
 		return;
 
+	if(suspended)
+	{
+		suspended=0;
+		suspend_wake_ws = ws;
+		pr_err("Last wakeup %s \n",suspend_wake_ws->name);
+	}
+
 	ws->active = true;
 	ws->active_count++;
 	ws->last_time = ktime_get();
@@ -607,6 +617,18 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 
 	trace_wakeup_source_activate(ws->name, cec);
 }
+
+
+/**
+ * get_suspend_wakup_source - Get wake up source from latest suspend/resume transition
+ * @return latest reported wakeup source
+ */
+
+struct wakeup_source *get_suspend_wakup_source(void)
+{
+	return suspend_wake_ws;
+}
+EXPORT_SYMBOL_GPL(get_suspend_wakup_source);
 
 /**
  * wakeup_source_report_event - Report wakeup event using the given source.
@@ -897,7 +919,6 @@ void pm_print_active_wakeup_sources(void)
 	srcu_read_unlock(&wakeup_srcu, srcuidx);
 }
 EXPORT_SYMBOL_GPL(pm_print_active_wakeup_sources);
-
 /**
  * pm_wakeup_pending - Check if power transition in progress should be aborted.
  *

@@ -84,6 +84,7 @@ static void s2idle_begin(void)
 {
 	s2idle_state = S2IDLE_STATE_NONE;
 }
+int suspended;
 
 static void s2idle_enter(void)
 {
@@ -429,6 +430,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
 	system_state = SYSTEM_SUSPEND;
 
+	suspended = 1;
 	error = syscore_suspend();
 	if (!error) {
 		*wakeup = pm_wakeup_pending();
