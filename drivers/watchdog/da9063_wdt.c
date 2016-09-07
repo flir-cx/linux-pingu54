@@ -199,6 +199,7 @@ static const struct watchdog_ops da9063_watchdog_ops = {
 
 static int da9063_wdt_probe(struct platform_device *pdev)
 {
+	int ret;
 	struct device *dev = &pdev->dev;
 	struct da9063 *da9063;
 	struct watchdog_device *wdd;
@@ -243,7 +244,12 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 		set_bit(WDOG_HW_RUNNING, &wdd->status);
 	}
 
-	return devm_watchdog_register_device(dev, wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
+	// Stop watchdog (if watchdog was enabled, it would otherwise
+	// force an extra reboot during boot
+	//
+	da9063_wdt_stop(wdd);
+	return ret;
 }
 
 #ifdef CONFIG_PM
