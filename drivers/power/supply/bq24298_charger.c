@@ -1361,7 +1361,7 @@ static int bq24298_setup_dt(struct bq24298_dev_info *bdi)
 		ret = -EPROBE_DEFER;
 		goto error_2;
 	} else 	if(IS_ERR(bdi->notify_psy2)){
-		dev_err(bdi->dev, "%s: no 'second-usb-charger-detection' property (err=%ld)\n", __func__, PTR_ERR(bdi->notify_psy2));
+		dev_info(bdi->dev, "%s: no 'second-usb-charger-detection' property (err=%ld)\n", __func__, PTR_ERR(bdi->notify_psy2));
 		bdi->notify_psy2=NULL;
 	} else if (!bdi->notify_psy2) {
 		dev_err(bdi->dev, "%s: EPROBE_DEFER\n", __func__);
