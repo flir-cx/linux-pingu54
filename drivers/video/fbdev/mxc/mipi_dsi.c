@@ -474,9 +474,10 @@ static irqreturn_t mipi_dsi_irq_handler(int irq, void *data)
 	mipi_dsi_read_register(mipi_dsi, MIPI_DSI_ERROR_MSK1, &mask1);
 
 	if ((status0 & (~mask0)) || (status1 & (~mask1))) {
-		dev_err(&mipi_dsi->pdev->dev,
-		"mipi_dsi IRQ status0:0x%x, status1:0x%x!\n",
-		status0, status1);
+		if(printk_ratelimit())
+			dev_err(&mipi_dsi->pdev->dev,
+			"mipi_dsi IRQ status0:0x%x, status1:0x%x!\n",
+			status0, status1);
 	}
 
 	return IRQ_HANDLED;
@@ -659,6 +660,7 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 			dev_err(&mipi_dsi->pdev->dev,
 				"clk enable error:%d!\n", err);
 		mipi_dsi_enable_controller(mipi_dsi, true);
+		mipi_dsi_set_mode(mipi_dsi, true);
 		if(mipi_dsi->vf_callback)
 			mipi_dsi->vf_callback->mipi_lcd_setup(
 			mipi_dsi);
