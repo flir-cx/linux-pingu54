@@ -1232,7 +1232,24 @@ static int mxcfb_set_par(struct fb_info *fbi)
 
 		mxc_fbi->first_set_par = false;
 	}
-
+/*
+	//only write bootlogo to lcd
+	if(mxc_fbi->ipu_id==0 && mxc_fbi->ipu_di == 1 && mxc_fbi->bootlogo)
+	{
+		uint16_t *src  = (uint16_t *)mxc_fbi->bootlogo;
+		uint32_t *dest = (uint32_t *)fbi->screen_base;
+		int i; char r,g,b;
+		for(i=0;i<fbi->var.xres * fbi->var.yres;i++)
+		{
+			b = (src[i] & 0x1f);
+			g = ((src[i]>>5) & 0x3f);
+			r = ((src[i]>>11) & 0x1f);
+			dest[i]= r<<(16+3) | g<<(8+2) | b<<3;
+		}
+		kfree(mxc_fbi->bootlogo);
+		mxc_fbi->bootlogo=0;
+	}
+*/
 	if (mxc_fbi->alpha_chan_en) {
 		alpha_mem_len = fbi->var.xres * fbi->var.yres;
 		if ((!mxc_fbi->alpha_phy_addr0 && !mxc_fbi->alpha_phy_addr1) ||
@@ -3593,6 +3610,7 @@ static int mxcfb_probe(struct platform_device *pdev)
 
 	lcd_backlight_disable(mxcfbi->bd);
 
+
 	mxcfbi->ipu = ipu_get_soc(mxcfbi->ipu_id);
 	if (IS_ERR(mxcfbi->ipu)) {
 		ret = -ENODEV;
@@ -3653,6 +3671,7 @@ static int mxcfb_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto mxcfb_register_failed;
 	}
+	lcd_backlight_enable(mxcfbi->bd);
 
 	platform_set_drvdata(pdev, fbi);
 
@@ -3665,6 +3684,13 @@ static int mxcfb_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "Error %d on creating file for disp "
 				    " device propety\n", ret);
+
+
+	ret = device_create_file(fbi->dev, &dev_attr_disp_panel);
+	if (ret)
+		dev_err(&pdev->dev, "Error %d on creating file for disp "
+				    " device propety\n", ret);
+
 
 	return 0;
 
@@ -3688,6 +3714,7 @@ static int mxcfb_remove(struct platform_device *pdev)
 
 	device_remove_file(fbi->dev, &dev_attr_fsl_disp_dev_property);
 	device_remove_file(fbi->dev, &dev_attr_fsl_disp_property);
+	device_remove_file(fbi->dev, &dev_attr_disp_panel);
 	mxcfb_blank(FB_BLANK_POWERDOWN, fbi);
 	mxcfb_unregister(fbi);
 	mxcfb_unmap_video_memory(fbi);
