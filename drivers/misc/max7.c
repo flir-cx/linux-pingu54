@@ -56,6 +56,8 @@ static int max7_device_Open = 0;  /* Is device open?  Used to prevent multiple
 static int max7_read_msg_stream(struct i2c_client *client, void *kbuf, int streamlen);
 static int max7_read_msg_stream_len(struct i2c_client *client);
 static int max7_runtime_resume(struct device *dev);
+static int max7_initialise(struct i2c_client *client);
+
 
 struct max7_data *max7;
 /*ublox receivers DDC address*/
@@ -400,8 +402,9 @@ static int max7_i2c_open(struct inode *inode, struct file *file)
 		
 		max7_device_Open++;
 	}
-	enable_irq(gpio_to_irq(max7->irqpin));
 	max7_runtime_resume(&client->dev);
+	max7_initialise(client);
+	enable_irq(gpio_to_irq(max7->irqpin));
 	return 0;
 }
 
@@ -645,7 +648,6 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	pm_runtime_set_autosuspend_delay(&client->dev,2000);
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_suspend(&client->dev);
-	ret = regulator_disable(max7->supply);
 	atomic_set(&(max7->runtimesuspend), 1);
 
 	goto err_out;
