@@ -36,19 +36,20 @@
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
-#include <linux/spinlock.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/consumer.h>
 #include <linux/kfifo.h>
 #include <asm/ioctls.h>
 #include <linux/pm_runtime.h>
 #include <linux/atomic.h>
+#include <linux/kthread.h>
 
 #define FIFO_SIZE       512
 
 static DECLARE_KFIFO(i2cfifo, unsigned char, FIFO_SIZE);
 
-//static DEFINE_SPINLOCK(spinlockp);
+#define MAX7_TIMEOUT 6000 /* Timeout in 6 seconds */
+static DECLARE_WAIT_QUEUE_HEAD(wq);
 
 /*Global Variable Declaration*/
 static int max7_device_Open = 0;  /* Is device open?  Used to prevent multiple
@@ -60,6 +61,7 @@ static int max7_initialise(struct i2c_client *client);
 
 
 struct max7_data *max7;
+struct task_struct *thread;
 /*ublox receivers DDC address*/
 #define UBX_DDC_ADDR			0x42
 #define UBX_CFG_ACK			0x01
@@ -399,7 +401,6 @@ static int max7_i2c_open(struct inode *inode, struct file *file)
 	}
 	else
 	{
-		
 		max7_device_Open++;
 	}
 	max7_runtime_resume(&client->dev);
@@ -410,13 +411,13 @@ static int max7_i2c_open(struct inode *inode, struct file *file)
 
 static int max7_i2c_release(struct inode *inode, struct file *file)
 {
-	
 	struct i2c_client *client = max7->client;
         if(max7_device_Open)
 	{
-		max7_device_Open--;                
+		max7_device_Open--;
 	}
 	disable_irq(gpio_to_irq(max7->irqpin));
+	wake_up_interruptible(&wq);
 	pm_runtime_put(&client->dev);
 	pm_runtime_suspend(&client->dev);
         return 0;
@@ -455,22 +456,59 @@ ssize_t max7_i2c_write(struct file *file, const char __user *buf, size_t count, 
 	return ret;
 }
 
+static int max7_read_buffer(void *length)
+{
+	size_t *len = (size_t *) length;
+
+	while (*len == 0 && !kthread_should_stop()) {
+		usleep_range(10, 20);
+		*len = kfifo_len(&i2cfifo);
+	}
+	wake_up(&wq);
+	return 0;
+}
+
 ssize_t max7_i2c_read(struct file *file, char __user *buf, size_t count, loff_t *p_off)
 {
 	size_t len = 0;	
 	unsigned int copied;
+	long ret;
+	struct i2c_client *client = max7->client;
 
-	len=kfifo_len(&i2cfifo);
-	while(len == 0){ //block call until we have data in buffer...
-		usleep_range(1,10);
-		len=kfifo_len(&i2cfifo);
+	thread = kthread_run(max7_read_buffer, &len, "max7");
+	if (IS_ERR(thread))
+	{
+		dev_err(&client->dev, "Could not start the kernel thread.\n");
+		return 0;
 	}
+
+	ret = wait_event_interruptible_timeout(wq,
+			len != 0,
+			msecs_to_jiffies(MAX7_TIMEOUT));
+	if (ret == -ERESTARTSYS)
+	{
+		dev_dbg(&client->dev, "GPS read interrupted\n");
+		kthread_stop(thread);
+		return ret;
+	}
+	else if (ret == 0)
+	{
+		dev_err(&client->dev, "GPS read timeout\n");
+		kthread_stop(thread);
+		return ret;
+	}
+	else if (ret < 0)
+	{
+		dev_err(&client->dev, "GPS read returned %ld\n", ret);
+		kthread_stop(thread);
+		return ret;
+	}
+
 	if(count < len) len = count;
 
 	if(kfifo_to_user(&i2cfifo,buf,len, &copied)){
-	  pr_err("%s: can't copy %d bytes to buf\n", __func__, len);
+	  dev_err(&client->dev, "%s: can't copy %d bytes to buf\n", __func__, len);
 	  return -EFAULT;
-	  return 0;
 	}
 	return len;
 }
@@ -682,6 +720,7 @@ static int max7_remove(struct i2c_client *client)
 	devm_gpio_free(&client->dev, max7->irqpin);
 	gpio_direction_output(max7->resetpin, 0);
 	devm_gpio_free(&client->dev, max7->resetpin);
+	kthread_stop(thread);
 	kfree(max7->rdkbuf);
 	max7->rdkbuf=0;
 	misc_deregister(&max7_gps_miscdevice);
@@ -743,7 +782,6 @@ static int max7_runtime_suspend(struct device *dev)
 	gpio_direction_output(max7->resetpin, 0);
 	return ret;
 }
-
 
 static const struct dev_pm_ops max7_pmops = {
 	.suspend = max7_suspend,
