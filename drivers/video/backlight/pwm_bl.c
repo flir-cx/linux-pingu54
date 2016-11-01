@@ -138,7 +138,7 @@ static int pwm_backlight_check_fb(struct backlight_device *bl,
 	return !pb->check_fb || pb->check_fb(pb->dev, info);
 }
 
-static const struct backlight_ops pwm_backlight_ops = {
+static struct backlight_ops pwm_backlight_ops = {
 	.update_status	= pwm_backlight_update_status,
 	.check_fb	= pwm_backlight_check_fb,
 };
@@ -381,6 +381,10 @@ static int pwm_backlight_parse_dt(struct device *dev,
 
 		data->max_brightness--;
 	}
+
+	of_property_read_u32(node, "options", &pwm_backlight_ops.options);
+	dev_info(dev, "backlight options %X\n", pwm_backlight_ops.options);
+	
 	return 0;
 }
 
