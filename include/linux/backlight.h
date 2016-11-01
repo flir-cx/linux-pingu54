@@ -128,6 +128,7 @@ struct backlight_ops {
 	unsigned int options;
 
 #define BL_CORE_SUSPENDRESUME	(1 << 0)
+#define BL_CORE_ACTIVATE	(1 << 1)
 
 	/**
 	 * @update_status: Operation called when properties have changed.

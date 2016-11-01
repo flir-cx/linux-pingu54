@@ -336,6 +336,9 @@ static int backlight_resume(struct device *dev)
 	struct backlight_device *bd = to_backlight_device(dev);
 
 	mutex_lock(&bd->ops_lock);
+	if (bd->ops && bd->ops->options & BL_CORE_ACTIVATE) {
+		bd->props.power = FB_BLANK_UNBLANK;
+	}
 	if (bd->ops && bd->ops->options & BL_CORE_SUSPENDRESUME) {
 		bd->props.state &= ~BL_CORE_SUSPENDED;
 		backlight_update_status(bd);
