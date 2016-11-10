@@ -1131,6 +1131,44 @@ static int mipi_dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int mipi_dsi_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(&pdev->dev);
+
+	if(mipi_dsi->lcd_mipi_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_en_gpio, 1);
+
+	if(mipi_dsi->vf_rst_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 0);
+
+	if(mipi_dsi->vf_pow_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_pow_en_gpio, 0);
+
+	udelay(1000);
+
+	return 0;
+}
+
+static int mipi_dsi_resume(struct platform_device *pdev)
+{
+	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(&pdev->dev);
+
+	if(mipi_dsi->lcd_mipi_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_en_gpio, 0);
+
+	if(mipi_dsi->vf_pow_en_gpio && mipi_dsi->vf_callback) {
+		mipi_dsi->vf_callback->mipi_lcd_setup(mipi_dsi);
+
+		if (mipi_dsi->vf_callback->mipi_lcd_power_off)
+			mipi_dsi->vf_callback->mipi_lcd_power_off(mipi_dsi);
+
+		if(mipi_dsi->lcd_mipi_sel_gpio)
+			gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
+	}
+
+	return 0;
+}
+
 static struct platform_driver mipi_dsi_driver = {
 	.driver = {
 		   .of_match_table = imx_mipi_dsi_dt_ids,
@@ -1139,6 +1177,8 @@ static struct platform_driver mipi_dsi_driver = {
 	.probe = mipi_dsi_probe,
 	.remove = mipi_dsi_remove,
 	.shutdown = mipi_dsi_shutdown,
+	.suspend = mipi_dsi_suspend,
+	.resume = mipi_dsi_resume,
 };
 
 static int __init mipi_dsi_init(void)
