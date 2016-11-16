@@ -122,6 +122,10 @@ static const struct mfd_cell da9063_devs[] = {
 		.of_compatible	= "dlg,da9063-poweroff",
 	},
 	{
+		.name		= DA9063_DRVNAME_RESET,
+		.of_compatible	= "dlg,da9063-reset",
+	},
+	{
 		.name		= DA9063_DRVNAME_WAKE,
 		.num_resources	= ARRAY_SIZE(da9063_wake_resources),
 		.resources	= da9063_wake_resources,
