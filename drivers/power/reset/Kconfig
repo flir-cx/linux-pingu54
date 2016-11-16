@@ -110,7 +110,7 @@ config POWER_RESET_LINKSTATION
 
 	  Say Y here if you have a Buffalo LinkStation LS421D/E.
 
-config POWER_RESET_DA9063
+config POWER_POWEROFF_DA9063
 	tristate "Dialog Semiconductor DA9063 Poweroff"
 	depends on MFD_DA9063 && POWER_RESET
 	help
