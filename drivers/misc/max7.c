@@ -686,7 +686,6 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	pm_runtime_set_autosuspend_delay(&client->dev,2000);
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_suspend(&client->dev);
-	atomic_set(&(max7->runtimesuspend), 1);
 
 	goto err_out;
 
@@ -763,23 +762,27 @@ static int max7_suspend(struct device *dev)
 
 static int max7_runtime_resume(struct device *dev)
 {
-	int ret;
+	int ret = 0;
 
-	atomic_set(&(max7->runtimesuspend), 0);
-	gpio_direction_input(max7->resetpin);
-	ret = regulator_enable(max7->supply);
-	usleep_range(200000, 300000);
+	if(atomic_read(&(max7->runtimesuspend)) == 1){
+		atomic_set(&(max7->runtimesuspend), 0);
+		gpio_direction_input(max7->resetpin);
+		ret = regulator_enable(max7->supply);
+		usleep_range(200000, 300000);
+	}
 	return ret;
 }
 
 static int max7_runtime_suspend(struct device *dev)
 {
-	int ret;
+	int ret = 0;
 
-	atomic_set(&(max7->runtimesuspend), 1);
-	ret = regulator_disable(max7->supply);
-	usleep_range(1000, 5000);
-	gpio_direction_output(max7->resetpin, 0);
+	if(atomic_read(&(max7->runtimesuspend)) == 0){
+		atomic_set(&(max7->runtimesuspend), 1);
+		ret = regulator_disable(max7->supply);
+		usleep_range(1000, 5000);
+		gpio_direction_output(max7->resetpin, 0);
+	}
 	return ret;
 }
 
