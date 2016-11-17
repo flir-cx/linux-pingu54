@@ -18,6 +18,7 @@
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/gpio.h>
 
 #include "leds-lp55xx-common.h"
 
@@ -591,6 +592,33 @@ static int lp5521_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int lp5521_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(client);
+	struct lp55xx_chip *chip = led->chip;
+	struct lp55xx_platform_data *pdata = chip->pdata;
+
+	if (gpio_is_valid(pdata->enable_gpio)) {
+		gpio_set_value_cansleep(pdata->enable_gpio, 0);
+	}
+
+	return 0;
+}
+
+static int lp5521_resume(struct i2c_client *client)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(client);
+	struct lp55xx_chip *chip = led->chip;
+	struct lp55xx_platform_data *pdata = chip->pdata;
+
+	if (gpio_is_valid(pdata->enable_gpio)) {
+		gpio_set_value_cansleep(pdata->enable_gpio, 1);
+		udelay(500);
+	}
+
+	return 0;
+}
+
 static const struct i2c_device_id lp5521_id[] = {
 	{ "lp5521", 0 }, /* Three channel chip */
 	{ }
@@ -614,6 +642,8 @@ static struct i2c_driver lp5521_driver = {
 	.probe		= lp5521_probe,
 	.remove		= lp5521_remove,
 	.id_table	= lp5521_id,
+	.suspend	= lp5521_suspend,
+	.resume		= lp5521_resume,
 };
 
 module_i2c_driver(lp5521_driver);
