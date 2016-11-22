@@ -39,6 +39,7 @@ struct da9063_onkey {
 	struct regmap *regmap;
 	const struct da906x_chip_config *config;
 	char phys[32];
+	int irq;
 	bool key_power;
 };
 
@@ -112,6 +113,7 @@ static void da9063_poll_on(struct work_struct *work)
 		}
 
 		input_report_key(onkey->input, KEY_POWER, 0);
+		input_report_key(onkey->input, KEY_F8, 0);
 		input_sync(onkey->input);
 
 		poll = false;
@@ -168,6 +170,7 @@ static irqreturn_t da9063_onkey_irq_handler(int irq, void *data)
 			    &val);
 	if (onkey->key_power && !error && (val & config->onkey_nonkey_mask)) {
 		input_report_key(onkey->input, KEY_POWER, 1);
+		input_report_key(onkey->input, KEY_F8, 1);
 		input_sync(onkey->input);
 		schedule_delayed_work(&onkey->work, 0);
 		dev_dbg(onkey->dev, "KEY_POWER long press.\n");
@@ -178,6 +181,8 @@ static irqreturn_t da9063_onkey_irq_handler(int irq, void *data)
 		input_sync(onkey->input);
 		dev_dbg(onkey->dev, "KEY_POWER short press.\n");
 	}
+
+	pm_wakeup_event(onkey->dev,0);
 
 	return IRQ_HANDLED;
 }
@@ -233,6 +238,7 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 	onkey->input->dev.parent = &pdev->dev;
 
 	input_set_capability(onkey->input, EV_KEY, KEY_POWER);
+	input_set_capability(onkey->input, EV_KEY, KEY_F8);
 
 	INIT_DELAYED_WORK(&onkey->work, da9063_poll_on);
 
@@ -265,14 +271,47 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
+	onkey->irq = irq;
+	device_init_wakeup(&pdev->dev, 1);
+
 	return 0;
 }
+
+
+#ifdef CONFIG_PM_SLEEP
+static int da9063_onkey_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct da9063_onkey *onkey = platform_get_drvdata(pdev);
+
+	if (device_may_wakeup(&pdev->dev))
+		enable_irq_wake(onkey->irq);
+
+	return 0;
+}
+
+static int da9063_onkey_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct da9063_onkey *onkey = platform_get_drvdata(pdev);
+
+	if (device_may_wakeup(&pdev->dev))
+		disable_irq_wake(onkey->irq);
+
+	return 0;
+}
+#endif
+
+
+
+static SIMPLE_DEV_PM_OPS(da9063_onkey_pm_ops, da9063_onkey_suspend, da9063_onkey_resume);
 
 static struct platform_driver da9063_onkey_driver = {
 	.probe	= da9063_onkey_probe,
 	.driver	= {
 		.name	= DA9063_DRVNAME_ONKEY,
 		.of_match_table = da9063_compatible_reg_id_table,
+		.pm	= &da9063_onkey_pm_ops,
 	},
 };
 module_platform_driver(da9063_onkey_driver);
