@@ -57,6 +57,7 @@ static int max7_device_Open = 0;  /* Is device open?  Used to prevent multiple
 static int max7_read_msg_stream(struct i2c_client *client, void *kbuf, int streamlen);
 static int max7_read_msg_stream_len(struct i2c_client *client);
 static int max7_runtime_resume(struct device *dev);
+static int max7_runtime_suspend(struct device *dev);
 static int max7_initialise(struct i2c_client *client);
 
 
@@ -687,6 +688,10 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_suspend(&client->dev);
 
+	//For some reason, the gps is not suspended on cold boots
+	//despite pm_runtime_suspend being called above...
+	//so let's use max7_runtime_susupend directly
+	max7_runtime_suspend(&client->dev);
 	goto err_out;
 
 
@@ -763,7 +768,6 @@ static int max7_suspend(struct device *dev)
 static int max7_runtime_resume(struct device *dev)
 {
 	int ret = 0;
-
 	if(atomic_read(&(max7->runtimesuspend)) == 1){
 		atomic_set(&(max7->runtimesuspend), 0);
 		gpio_direction_input(max7->resetpin);
@@ -776,7 +780,6 @@ static int max7_runtime_resume(struct device *dev)
 static int max7_runtime_suspend(struct device *dev)
 {
 	int ret = 0;
-
 	if(atomic_read(&(max7->runtimesuspend)) == 0){
 		atomic_set(&(max7->runtimesuspend), 1);
 		ret = regulator_disable(max7->supply);
