@@ -225,23 +225,24 @@ struct fxos8700_data {
 };
 
 static struct fxos8700_data *g_fxos8700_data;
-static int fxos8700_position_settings[8][3][3] = {
+static int fxos8700_position_settings[9][3][3] = {
 	{ { 0, -1, 0}, { 1, 0, 0}, {0, 0, 1} },
-	{ {-1, 0, 0}, { 0, -1, 0}, {0, 0, 1} },
+	{ {-1, 0, 0}, { 0, -1, 0}, {0, 0, 1} },  //X=-X, Y=-Y, Z=Z  -> Appcore  1,1,1 XYZ (EVRO)
 	{ { 0, 1, 0}, {-1, 0, 0}, {0, 0, 1} },
 	{ { 1, 0, 0}, { 0, 1, 0}, {0, 0, 1} },
 	{ { 0, -1, 0}, {-1, 0, 0}, {0, 0, -1} },
 	{ {-1, 0, 0}, { 0, 1, 0}, {0, 0, -1} },
 	{ { 0, 1, 0}, { 1, 0, 0}, {0, 0, -1} },
-	{ { 1,0, 0}, { 0,-1, 0}, {0, 0, 1} }  //Axis X forward, Y to the right, Z down
-	                                         //Matches Accelerometer calculations...
+	{ { 1,0, 0}, { 0,-1, 0}, {0, 0, 1} }, //Axis X forward, Y to the right, Z down
+	                                      //Matches Accelerometer calculations...
+	{ { 0, 0, -1}, { 0,-1,0}, {-1,0,0} }  //X = -Z, Y=-Y, Z=-X  -->Appcore config 1,1,1  XYZ (EVLC2)
 };
 
 static int fxos8700_data_convert(struct fxos8700_data_axis *axis_data, int position)
 {
 	short rawdata[3], data[3];
 	int i, j;
-	if (position < 0 || position > 7)
+	if (position < 0 || position > 8)
 		position = 0;
 	rawdata[0] = axis_data->x;
 	rawdata[1] = axis_data->y;
@@ -326,7 +327,6 @@ static int fxos8700_device_init(struct i2c_client *client)
 
 	atomic_set(&pdata->acc_active, FXOS8700_STANDBY);
 	atomic_set(&pdata->mag_active, FXOS8700_STANDBY);
-	atomic_set(&pdata->position, FXOS8700_POSITION_DEFAULT);
 	atomic_set(&pdata->range, MODE_2G);
 	return 0;
 out:
@@ -1010,6 +1010,15 @@ static int fxos8700_probe(struct i2c_client *client,
 	int result, client_id;
 	struct fxos8700_data *pdata;
 	struct i2c_adapter *adapter;
+	struct device *dev = &client->dev;
+	struct device_node *node;
+	void *posp;
+	int pos;
+	node = dev->of_node;
+	if(!node){
+		return -ENODEV;
+	}
+
 
 	adapter = to_i2c_adapter(client->dev.parent);
 	result = i2c_check_functionality(adapter,
@@ -1037,6 +1046,20 @@ static int fxos8700_probe(struct i2c_client *client,
 	atomic_set(&pdata->acc_delay, FXOS8700_DELAY_DEFAULT);
 	atomic_set(&pdata->mag_delay, FXOS8700_DELAY_DEFAULT);
 	i2c_set_clientdata(client, pdata);
+
+	posp =(void *) of_get_property(node, "position", NULL);
+	if(!posp) {
+	  //could not find entry
+	  printk(KERN_ERR "fxo8700 could not find entry...");
+	  return -EINVAL;
+	}
+	pos = be32_to_cpup(posp);
+
+	printk(KERN_ERR "fxo8700 got position %u\n", pos);
+	atomic_set(&pdata->position, FXOS8700_POSITION_DEFAULT);
+	if(pos){
+	  atomic_set(&pdata->position, pos);
+	}
 
 	result = misc_register(&fxos8700_acc_device);
 	if (result != 0) {
