@@ -1101,17 +1101,14 @@ static int fxos8700_probe(struct i2c_client *client,
 	pdata->client = client;
 
 	posp =(void *) of_get_property(node, "position", NULL);
-	if(!posp) {
-	  //could not find entry
-	  printk(KERN_ERR "fxo8700 could not find entry...");
-	  return -EINVAL;
+	if(posp) {
+	  pos = be32_to_cpup(posp);
+	  printk(KERN_INFO "fxos8700 got position %u\n", pos);
+	} else {
+	  pos = FXOS8700_POSITION_DEFAULT;
+	  printk(KERN_INFO "fxos8700 did not get position, using default position %u\n", pos);
 	}
-	pos = be32_to_cpup(posp);
-	printk(KERN_INFO "fxo8700 got position %u\n", pos);
-	atomic_set(&pdata->position, FXOS8700_POSITION_DEFAULT);
-	if(pos){
-	  atomic_set(&pdata->position, pos);
-	}
+	atomic_set(&pdata->position, pos);
 
 	result = misc_register(&pdata->fxos8700_acc_device);
 	if (result != 0) {
