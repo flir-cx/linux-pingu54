@@ -1756,13 +1756,6 @@ static int bq24298_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int bq24298_pm_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct bq24298_dev_info *bdi = i2c_get_clientdata(client);
-
-	pm_runtime_get_sync(bdi->dev);
-	bq24298_register_reset(bdi);
-	pm_runtime_put_sync(bdi->dev);
-
 	return 0;
 }
 
@@ -1774,10 +1767,6 @@ static int bq24298_pm_resume(struct device *dev)
 	bdi->charger_health_valid = false;
 	bdi->battery_health_valid = false;
 	bdi->battery_status_valid = false;
-
-	pm_runtime_get_sync(bdi->dev);
-	bq24298_register_reset(bdi);
-	pm_runtime_put_sync(bdi->dev);
 
 	/* Things may have changed while suspended so alert upper layer */
 	power_supply_changed(bdi->charger);
