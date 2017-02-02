@@ -218,6 +218,12 @@ static const int bq24298_ictrc_treg_values[] = {
 	600, 800, 1000, 1200
 };
 
+/* REG00[2:0] (IINLIM) in mA */
+static const s16 bq24298_current_limits[] = {
+	100, 150, 500, 900, 1000, 1500, 2000, 3000
+};
+
+
 /*
  * Return the index in 'tbl' of greatest value that is less than or equal to
  * 'val'.  The index range returned is 0 to 'tbl_size' - 1.  Assumes that
@@ -1595,12 +1601,20 @@ int bq24298_get_otg(void)
 	return data;
 }
 EXPORT_SYMBOL(bq24298_get_otg);
+
 int bq24298_set_iinlim(s16 currentlim)
 {
+	unsigned ix;
+
     if(!bdi)
         return -ENODEV;
 
-	return bq24298_set_iinlim_helper(currentlim, 0);
+	/* Round requested current down to closest available limit */
+	ix = ARRAY_SIZE(bq24298_current_limits) - 1;
+	while (ix && (currentlim < bq24298_current_limits[ix]))
+		--ix;
+
+	return bq24298_set_iinlim_helper(bq24298_current_limits[ix], 0);
 }
 EXPORT_SYMBOL(bq24298_set_iinlim);
 
