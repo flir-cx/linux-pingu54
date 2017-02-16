@@ -173,6 +173,7 @@
 #define SENSOR_MAG_ENABLE_MAXMIN_DETECTION _IOR(SENSOR_IOCTL_BASE,10,int)
 #define SENSOR_MAG_GET_MINMAX _IOR(SENSOR_IOCTL_BASE,11,short[6])
 #define SENSOR_MAG_SET_MINMAX _IOW(SENSOR_IOCTL_BASE,12,short[6])
+#define SENSOR_ACC_ENABLE_SELFTEST _IOW(SENSOR_IOCTL_BASE,13, int)
 
 #define FXOS8700_I2C_ADDR		0x1E
 #define FXOS8700_DEVICE_ID		0xC7
@@ -303,6 +304,32 @@ static int fxos8700_set_odr(struct i2c_client *client, int type, int delay)
 	return 0;
 }
 
+static int fxos8700_acc_set_selftest(struct i2c_client *client, int selftest)
+{
+
+	// Selftest is described in the datasheet for the FXOS8700, 
+	// It's a method to determine if the accelerometer is working correctly
+	// without waving the device in the air, we enable an electric stimuli to the 
+	// accelerometer MEMS and can check the change in the data from the 
+	// accelerometer and decide if it is functioning!
+	int ret;
+	s32 ctrlreg1;
+	s32 tmp;
+	
+	dev_err(&client->dev, "%s %u", __func__, selftest);
+	ctrlreg1 = i2c_smbus_read_byte_data(client, FXOS8700_CTRL_REG1);
+	ret = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, ctrlreg1 & ~0x01); //deactivate
+	msleep(25);
+	tmp = i2c_smbus_read_byte_data(client, FXOS8700_CTRL_REG2);
+	if (tmp < 0)
+		return tmp;
+	ret = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG2, selftest ? tmp | 0x80 : tmp & 0x7f);
+	msleep(25);
+	ret = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, ctrlreg1); //restore ctrlreg1
+	msleep(25);
+	return ret;
+}
+
 static int fxos8700_device_init(struct i2c_client *client)
 {
 	int result;
@@ -425,6 +452,7 @@ static long fxos8700_acc_ioctl(struct file *file, unsigned int cmd, unsigned lon
 	long ret = 0;
 	short sdata[3];
 	int enable;
+	int selftest;
 	int delay;
 	int position;
 
@@ -478,6 +506,19 @@ static long fxos8700_acc_ioctl(struct file *file, unsigned int cmd, unsigned lon
 			ret = fxos8700_set_odr(pdata->client, FXOS8700_TYPE_ACC, delay);
 			if (!ret)
 				atomic_set(&pdata->acc_delay, delay);
+		}
+		break;
+	case SENSOR_ACC_ENABLE_SELFTEST:
+		if (copy_from_user(&selftest, argp, sizeof(int))) {
+			printk(KERN_ERR "SENSOR_ACC_ENABLE_SELFTEST copy_from_user failed.");
+			ret = -EFAULT;
+		}
+		if(selftest){
+			if (pdata->client)
+				ret = fxos8700_acc_set_selftest(pdata->client, 1);
+		} else {
+			if (pdata->client)
+				ret = fxos8700_acc_set_selftest(pdata->client, 0);
 		}
 		break;
 	case SENSOR_GET_RAW_DATA:
