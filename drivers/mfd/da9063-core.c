@@ -79,6 +79,14 @@ static struct resource da9063_wake_resources[] = {
 	},
 };
 
+static struct resource da9063_comp1v2_resources[] = {
+	{
+		 .name	= "COMP_1V2",
+		.start	= DA9063_IRQ_COMP_1V2,
+		.end	= DA9063_IRQ_COMP_1V2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
 
 static const struct mfd_cell da9063_common_devs[] = {
 	{
@@ -130,6 +138,12 @@ static const struct mfd_cell da9063_devs[] = {
 		.num_resources	= ARRAY_SIZE(da9063_wake_resources),
 		.resources	= da9063_wake_resources,
 		.of_compatible	= "dlg,da9063-wake",
+	},
+	{
+		.name		= DA9063_DRVNAME_COMP1V2,
+		.num_resources	= ARRAY_SIZE(da9063_comp1v2_resources),
+		.resources	= da9063_comp1v2_resources,
+		.of_compatible	= "dlg,da9063-comp1v2",
 	},
 };
 

@@ -60,3 +60,4 @@ obj-$(CONFIG_UACCE)		+= uacce/
 obj-$(CONFIG_XILINX_SDFEC)	+= xilinx_sdfec.o
 obj-$(CONFIG_HISI_HIKEY_USB)	+= hisi_hikey_usb.o
 obj-$(CONFIG_DA9063_WAKE)	+= da9063-wake.o
+obj-$(CONFIG_DA9063_COMP1V2)	+= da9063-comp1v2.o

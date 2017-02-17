@@ -493,6 +493,13 @@ config DA9063_WAKE
 	  Support the wake function of Dialog DA9063 Power Management IC as a
 	   device wakeing the system from suspend.
 
+config DA9063_COMP1V2
+	tristate "Dialog DA9063 comparator 1v2"
+	depends on MFD_DA9063
+	help
+	  Support the comparator function of Dialog DA9063 Power Management IC. Will power
+	  off the device if comparator event is detected.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
