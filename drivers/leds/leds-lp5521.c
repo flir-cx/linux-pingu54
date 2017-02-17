@@ -605,6 +605,16 @@ static int lp5521_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
+static void lp5521_reset_device(struct lp55xx_chip *chip)
+{
+	struct lp55xx_device_config *cfg = chip->cfg;
+	u8 addr = cfg->reset.addr;
+	u8 val  = cfg->reset.val;
+
+	/* no error checking here because no ACK from the device after reset */
+	lp55xx_write(chip, addr, val);
+}
+
 static int lp5521_resume(struct i2c_client *client)
 {
 	struct lp55xx_led *led = i2c_get_clientdata(client);
@@ -613,8 +623,18 @@ static int lp5521_resume(struct i2c_client *client)
 
 	if (gpio_is_valid(pdata->enable_gpio)) {
 		gpio_set_value_cansleep(pdata->enable_gpio, 1);
-		udelay(500);
+		usleep_range(1000, 2000); /* 500us abs min. */
 	}
+
+	lp5521_reset_device(chip);
+
+	/*
+	 * Exact value is not available. 10 - 20ms
+	 * appears to be enough for reset.
+	 */
+	usleep_range(10000, 20000);
+
+	lp5521_post_init_device(chip);
 
 	return 0;
 }
