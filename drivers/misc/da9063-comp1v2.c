@@ -104,6 +104,7 @@ static void da9063_comp1v2_shutdown(struct platform_device *pdev)
 }
 
 
+
 static struct platform_driver da9063_comp1v2_driver = {
 	.probe	= da9063_comp1v2_probe,
 	.driver	= {
@@ -111,7 +112,12 @@ static struct platform_driver da9063_comp1v2_driver = {
 	},
 	.shutdown = da9063_comp1v2_shutdown,
 };
-module_platform_driver(da9063_comp1v2_driver);
+
+static int __init da9063_comp1v2_init(void)
+{
+	return platform_driver_probe(&da9063_comp1v2_driver, da9063_comp1v2_probe);
+}
+late_initcall(da9063_comp1v2_init);
 
 MODULE_AUTHOR("Felix Hammarstrand");
 MODULE_DESCRIPTION("Comparator driver for Dialog DA9063");
