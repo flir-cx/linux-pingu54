@@ -108,7 +108,8 @@ struct mipi_dsi_info {
 	int				irq;
 	int				lcd_mipi_sel_gpio;
 	int				lcd_mipi_en_gpio;
-	int				vf_pow_en_gpio;
+	int				vf_4v5_en_gpio;
+	int				vf_1v8_en_gpio;
 	int				vf_rst_gpio;
 	int				active_panel;
 
