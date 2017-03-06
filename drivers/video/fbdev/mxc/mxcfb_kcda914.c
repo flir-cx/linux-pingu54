@@ -376,9 +376,13 @@ int mipid_kcda914_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	if(mipi_dsi->lcd_mipi_sel_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 0);
 
-	if(mipi_dsi->vf_pow_en_gpio)
-		gpio_set_value_cansleep(mipi_dsi->vf_pow_en_gpio, 1);
-	udelay(100);
+	if(mipi_dsi->vf_1v8_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_1v8_en_gpio, 1);
+	udelay(700);
+
+	if(mipi_dsi->vf_4v5_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_4v5_en_gpio, 1);
+	udelay(1000);
 
 	if(mipi_dsi->vf_rst_gpio)
 		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 1);

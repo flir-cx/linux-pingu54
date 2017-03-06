@@ -1024,17 +1024,30 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	else
 		mipi_dsi->lcd_mipi_en_gpio = 0;
 
-	mipi_dsi->vf_pow_en_gpio = of_get_named_gpio(np, "vf_pow_en", 0);
-	if (gpio_is_valid(mipi_dsi->vf_pow_en_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->vf_pow_en_gpio,
-					    GPIOF_OUT_INIT_LOW, "vf_pow_en");
+	mipi_dsi->vf_4v5_en_gpio = of_get_named_gpio(np, "vf_4v5_en", 0);
+	if (gpio_is_valid(mipi_dsi->vf_4v5_en_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->vf_4v5_en_gpio,
+					    GPIOF_OUT_INIT_LOW, "vf_4v5_en");
 		if (ret) {
-			dev_err(&pdev->dev, "unable to get vf_pow_en gpio\n");
+			dev_err(&pdev->dev, "unable to get vf_4v5_en gpio\n");
 			return ret;
 		}
 	}
 	else
-		mipi_dsi->vf_pow_en_gpio = 0;
+		mipi_dsi->vf_4v5_en_gpio = 0;
+
+	mipi_dsi->vf_1v8_en_gpio = of_get_named_gpio(np, "vf_1v8_en", 0);
+	if (gpio_is_valid(mipi_dsi->vf_1v8_en_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->vf_1v8_en_gpio,
+					    GPIOF_OUT_INIT_LOW, "vf_1v8_en");
+		if (ret) {
+			dev_err(&pdev->dev, "unable to get vf_1v8_en gpio\n");
+			return ret;
+		}
+	}
+	else
+		mipi_dsi->vf_1v8_en_gpio = 0;
+
 
 	mipi_dsi->vf_rst_gpio = of_get_named_gpio(np, "vf_rst", 0);
 	if (gpio_is_valid(mipi_dsi->vf_rst_gpio)) {
@@ -1141,9 +1154,12 @@ static int mipi_dsi_suspend(struct platform_device *pdev, pm_message_t state)
 	if(mipi_dsi->vf_rst_gpio)
 		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 0);
 
-	if(mipi_dsi->vf_pow_en_gpio)
-		gpio_set_value_cansleep(mipi_dsi->vf_pow_en_gpio, 0);
+	if(mipi_dsi->vf_4v5_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_4v5_en_gpio, 0);
+	udelay(700);
 
+	if(mipi_dsi->vf_1v8_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_1v8_en_gpio, 0);
 	udelay(1000);
 
 	return 0;
@@ -1156,7 +1172,7 @@ static int mipi_dsi_resume(struct platform_device *pdev)
 	if(mipi_dsi->lcd_mipi_en_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_en_gpio, 0);
 
-	if(mipi_dsi->vf_pow_en_gpio && mipi_dsi->vf_callback) {
+	if(mipi_dsi->vf_callback) {
 		mipi_dsi->vf_callback->mipi_lcd_setup(mipi_dsi);
 
 		if (mipi_dsi->vf_callback->mipi_lcd_power_off)
