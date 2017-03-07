@@ -174,6 +174,7 @@
 #define SENSOR_MAG_GET_MINMAX _IOR(SENSOR_IOCTL_BASE,11,short[6])
 #define SENSOR_MAG_SET_MINMAX _IOW(SENSOR_IOCTL_BASE,12,short[6])
 #define SENSOR_ACC_ENABLE_SELFTEST _IOW(SENSOR_IOCTL_BASE,13, int)
+#define SENSOR_ACC_SELFTEST _IOR(SENSOR_IOCTL_BASE,14, int)
 
 #define FXOS8700_I2C_ADDR		0x1E
 #define FXOS8700_DEVICE_ID		0xC7
@@ -319,7 +320,7 @@ static int fxos8700_acc_set_selftest(struct i2c_client *client, int selftest)
 	s32 ctrlreg1;
 	s32 tmp;
 	
-	dev_err(&client->dev, "%s %u", __func__, selftest);
+//	dev_err(&client->dev, "%s %u", __func__, selftest);
 	ctrlreg1 = i2c_smbus_read_byte_data(client, FXOS8700_CTRL_REG1);
 	ret = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, ctrlreg1 & ~0x01); //deactivate
 	msleep(25);
@@ -401,6 +402,71 @@ fxos8700_read_data(struct i2c_client *client, struct fxos8700_data_axis *data, i
 	data->y = ((tmp_data[2] << 8) & 0xff00) | tmp_data[3];
 	data->z = ((tmp_data[4] << 8) & 0xff00) | tmp_data[5];
 	return 0;
+}
+
+static int fxos8700_acc_selftest(struct i2c_client *client)
+{
+	int ret;
+
+	const int SELFTEST_OUTPUT_CHANGE_X = 192;
+	const int SELFTEST_OUTPUT_CHANGE_Y = 270;
+	const int SELFTEST_OUTPUT_CHANGE_Z = 1275;
+	
+	struct fxos8700_data_axis selftestdata;
+	struct fxos8700_data_axis normaldata;
+	struct fxos8700_data_axis calc;
+
+	ret = fxos8700_acc_set_selftest(client, 1);
+	ret = fxos8700_read_data(client, &selftestdata, FXOS8700_TYPE_ACC);
+	ret = fxos8700_acc_set_selftest(client, 0);
+	ret = fxos8700_read_data(client, &normaldata, FXOS8700_TYPE_ACC);
+
+	/* dev_err(&client->dev, "fxos8700_acc_selftest"); */
+	calc.x = selftestdata.x - normaldata.x;
+	calc.y = selftestdata.y - normaldata.y;
+	calc.z = selftestdata.z - normaldata.z;
+
+	if(calc.x < 0) calc.x = -calc.x;
+	if(calc.y < 0) calc.y = -calc.y;
+	if(calc.z < 0) calc.z = -calc.z;
+	
+	/* dev_err(&client->dev, "fxos8700_acc_selftest selftestdata %i %i %i", selftestdata.x, selftestdata.y, selftestdata.z); */
+	/* dev_err(&client->dev, "fxos8700_acc_selftest normaldata %i %i %i", normaldata.x,normaldata.y,normaldata.z); */
+	/* dev_err(&client->dev, "fxos8700_acc_selftest calculated %i %i %i", calc.x,calc.y,calc.z); */
+
+	calc.x = calc.x >>3;
+	calc.y = calc.y >>3;
+	calc.z = calc.z >>3;
+	
+	dev_info(&client->dev, "fxos8700_acc_selftest calculated %i %i %i", calc.x,calc.y,calc.z);
+	
+	ret = 0;
+	
+	if(calc.x < (SELFTEST_OUTPUT_CHANGE_X >> 1) ||
+	   (calc.x > (SELFTEST_OUTPUT_CHANGE_X + (SELFTEST_OUTPUT_CHANGE_X >> 1)))){
+		dev_err(&client->dev, "fxos8700_acc_selftest Selftest failed in X direction");
+		ret = -1;
+	}
+
+	if(calc.y < (SELFTEST_OUTPUT_CHANGE_Y >> 1) ||
+	   (calc.y > (SELFTEST_OUTPUT_CHANGE_Y + (SELFTEST_OUTPUT_CHANGE_Y >> 1)))){
+		dev_err(&client->dev, "fxos8700_acc_selftest Selftest failed in Y direction");
+		ret = -1;
+	}
+
+	if(calc.z < (SELFTEST_OUTPUT_CHANGE_Z >> 1) ||
+	   (calc.z > (SELFTEST_OUTPUT_CHANGE_Z + (SELFTEST_OUTPUT_CHANGE_Z >> 1)))){
+		dev_err(&client->dev, "fxos8700_acc_selftest Selftest failed in Z direction");
+		ret = -1;
+	}
+
+	if(ret == -1){
+		dev_err(&client->dev, "fxos8700_acc_selftest Selftest failed");
+	} else {
+		dev_info(&client->dev, "fxos8700_acc_selftest  successful");
+	}
+	
+	return ret;
 }
 
 static int
@@ -522,6 +588,13 @@ static long fxos8700_acc_ioctl(struct file *file, unsigned int cmd, unsigned lon
 		} else {
 			if (pdata->client)
 				ret = fxos8700_acc_set_selftest(pdata->client, 0);
+		}
+		break;
+	case SENSOR_ACC_SELFTEST:
+		ret = fxos8700_acc_selftest(pdata->client);
+		if (copy_to_user(argp, &ret, sizeof(ret))) {
+			printk(KERN_ERR "SENSOR_ACC_SELFTEST copy_to_user failed.");
+			ret = -EFAULT;
 		}
 		break;
 	case SENSOR_GET_RAW_DATA:
