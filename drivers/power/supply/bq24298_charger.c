@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
@@ -1618,69 +1619,60 @@ int bq24298_set_iinlim(s16 currentlim)
 }
 EXPORT_SYMBOL(bq24298_set_iinlim);
 
-int bq24298_set_iinlim_helper(s16 currentlim,u8 source)
+#define MIN_CURRENT 100
+
+int bq24298_set_iinlim_helper(s16 currentlim, u8 source)
 {
-	static DEFINE_SPINLOCK(set_iinlim_lock);
-	static s16 currentlim_type0_d=0;
-	static s16 currentlim_type1_d=0;
-	static s16 currentlim_type2_d=0;
-	static u8 source_d=0;
-	bool bq24392_exist = false;
-	bool usblegacy12 = false;
-	bool setcurrent = false;
-	static s16 lastCurrentlim;
+	static DEFINE_MUTEX(set_iinlim_lock);
+	static s16 currentlim_type0_d = MIN_CURRENT;
+	static s16 currentlim_type1_d = MIN_CURRENT;
+	static s16 currentlim_type2_d = MIN_CURRENT;
+	static s16 last_currentlim = -1;
+	s16 set_currentlim = 0;
 
-	spin_lock(&set_iinlim_lock);
+	mutex_lock(&set_iinlim_lock);
 
-	pr_debug("%s: set ilim from fusb30x to %i (%i), source is %i (%i)\n", __func__, currentlim,currentlim_type0_d,source,source_d);
+	pr_debug("%s: source %i setting iinlim to %i mA\n",
+		 __func__, (int)source, (int)currentlim);
 
+	if (currentlim < MIN_CURRENT)
+		currentlim = MIN_CURRENT;
 
-	if(source == 1) bq24392_exist = true;
-	if(source == 1 || source == 2) usblegacy12 = true;
 	//source
-	// 0   Type-C
-	// 1   USB1.2BC ti,usb-charger-detection, ti,bq24392
-	// 2   USB1.2BC imx6-usb-charger-detection
-	// Power decisions
-	// 
-	// If USB type C CC/PD current is higher than USB-1.2BC, choose USB type C
-	// If USB type C not found, Choouse USB-1.2BC current
-
-
-	if(source == 0){
-		if(currentlim == -1){
-			//USB Type C disconnected
-			currentlim = 100;
-			setcurrent = true;
-		} else {
-			if(source_d == 1) {
-				if(currentlim_type1_d > currentlim){
-					currentlim = currentlim_type1_d;
-					source=1;
-				}
-				setcurrent = true;
-			} else {
-				if(currentlim_type2_d > currentlim){
-					currentlim = currentlim_type2_d;
-					source=1;
-				}
-				setcurrent = true;
-			}
-		}
-	} else if(bq24392_exist) {
-		if(source == 1) {
-			if(currentlim_type0_d < currentlim){
-				setcurrent = true;
-			}
-		}
-	} else if(source == 2) {
-		if(currentlim_type0_d < currentlim){
-			setcurrent = true;
-		}
+	// 0   Type-C CC/PD
+	// 1   USB1.2BC ti,usb-charger-detection
+	// 2   USB1.2BC second-usb-charger-detection
+	switch (source) {
+	case 0:	currentlim_type0_d = currentlim; break;
+	case 1:	currentlim_type1_d = currentlim; break;
+	case 2:	currentlim_type2_d = currentlim; break;
+	default:
+		pr_err("%s: Unknown source (%d)\n", __func__, source);
+		break;
 	}
-	
-	if(setcurrent){
-		switch(currentlim){
+
+	if ((currentlim_type0_d >= currentlim_type1_d) &&
+	    (currentlim_type0_d >= currentlim_type2_d)) {
+
+		// Type-C limit is highest so use it
+		if (currentlim_type0_d != last_currentlim)
+			set_currentlim = currentlim_type0_d;
+
+	} else if (currentlim_type1_d >= currentlim_type2_d) {
+
+		// first charger limit is higher than Type-C so use it
+		if (currentlim_type1_d != last_currentlim)
+			set_currentlim = currentlim_type1_d;
+
+	} else {
+
+		// second charger limit is higher than Type-C so use it
+		if (currentlim_type2_d != last_currentlim)
+			set_currentlim = currentlim_type2_d;
+	}
+
+	if (set_currentlim) {
+		switch (set_currentlim) {
 		case 100:
 			bdi->iinlim = BQ24298_CURRENT_LIMIT_100MA;
 			break;
@@ -1710,34 +1702,19 @@ int bq24298_set_iinlim_helper(s16 currentlim,u8 source)
 			break;
 		}
 		bdi->iinlimset = true;
-		
-		switch(source){
-		case 0:
-			currentlim_type0_d = currentlim;
-			break;
-		case 1:
-			currentlim_type1_d = currentlim;
-			break;
-		case 2:
-			currentlim_type2_d = currentlim;
-			break;
-		default:
-			pr_err("%s: Unknown source\n", __func__);
-			break;
-		};
-
-		source_d = source;
 	}
-	spin_unlock(&set_iinlim_lock);
-	if(setcurrent){
+
+	if (set_currentlim) {
 		bq24298_write_mask(bdi, BQ24298_REG_ISC,
 				   BQ24298_REG_ISC_IINLIM_MASK,
 				   BQ24298_REG_ISC_IINLIM_SHIFT, bdi->iinlim);
-		if (lastCurrentlim != currentlim) {
-			pr_info("Current input limit set to %i mA\n", currentlim);
-			lastCurrentlim = currentlim;
-		}
+		pr_info("bq24298: Current input limit set to %i mA\n",
+			set_currentlim);
+		last_currentlim = set_currentlim;
 	}
+
+	mutex_unlock(&set_iinlim_lock);
+
 	return bdi->iinlim;
 }
 
