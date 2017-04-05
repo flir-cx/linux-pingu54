@@ -121,6 +121,7 @@ static irqreturn_t max7_isr(int irq, void *dev_id)
 {
 	struct i2c_client *client = max7->client;
 	int streamlen = 0;
+	int i;
 	dev_dbg(&client->dev, "%s\n", __func__);
 	streamlen = max7_read_msg_stream_len(client);
 	if(streamlen > GPSSIZE){
@@ -134,7 +135,10 @@ static irqreturn_t max7_isr(int irq, void *dev_id)
 		{
 			dev_err(&client->dev, "Fail reading message stream..\n");
 		}
-		kfifo_in(&i2cfifo, max7->rdkbuf, strlen(max7->rdkbuf));
+		i = kfifo_in(&i2cfifo, max7->rdkbuf, strlen(max7->rdkbuf));
+		if (i != strlen(max7->rdkbuf)) {
+		    dev_err(&client->dev, "failed to write to fifo, fifo full\n");
+		}
 	}
 
 	return IRQ_HANDLED;
