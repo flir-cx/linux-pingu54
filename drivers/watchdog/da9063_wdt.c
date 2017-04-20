@@ -255,15 +255,14 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int da9063_wdt_suspend(struct device *dev)
 {
-	struct da9063_watchdog *wdt;
 	int ret;
-	wdt = (struct da9063_watchdog *)dev_get_drvdata(dev);
+	struct da9063 *da9063 = dev_get_drvdata(dev->parent);
 
 	/* Stop watchdog */
-	ret = regmap_update_bits(wdt->da9063->regmap, DA9063_REG_CONTROL_D,
+	ret = regmap_update_bits(da9063->regmap, DA9063_REG_CONTROL_D,
 				 DA9063_TWDSCALE_MASK, DA9063_TWDSCALE_DISABLE);
 	if (ret)
-		dev_alert(wdt->da9063->dev, "Watchdog failed to stop (err = %d)\n",
+		dev_alert(da9063->dev, "Watchdog failed to stop (err = %d)\n",
 			  ret);
 
 	return ret;
@@ -271,17 +270,17 @@ static int da9063_wdt_suspend(struct device *dev)
 
 static int da9063_wdt_resume(struct device *dev)
 {
-	struct da9063_watchdog *wdt;
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+	struct da9063 *da9063 = dev_get_drvdata(dev->parent);
 	unsigned int selector;
 	int ret;
-	wdt = (struct da9063_watchdog *)dev_get_drvdata(dev);
 
 	/* Restart watchdog */
 
-	selector = da9063_wdt_timeout_to_sel(wdt->wdtdev.timeout);
-	ret = _da9063_wdt_set_timeout(wdt->da9063, selector);
+	selector = da9063_wdt_timeout_to_sel(wdd->timeout);
+	ret = da9063_wdt_set_timeout(wdd, selector);
 	if (ret)
-		dev_err(wdt->da9063->dev, "Watchdog failed to start (err = %d)\n",
+		dev_err(da9063->dev, "Watchdog failed to start (err = %d)\n",
 			ret);
 	return ret;
 }
@@ -289,7 +288,10 @@ static int da9063_wdt_resume(struct device *dev)
 
 
 #if CONFIG_PM
-SIMPLE_DEV_PM_OPS(da9063_wdt_pm, da9063_wdt_suspend, da9063_wdt_resume);
+static const struct dev_pm_ops da9063_wdt_pm = {
+	.suspend_late = da9063_wdt_suspend,
+	.resume_early = da9063_wdt_resume,
+};
 #endif
 
 static struct platform_driver da9063_wdt_driver = {
