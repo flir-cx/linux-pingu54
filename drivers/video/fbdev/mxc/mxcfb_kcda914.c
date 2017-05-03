@@ -372,6 +372,7 @@ static int kcda914_i2c_reg_write(struct mipi_dsi_info *mipi_dsi,u8 reg, u8 val)
 int mipid_kcda914_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 {
 	int err;
+	int i;
 
 	if(mipi_dsi->lcd_mipi_sel_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 0);
@@ -388,7 +389,7 @@ int mipid_kcda914_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 1);
 	udelay(100);
 
-	for(int i=0; i<ARRAY_SIZE(vf_setup);i++)
+	for(i=0; i<ARRAY_SIZE(vf_setup);i++)
 	{
 		kcda914_i2c_reg_write(mipi_dsi,vf_setup[i].reg,vf_setup[i].val);
 	}
