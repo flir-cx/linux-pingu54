@@ -3691,6 +3691,11 @@ static int mxcfb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Error %d on creating file for disp "
 				    " device propety\n", ret);
 
+	console_lock();
+	mxcfb_blank(FB_BLANK_NORMAL, fbi);
+	mxcfb_blank(FB_BLANK_UNBLANK, fbi);
+	console_unlock();
+
 
 	return 0;
 
