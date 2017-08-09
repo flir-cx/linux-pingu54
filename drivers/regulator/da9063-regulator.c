@@ -892,7 +892,15 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "Failed to request LDO_LIM IRQ.\n");
 
-	return ret;
+	//disable debounce on SD1_VSELECT
+	regmap_update_bits(da9063->regmap,
+				DA9063_REG_GPIO_MODE8_15,
+				DA9063_GPIO13_MODE, 0);
+	//disable debounce on PMIC_STBY_REQ
+	regmap_update_bits(da9063->regmap,
+				DA9063_REG_GPIO_MODE0_7,
+				DA9063_GPIO2_MODE, 0);
+	return 0;
 }
 
 static struct platform_driver da9063_regulator_driver = {
