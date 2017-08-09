@@ -225,6 +225,10 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 	onkey->key_power = !of_property_read_bool(pdev->dev.of_node,
 						  "dlg,disable-key-power");
 
+	regmap_update_bits(onkey->regmap,
+				DA9063_REG_CONTROL_C,
+				DA9063_DEBOUNCING_MASK, DA9063_DEBOUNCING_256MS);
+
 	onkey->input = devm_input_allocate_device(&pdev->dev);
 	if (!onkey->input) {
 		dev_err(&pdev->dev, "Failed to allocated input device.\n");
