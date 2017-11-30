@@ -1367,7 +1367,7 @@
 				};
 			};
 
-			vdoa@21e4000 {
+			vdoa: vdoa@021e4000 {
 				compatible = "fsl,imx6q-vdoa";
 				reg = <0x021e4000 0x4000>;
 				interrupts = <0 18 IRQ_TYPE_LEVEL_HIGH>;
