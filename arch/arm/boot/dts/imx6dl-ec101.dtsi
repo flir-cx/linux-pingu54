@@ -9,6 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <dt-bindings/gpio/gpio.h>
 /*This file represents ec101-d and later*/
 
 / {
@@ -564,7 +565,7 @@
 	pinctrl-0 = <&pinctrl_i2c4>;
 	status = "okay";
 	
-	hdmi: edid@50 {
+	hdmi_edid: edid@50 {
 		compatible = "fsl,imx6-hdmi-i2c";
 		i2c_en_gpio = <&gpio2 0 GPIO_ACTIVE_HIGH>;
 		reg = <0x50>;
