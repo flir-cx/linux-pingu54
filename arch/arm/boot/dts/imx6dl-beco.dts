@@ -15,6 +15,7 @@
 
 #include "imx6dl.dtsi"
 #include "imx6dl-ec501.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
         model = "FLIR i.MX6 Solo beco Board";
