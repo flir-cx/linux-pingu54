@@ -9,7 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/*This file represents ec501-c */
+/*This file represents ec501-PA9 and later */
 
 #include <dt-bindings/net/ti-dp83867.h>
 
@@ -60,9 +60,6 @@
 
 	fad {
 		compatible = "flir,fad";
-		HasDigitalIO = <1>;
-		digin0-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;
-		digin1-gpios = <&gpio4 6 GPIO_ACTIVE_HIGH>;
 	};
 
 	boards{
@@ -179,13 +176,6 @@
 			};
 		};
 	};
-	
-	imx-thermal-values {
-		/* All values in mC */
-		temp-passive = <83000>;
-		temp-critical = <100000>;
-		hysteresis = <3000>;
-	};
 };
 
 &hdmi_core {
@@ -237,8 +227,8 @@
 /* Serial flash SPI */
 &ecspi1 {
 	status = "okay";
-	fsl,spi-num-chipselects = <3>;
-	cs-gpios = <&gpio5 28 0>, <&gpio5 29 0 >, <&gpio1 3 0>;
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio5 28 0>, <&gpio5 29 0>;
 
 	/* FPGA program flash */
 	flash: m25p80@0 {
@@ -249,18 +239,10 @@
 
 	/* Detector flash */
 	bie64flash: bie64flash@1 {
-		compatible = "micron,n25q128a13", "micron,n25q256a";
+		compatible = "micron,n25q256a";
 		spi-max-frequency = <20000000>;
 		reg = <1>;
 	};
-	/* Adc on i3 detector board, dummy chip select*/
-	spidev: spidev@2 {
-		status = "okay";
-		compatible = "linux,spidev";
-		spi-max-frequency = <1000000>;
-		reg = <2>;
-	};	
-
 };
 
 /* IO board SPI */
@@ -348,11 +330,10 @@
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1280000>;
 
-				regulator-initial-mode = "fast";
+				regulator-initial-mode = "normal";
 				regulator-initial-state = "suspend-mem";
 				regulator-valid-modes-mask {
 					normal-mode;
-					fast-mode;
 				};
 				regulator-state-mem {
 					regulator-state-mode = "normal";
@@ -369,11 +350,10 @@
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1280000>;
 
-				regulator-initial-mode = "fast";
+				regulator-initial-mode = "normal";
 				regulator-initial-state = "suspend-mem";
 				regulator-valid-modes-mask {
 					normal-mode;
-					fast-mode;
 				};
 				regulator-state-mem {
 					regulator-state-mode = "normal";
@@ -386,28 +366,12 @@
 			DA9063_BPRO:bpro  {
 				regulator-name = "DA9063_BPRO";
 				regulator-boot-on;
-				regulator-initial-mode = "fast";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
-				regulator-state-mem {
-					regulator-state-mode = "normal";
-				};
 			};
 
-			/* 1V2D_FPGA */
+			/* 1V1D_FPGA */
 			DA9063_BMEM:bmem  {
 				regulator-name = "DA9063_BMEM";
 				regulator-boot-on;
-				regulator-initial-mode = "fast";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
-				regulator-state-mem {
-					regulator-state-mode = "normal";
-				};
 			};
 
 			/* 1V8D */
@@ -415,14 +379,6 @@
 				regulator-name = "DA9063_BIO";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-initial-mode = "fast";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
-				regulator-state-mem {
-					regulator-state-mode = "normal";
-				};
 			};
 
 			/* 1V2D */
@@ -430,14 +386,6 @@
 				regulator-name = "DA9063_BPERI";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-initial-mode = "fast";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
-				regulator-state-mem {
-					regulator-state-mode = "normal"; 
-				};
 			};
 
 			/* 2V5A_ETH */
@@ -562,8 +510,6 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog>;
 
 	imx6dl-ec {
 
@@ -729,16 +675,14 @@
 				>;
 		};
 
-		pinctrl_hog: hoggrp {
+		pinctrl_digio: digiogrp {
 			fsl,pins = <
-				/* DIG_IN_x */
-				MX6QDL_PAD_KEY_COL0__GPIO4_IO06		0x13000
-				MX6QDL_PAD_KEY_COL1__GPIO4_IO08		0x13000
-				/* DIG_OUT_CPU_x */
-				MX6QDL_PAD_EIM_DA14__GPIO3_IO14		0x40000010
-				MX6QDL_PAD_EIM_DA15__GPIO3_IO15		0x40000010
+				MX6QDL_PAD_KEY_COL0__GPIO4_IO06	0x13000  //in
+				MX6QDL_PAD_KEY_COL1__GPIO4_IO08	0x13000
+				MX6QDL_PAD_EIM_DA14__GPIO3_IO14	0x10010  //out
+				MX6QDL_PAD_EIM_DA15__GPIO3_IO15	0x10010
 			>;
-		};
+                };
 
 		pinctrl_fvd: fvdgrp {
 			fsl,pins = <
@@ -768,7 +712,7 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	status = "disabled";
+	status = "okay";
 };
 
 
@@ -802,14 +746,14 @@
 	operating-points = <
 		/* kHz	 uV */
 		996000 1280000
-		792000 1180000
-		396000 1150000
+		768000 1180000
+		420000 1150000
 	>;
 	fsl,soc-operating-points = <
 		/* ARM kHz SOC-PU uV */
 		996000 1200000
-		792000 1200000
-		396000 1200000
+		768000 1200000
+		420000 1200000
 	>;
 };
 
