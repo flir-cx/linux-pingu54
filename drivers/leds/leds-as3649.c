@@ -2,6 +2,7 @@
  * as3649.c - Led flash driver
  *
  * Version:
+ * 2017-12-05: v0.12 : adapted driver for AS3648
  * 2012-09-04: v0.11 : changed rounding, prefere ROUND_UP
  * 2012-07-23: v0.10 : incorporate many review comments
  * 2012-07-10: v0.9 : added automatic shutdown, some review comments
@@ -34,6 +35,8 @@
 
 #define AS3649_CURR_STEP          3922 /* uA */
 #define AS3649_CURR_STEP_BOOST    4902 /* uA */
+#define AS3648_CURR_STEP          3529 /* uA */
+#define AS3648_CURR_STEP_BOOST    3922 /* uA */
 #define AS3649_TXMASK_STEP       31400 /* uA */
 #define AS3649_TXMASK_STEP_BOOST 39200 /* uA */
 #define AS3649_NTC_CURR_STEP        40 /* uA */
@@ -41,10 +44,8 @@
 #define AS3649_MAX_PEAK_CURRENT   1250
 #define AS3649_MIN_ILIMIT         2500 /* mA */
 
-#define AS3649_MAX_TORCH_CURRENT     \
-	DIV_ROUND_UP(AS3649_CURR_STEP * 0x3f, 1000)
-#define AS3649_MAX_INDICATOR_CURRENT \
-	DIV_ROUND_UP(AS3649_CURR_STEP * 0x3f, 1000)
+#define AS3649_MAX_TORCH_CURRENT     (data->id == AS3648_REG_ChipID_fixed_id ? 448:250)
+#define AS3649_MAX_INDICATOR_CURRENT (data->id == AS3648_REG_ChipID_fixed_id ? 222:250)
 #define AS3649_MAX_NTC_CURRENT       \
 	(0xf * AS3649_NTC_CURR_STEP)
 
@@ -68,12 +69,14 @@
 /* Register bit defines */
 #define AS3649_REG_ChipID_fixed_id_mask                0xf8
 #define AS3649_REG_ChipID_fixed_id                     0xc0
+#define AS3648_REG_ChipID_fixed_id                     0xb0
 #define AS3649_REG_ChipID_version_mask                 0x07
 #define AS3649_REG_Control_mode_mask                   0x3
 #define AS3649_REG_Control_mode_etorch                 0x0
 #define AS3649_REG_Control_mode_ind                    0x1
 #define AS3649_REG_Control_mode_itorch                 0x2
 #define AS3649_REG_Control_mode_flash                  0x3
+#define AS3648_REG_Control_out_on                      0x8
 #define AS3649_REG_TXMask_mode_none                    0x0
 #define AS3649_REG_TXMask_mode_txmask                  0x1
 #define AS3649_REG_TXMask_mode_ext_torch               0x1
@@ -150,6 +153,9 @@ struct as3649_data {
 	u8 diag_pulse_time;
 	u8 fault; /* shadow of fault reg for later on read out */
 	u8 vfi; /* calculated from vf_mV, index into as3649_tmax */
+	u8 id;
+	u16 curr_step;
+	u16 curr_step_boost;
 	s16 flash_tamb_celsius;
 };
 
@@ -253,6 +259,10 @@ static void as3649_dummy_enable(struct device *dev, bool on)
 static void as3649_set_leds(struct as3649_data *data,
 			u8 ledMask, u8 ctrl, u8 curr)
 {
+
+	if (data->id == AS3648_REG_ChipID_fixed_id)
+		ctrl |= AS3648_REG_Control_out_on;
+
 	if (ledMask & 1)
 		AS3649_WRITE_REG(AS3649_REG_Current_Set_LED1, curr);
 	else
@@ -381,7 +391,7 @@ static ssize_t as3649_brightness_uA_show(struct device *dev,
 	size_t ps = PAGE_SIZE;
 	u32 val;
 
-	val = data->normal_curr * AS3649_CURR_STEP;
+	val = data->normal_curr * data->curr_step;
 	if (val && (data->normal_ctrl & AS3649_REG_Control_mode_mask) ==
 			AS3649_REG_Control_mode_ind)
 		val = val * data->pwm_mode / 64;
@@ -410,7 +420,7 @@ static ssize_t as3649_brightness_uA_set(struct device *dev,
 		curr = 0;
 	} else if (val > (data->pdata->min_current_mA * 1000)) {
 		/* compute curr and write it */
-		curr = DIV_ROUND_UP(val, AS3649_CURR_STEP);
+		curr = DIV_ROUND_UP(val, data->curr_step);
 		/* turn on torch mode */
 		ctrl |= AS3649_REG_Control_mode_itorch;
 	} else {
@@ -449,7 +459,7 @@ static ssize_t as3649_brightness_uA_set(struct device *dev,
 		if (curr < 1000*data->pdata->min_current_mA)
 			curr = 1000*data->pdata->min_current_mA;
 
-		curr = DIV_ROUND_UP(curr, AS3649_CURR_STEP);
+		curr = DIV_ROUND_UP(curr, data->curr_step);
 	}
 	/* Turn off leds for avoiding short flashes of bright light */
 	if (!data->flash_mode)
@@ -522,6 +532,12 @@ exit:
 static void as3649_get_T_junc(struct as3649_data *data, s16 *celsius, u16 *raw)
 {
 	u16 result;
+	if (data->id == AS3648_REG_ChipID_fixed_id) {
+		*celsius = 0;
+		*raw = 0;
+		return;
+	}
+
 	AS3649_WRITE_REG(AS3649_REG_Strobe_Signalling,
 			data->strobe_reg |
 			AS3649_REG_Strobe_Signalling_adc_convert |
@@ -807,10 +823,10 @@ static ssize_t as3649_flash_brightness_mA_show(struct device *dev,
 
 	if (data->flash_boost)
 		val = DIV_ROUND_CLOSEST(data->flash_curr *
-				AS3649_CURR_STEP_BOOST, 1000);
+				data->curr_step_boost, 1000);
 	else
 		val = DIV_ROUND_CLOSEST(data->flash_curr *
-				AS3649_CURR_STEP, 1000);
+				data->curr_step, 1000);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 }
@@ -825,11 +841,11 @@ static ssize_t as3649_flash_brightness_mA_set(struct device *dev,
 	if (val > data->pdata->max_peak_current_mA)
 		val = data->pdata->max_peak_current_mA;
 
-	fb = DIV_ROUND_UP((val * 1000), AS3649_CURR_STEP);
+	fb = DIV_ROUND_UP((val * 1000), data->curr_step);
 	AS3649_LOCK();
 	data->flash_boost = 0;
 	if (fb > 255) {
-		fb = DIV_ROUND_UP((val * 1000), AS3649_CURR_STEP_BOOST);
+		fb = DIV_ROUND_UP((val * 1000), data->curr_step_boost);
 		data->flash_boost = 1;
 	}
 	data->flash_curr = fb;
@@ -898,9 +914,9 @@ static void as3649_get_last_min_current(struct as3649_data *data,
 			AS3649_REG_min_LED_Current);
 
 	if (data->flash_boost)
-		min_curr *= AS3649_CURR_STEP_BOOST;
+		min_curr *= data->curr_step_boost;
 	else
-		min_curr *= AS3649_CURR_STEP;
+		min_curr *= data->curr_step;
 
 	min_curr = DIV_ROUND_CLOSEST(min_curr, 1000);
 
@@ -1105,27 +1121,37 @@ static int as3649_configure(struct i2c_client *client,
 		struct as3649_data *data, struct as3649_platform_data *pdata)
 {
 	int err = 0;
-	u8 lv, vin;
+	u8 lv = 0, vin;
 
 	data->pdata = pdata;
 
 	as3649_set_txmask(data);
 
-	/*************** Setting AS3649_REG_Low_Voltage *********************/
-	if (pdata->ntc_current_uA > AS3649_MAX_NTC_CURRENT) {
-		dev_warn(&client->dev,
-				"ntc_current_mA of %d higher than possible,"
-				" reducing to %d",
-				data->pdata->ntc_current_uA,
-				AS3649_MAX_NTC_CURRENT);
-		lv = (AS3649_MAX_NTC_CURRENT / AS3649_NTC_CURR_STEP)
-			<< AS3649_REG_Low_Voltage_ntc_current_shift;
+	if (data->id == AS3648_REG_ChipID_fixed_id) {
+		data->curr_step		= AS3648_CURR_STEP;
+		data->curr_step_boost	= AS3648_CURR_STEP_BOOST;
 	} else {
-		lv = DIV_ROUND_UP(data->pdata->ntc_current_uA
-				  , AS3649_NTC_CURR_STEP)
-				  << AS3649_REG_Low_Voltage_ntc_current_shift;
+		data->curr_step		= AS3649_CURR_STEP;
+		data->curr_step_boost	= AS3648_CURR_STEP_BOOST;
 	}
-	lv |= (data->pdata->ntc_on) ? AS3649_REG_Low_Voltage_ntc_on : 0;
+
+	/*************** Setting AS3649_REG_Low_Voltage *********************/
+	if (data->id == AS3649_REG_ChipID_fixed_id) {
+		if (pdata->ntc_current_uA > AS3649_MAX_NTC_CURRENT) {
+			dev_warn(&client->dev,
+					"ntc_current_mA of %d higher than possible,"
+					" reducing to %d",
+					data->pdata->ntc_current_uA,
+					AS3649_MAX_NTC_CURRENT);
+			lv = (AS3649_MAX_NTC_CURRENT / AS3649_NTC_CURR_STEP)
+				<< AS3649_REG_Low_Voltage_ntc_current_shift;
+		} else {
+			lv = DIV_ROUND_UP(data->pdata->ntc_current_uA
+					  , AS3649_NTC_CURR_STEP)
+					  << AS3649_REG_Low_Voltage_ntc_current_shift;
+		}
+		lv |= (data->pdata->ntc_on) ? AS3649_REG_Low_Voltage_ntc_on : 0;
+	}
 
 	vin = as3649_get_vin_index(pdata->vin_low_v_mV);
 	data->normal_lv = lv | vin << 0;
@@ -1146,8 +1172,9 @@ static int as3649_configure(struct i2c_client *client,
 	data->strobe_reg = pdata->strobe_type
 		? (AS3649_REG_Strobe_Signalling_strobe_type_level) : 0;
 	data->strobe_reg |= AS3649_REG_Strobe_Signalling_strobe_on;
-	data->strobe_reg |= ((pdata->dcdc_skip_enable)
-			? AS3649_REG_Strobe_Signalling_dcdc_skip_enable : 0);
+	if (data->id != AS3648_REG_ChipID_fixed_id)
+		data->strobe_reg |= ((pdata->dcdc_skip_enable)
+				? AS3649_REG_Strobe_Signalling_dcdc_skip_enable : 0);
 	AS3649_WRITE_REG(AS3649_REG_Strobe_Signalling, data->strobe_reg);
 
 	if (data->pdata->max_peak_current_mA > AS3649_MAX_PEAK_CURRENT) {
@@ -1167,9 +1194,9 @@ static int as3649_configure(struct i2c_client *client,
 		data->pdata->max_sustained_current_mA =
 			AS3649_MAX_TORCH_CURRENT;
 	}
-	if ((1000*data->pdata->min_current_mA) < AS3649_CURR_STEP) {
+	if ((1000*data->pdata->min_current_mA) < data->curr_step) {
 		data->pdata->min_current_mA =
-			DIV_ROUND_UP(AS3649_CURR_STEP, 1000);
+			DIV_ROUND_UP(data->curr_step, 1000);
 		dev_warn(&client->dev,
 				"min_current_mA lower than possible, icreasing"
 				" to %d\n",
@@ -1186,14 +1213,16 @@ static int as3649_configure(struct i2c_client *client,
 	}
 	as3649_flash_time_ms_set(data,data->pdata->default_duration_ms);
 
-	data->diag_ctrl =
-		  (pdata->diag_pulse_vcompl_adj << 5)
-		| (pdata->diag_pulse_force_dcdc_on << 4)
-		| (pdata->diag_pulse_min_on_increase << 3);
+	if (data->id == AS3649_REG_ChipID_fixed_id) {
+		data->diag_ctrl =
+			  (pdata->diag_pulse_vcompl_adj << 5)
+			| (pdata->diag_pulse_force_dcdc_on << 4)
+			| (pdata->diag_pulse_min_on_increase << 3);
 
-	data->diag_pulse_time = pdata->diag_pulse_time;
-	if (data->diag_pulse_time > 63)
-		data->diag_pulse_time = 63;
+		data->diag_pulse_time = pdata->diag_pulse_time;
+		if (data->diag_pulse_time > 63)
+			data->diag_pulse_time = 63;
+	}
 
 	/* Setting vf index for this LED */
 	data->vfi = 0; /* 3750 mV */
@@ -1253,6 +1282,7 @@ static struct as3649_platform_data *as3649_setup_dt(struct i2c_client *client)
 
 	of_property_read_u16(np, "ntc_current_uA", &pdata->ntc_current_uA);
 	of_property_read_u8(np, "ntc_on", &pdata->ntc_on);
+
 	if (of_property_read_bool(np, "dcdc_skip_enable"))
 		pdata->dcdc_skip_enable = true;
 
@@ -1264,6 +1294,7 @@ static struct as3649_platform_data *as3649_setup_dt(struct i2c_client *client)
 	of_property_read_u16(np, "vf_mV", &pdata->vf_mV);
 	if (of_property_read_bool(np, "load_balance_on"))
 		pdata->load_balance_on = true;
+
 
 	of_property_read_u8(np, "diag_pulse_time", &pdata->diag_pulse_time);
 	of_property_read_u8(np, "diag_pulse_vcompl_adj", &pdata->diag_pulse_vcompl_adj);
@@ -1288,7 +1319,7 @@ static void as3649_torch_brightness_set(struct led_classdev *cdev,
 	struct as3649_data *chip =
 	    container_of(cdev, struct as3649_data, cdev_torch);
 	struct device *dev = &chip->client->dev;
-	u32 brightness_uA =  brightness * AS3649_CURR_STEP;
+	u32 brightness_uA =  brightness * chip->curr_step;
 	as3649_brightness_uA_set(dev,brightness_uA);
 	as3649_flash_mode_set(dev,0);
 }
@@ -1300,7 +1331,7 @@ static void as3649_flash_brightness_set(struct led_classdev *cdev,
 	struct as3649_data *chip =
 	    container_of(cdev, struct as3649_data, cdev_flash);
 	struct device *dev = &chip->client->dev;
-	u32 brightness_mA = DIV_ROUND_UP(brightness *  AS3649_CURR_STEP, 1000);
+	u32 brightness_mA = DIV_ROUND_UP(brightness *  chip->curr_step, 1000);
 	as3649_brightness_uA_set(dev,0);
 	as3649_flash_mode_set(dev,0);
 	as3649_flash_brightness_mA_set(dev,brightness_mA);
@@ -1314,7 +1345,7 @@ static int as3649_setup_cdev(struct i2c_client *client, struct as3649_data *data
 	int err;
 
 	data->cdev_flash.name = "flash";
-	data->cdev_flash.max_brightness = DIV_ROUND_UP(data->pdata->max_peak_current_mA *1000, AS3649_CURR_STEP);
+	data->cdev_flash.max_brightness = DIV_ROUND_UP(data->pdata->max_peak_current_mA * 1000, data->curr_step);
 	data->cdev_flash.brightness_set = as3649_flash_brightness_set;
 	data->cdev_flash.default_trigger = "flash";
 	err = led_classdev_register((struct device *)
@@ -1323,7 +1354,7 @@ static int as3649_setup_cdev(struct i2c_client *client, struct as3649_data *data
 		goto err_out;
 	/* torch */
 	data->cdev_torch.name = "torch";
-	data->cdev_torch.max_brightness = DIV_ROUND_UP(data->pdata->max_sustained_current_mA *1000, AS3649_CURR_STEP);
+	data->cdev_torch.max_brightness = DIV_ROUND_UP(data->pdata->max_sustained_current_mA * 1000, data->curr_step);
 	data->cdev_torch.brightness_set = as3649_torch_brightness_set;
 	data->cdev_torch.default_trigger = "torch";
 	err = led_classdev_register((struct device *)
@@ -1388,15 +1419,17 @@ static int as3649_probe(struct i2c_client *client,
 		data->enable(&client->dev, false);
 		goto exit;
 	}
-	if ((id1 & AS3649_REG_ChipID_fixed_id_mask)
-			!= AS3649_REG_ChipID_fixed_id) {
+
+	data->id = id1 & AS3649_REG_ChipID_fixed_id_mask;
+	if (data->id  != AS3649_REG_ChipID_fixed_id &&
+		data->id  != AS3648_REG_ChipID_fixed_id){
 		err = -ENXIO;
 		dev_err(&client->dev, "wrong chip detected, ids %x", id1);
 		data->enable(&client->dev, false);
 		goto exit;
 	}
-	dev_info(&client->dev, "AS3649 driver v0.11: detected AS3649 "
-			"compatible chip with id %x\n", id1);
+	dev_info(&client->dev, "AS3649 driver v0.12: detected %s "
+			"compatible chip with id %x\n", data->id == AS3648_REG_ChipID_fixed_id ? "AS3648":"AS3649", id1);
 
 	/* AS3649 has no reset via I2C, only ON-pin which is maybe not
 	   available to uC */
