@@ -421,7 +421,10 @@
 		};
 	};
 };
-
+&hdmi {
+	ddc-i2c-bus = <&i2c2>;
+	status = "okay";
+};
 /* HDMI I2C */
 &i2c2 {
 	clock-frequency = <100000>;
