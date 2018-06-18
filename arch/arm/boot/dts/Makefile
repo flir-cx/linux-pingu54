@@ -493,6 +493,15 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-tx6u-81xx-mb7.dtb \
 	imx6dl-udoo.dtb \
 	imx6dl-wandboard.dtb \
+	imx6dl-evco-db.dtb \
+	imx6dl-evco-eb.dtb \
+	imx6dl-evco.dtb \
+	imx6dl-leco-ea.dtb \
+	imx6dl-leco.dtb \
+	imx6dl-svco.dtb \
+	imx6dl-ninjago.dtb \
+	imx6dl-detcal.dtb \
+	imx6dl-ec501.dtb \
 	imx6dl-wandboard-revb1.dtb \
 	imx6dl-wandboard-revd1.dtb \
 	imx6dl-yapp4-draco.dtb \

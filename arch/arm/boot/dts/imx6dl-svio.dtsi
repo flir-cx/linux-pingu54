@@ -1,0 +1,169 @@
+
+/*
+ * Copyright 2015 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/input/input.h>
+
+
+/*This file represents svio-a and later*/
+
+/ {
+	svala-keyboard {
+		compatible = "gpio-keys";
+
+		autorepeat;
+		button_autofocus {
+			label = "Autofocus";
+			gpio-key;
+			gpios = <&svio_pca9534_0x42 0 GPIO_ACTIVE_LOW>;
+			linux,code = <67>;
+		};
+
+		button_soft {
+			label = "KB_Soft";
+			gpio-key;
+			gpios = <&svio_pca9534_0x42 1 GPIO_ACTIVE_LOW>;
+			linux,code = <67>;
+		};
+	};
+
+	leds { 
+		compatible = "gpio-leds";
+		debug-led {
+			label = "sdcard-led"; //name sdcard-led used by autofs 
+			//to turn-on and off when filesystem is mounted
+			gpios = <&svio_pca9534_0x42 6 GPIO_ACTIVE_LOW>;
+		        default-state = "off";
+			linux,default-trigger = "mmc1";
+		};
+	};
+	
+
+	mxcfb1: fb@0 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "hdmi";
+		interface_pix_fmt = "RGB24";
+		mode_str ="640x480M@60";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		bootlogo = <0x0 0x0>;
+		status = "okay";
+	};
+};
+
+&hdmi_core {
+	ipu_id = <0>;
+	disp_id = <0>;
+	status = "okay";
+};
+
+&hdmi_video {
+	/* drivers/video/mxc/mxc_hdmi.c:
+	 * HDMI PHY register vlev and cksymtx preperty is optional.
+	 * It is for specific board to pass HCT electrical part.
+	 * Default value will been setting in HDMI PHY config function
+	 * if it is not define in device tree.
+	 */
+//?	fsl,phy_reg_vlev = <0x0294>;
+//?	fsl,phy_reg_cksymtx = <0x800d>;
+	status = "okay";
+};
+
+&i2c3 {
+
+	svio_pca9534_0x42: svio_pca9534_0x42@21 {
+		//misc I/O Expander
+		compatible = "nxp,pca9534";
+		reg = <0x21>;
+		gpio-controller;
+		interrupt-parent = <&gpio4>; //I2C3_Alert_n
+		//interrupts = <7 0x2>;  //ec101-c
+		interrupts = <5 0x2>;    //ec101-d
+		interrupt-controller;
+		interrupts-shared;
+                #interrupt-cells = <2>;
+                #gpio-cells = <2>;
+	};
+};
+
+&i2c4 {
+	
+};
+
+/*SD-card*/
+&usdhc1 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+	cd-gpios = <&gpio6 14 GPIO_ACTIVE_HIGH>;
+	wp-gpios = <&svio_pca9534_0x42 7 GPIO_ACTIVE_HIGH>;
+	vqmmc-supply = <&DA9063_LDO4>;
+	max-frequency = <100000000>;
+	status = "okay";
+};
+
+&iomuxc{
+	imx6dl-ec101 {
+		pinctrl_usdhc2: usdhc2grp {
+
+			fsl,pins = <
+				MX6QDL_PAD_SD2_CMD__SD2_CMD    0x170B9
+				MX6QDL_PAD_SD2_CLK__SD2_CLK    0x100B9
+				MX6QDL_PAD_SD2_DAT0__SD2_DATA0 0x170B9
+				MX6QDL_PAD_SD2_DAT1__SD2_DATA1 0x170B9
+				MX6QDL_PAD_SD2_DAT2__SD2_DATA2 0x170B9
+				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x170B9
+
+			>;
+		};
+
+		pinctrl_usdhc1: usdhc1grp {
+
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x17069
+				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x10069
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x17069
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x17069
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x17069
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x17069
+			>;
+		};
+	
+		pinctrl_usdhc1_100mhz: usdhc3grp100mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x170f9
+				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x100f9
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x170f9
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x170f9
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x170f9
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x170f9
+			>;
+		};
+
+		pinctrl_usdhc1_200mhz: usdhc3grp200mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x170f9
+				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x100f9
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x170f9
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x170f9
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x170f9
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x170f9
+			>;
+		};
+	};
+};
+
+
+
+
+
