@@ -645,6 +645,7 @@ dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-19x19-lpddr2-arm2.dtb
 dtb-$(CONFIG_SOC_IMX7ULP) += \
 	imx7ulp-14x14-arm2.dtb \
+	imx7ulp-bblc.dtb \
 	imx7ulp-evk.dtb \
 	imx7ulp-evkb-spi-slave.dtb \
 	imx7ulp-evkb-emmc.dtb \
