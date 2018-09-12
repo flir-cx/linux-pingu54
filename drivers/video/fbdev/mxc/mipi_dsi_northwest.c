@@ -85,6 +85,11 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 	{
 	 "ROCKTECH-QHD-RK055IQH042",
 	 {mipid_rm68191_get_lcd_videomode, mipid_rm68191_lcd_setup}
+#endif
+#ifdef CONFIG_FB_MXC_ORISE_OTM1287A
+	{
+	 "ORISE-VGA",
+	 {mipid_otm1287a_get_lcd_videomode, mipid_otm1287a_lcd_setup}
 	},
 #endif
 	{
