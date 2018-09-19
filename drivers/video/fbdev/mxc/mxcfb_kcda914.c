@@ -33,7 +33,7 @@
 #include <video/mipi_display.h>
 #include <linux/i2c.h>
 #include "mipi_dsi.h"
-
+#include <linux/workqueue.h>
 
 #define KCDA914BL_MAX_BRIGHT					255
 #define KCDA914BL_DEF_BRIGHT					255
@@ -48,6 +48,11 @@
 #define KCDA914_REG_POWER_DOWN_CONTROL			(0x0F)
 #define KCDA914_REG_PWM1						(0x76)
 #define KCDA914_REG_PWM2						(0x77)
+static void brightness_work_handler(struct work_struct *w);
+static struct workqueue_struct *wq = 0;
+struct mipi_dsi_info *dsi;
+static DECLARE_DELAYED_WORK(brightness_work, brightness_work_handler);
+
 
 struct reg_value {
     u8 reg;
@@ -175,7 +180,7 @@ static struct reg_value vf_setup[] =
 {0x74, 0x0},
 {0x75, 0x0},
 {0x76, 0x0},
-{0x77, 0xCF},
+{0x77, 0xC0}, //disable backlight when powering up viewfinder
 {0x78, 0x0},
 {0x79, 0x0},
 {0x7A, 0x0},
@@ -316,6 +321,13 @@ static struct reg_value vf_setup[] =
 
 static int kcda914bl_brightness;
 static int mipid_init_backlight(struct mipi_dsi_info *mipi_dsi);
+static void mipid_bl_set_brightness(struct mipi_dsi_info *mipi_dsi, int brightness);
+
+static void brightness_work_handler(struct work_struct *w)
+{
+	mipid_bl_set_brightness(dsi, kcda914bl_brightness);
+}
+
 
 static struct fb_videomode kopin_lcd_modedb[] = {
 	{
@@ -404,21 +416,25 @@ int mipid_kcda914_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 static int mipid_bl_update_status(struct backlight_device *bl)
 {
 	int brightness = bl->props.brightness;
-	int temp;
 	struct mipi_dsi_info *mipi_dsi = bl_get_data(bl);
 
 	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK)
+		bl->props.fb_blank != FB_BLANK_UNBLANK)
 		brightness = 0;
+	mipid_bl_set_brightness(mipi_dsi, brightness);
 
+	dev_dbg(&bl->dev, "mipid backlight brightness:%d.\n", brightness);
+	return 0;
+}
+
+
+static void mipid_bl_set_brightness(struct mipi_dsi_info *mipi_dsi, int brightness)
+{
+	int temp;
 	temp = brightness << 4 ;
 	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_PWM1 ,temp & 0xff);
 	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_PWM2 ,0xc0 | ((temp >> 8) & 0xf)) ;
-
 	kcda914bl_brightness = brightness & KCDA914BL_MAX_BRIGHT;
-
-	dev_dbg(&bl->dev, "mipid backlight bringtness:%d.\n", brightness);
-	return 0;
 }
 
 static int mipid_bl_get_brightness(struct backlight_device *bl)
@@ -464,10 +480,14 @@ static int mipid_init_backlight(struct mipi_dsi_info *mipi_dsi)
 	return 0;
 }
 
-
 int mipid_kcda914_lcd_power_on(struct mipi_dsi_info *mipi_dsi)
 {
 	mipid_kcda914_lcd_setup(mipi_dsi);
+
+	dsi=mipi_dsi;
+	if (!wq)
+		wq = create_singlethread_workqueue("brightness_kcda914");
+	queue_delayed_work(wq, &brightness_work, msecs_to_jiffies(250));
 
 	if(mipi_dsi->lcd_mipi_sel_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 0);
@@ -478,6 +498,10 @@ int mipid_kcda914_lcd_power_on(struct mipi_dsi_info *mipi_dsi)
 
 int mipid_kcda914_lcd_power_off(struct mipi_dsi_info *mipi_dsi)
 {
+	cancel_delayed_work_sync(&brightness_work);
+	destroy_workqueue(wq);
+	wq=0;
+
 	if(mipi_dsi->vf_rst_gpio)
 		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 0);
 
