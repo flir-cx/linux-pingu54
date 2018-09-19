@@ -374,6 +374,9 @@ int mipid_kcda914_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	int err;
 	int i;
 
+	if(mipi_dsi->vf_rst_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 0);
+
 	if(mipi_dsi->lcd_mipi_sel_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 0);
 
@@ -464,16 +467,25 @@ static int mipid_init_backlight(struct mipi_dsi_info *mipi_dsi)
 
 int mipid_kcda914_lcd_power_on(struct mipi_dsi_info *mipi_dsi)
 {
+	mipid_kcda914_lcd_setup(mipi_dsi);
+
 	if(mipi_dsi->lcd_mipi_sel_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 0);
 
-	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_POWER_DOWN_CONTROL ,0x0);
 	return 0;
 }
 
 
 int mipid_kcda914_lcd_power_off(struct mipi_dsi_info *mipi_dsi)
 {
-	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_POWER_DOWN_CONTROL ,0xf0);
+	if(mipi_dsi->vf_rst_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 0);
+
+	if(mipi_dsi->vf_4v5_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_4v5_en_gpio, 0);
+
+	if(mipi_dsi->vf_1v8_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_1v8_en_gpio, 0);
+
 	return 0;
 }
