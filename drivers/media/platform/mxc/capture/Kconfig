@@ -21,12 +21,18 @@ config MXC_MIPI_CSI
 	help
 		This is a V4L2 driver for i.MX7D SoC MIPI-CSI2 receiver devices.
 
+config MXC_VIU
+	tristate "mxc VIU support"
+	depends on VIDEO_MXC_CAPTURE
+	help
+		This is a V4l2 capture driver based on VIU module.
+
 menu "MXC Camera/V4L2 PRP Features support"
 config VIDEO_MXC_IPU_CAMERA
-	bool
+	tristate "MXC IPU Camera"
 	select VIDEO_V4L2_MXC_INT_DEVICE
 	depends on VIDEO_MXC_CAPTURE && MXC_IPU
-	default y
+	default n
 
 config MXC_CAMERA_FLIR
 	tristate "FLIR CSI FPGA camera support"
