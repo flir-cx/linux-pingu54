@@ -146,6 +146,7 @@ static bool imx_rpmsg_notify(struct virtqueue *vq)
 {
 	unsigned int mu_rpmsg = 0;
 	struct imx_rpmsg_vq_info *rpvq = vq->priv;
+	bool ret = true;
 
 	mu_rpmsg = rpvq->vq_id << 16;
 	mutex_lock(&rpvq->rpdev->lock);
@@ -163,13 +164,15 @@ static bool imx_rpmsg_notify(struct virtqueue *vq)
 	 */
 	if (unlikely(rpvq->rpdev->first_notify > 0)) {
 		rpvq->rpdev->first_notify--;
-		MU_SendMessageTimeout(rpvq->rpdev->mu_base, 1, mu_rpmsg, 2000);
-	} else {
-		MU_SendMessage(rpvq->rpdev->mu_base, 1, mu_rpmsg);
+		if(MU_SendMessageTimeout(rpvq->rpdev->mu_base, 1, mu_rpmsg, 2000) < 0) {
+			ret = false;
+		}
+	} else if(MU_SendMessage(rpvq->rpdev->mu_base, 1, mu_rpmsg) < 0) {
+		ret = false;
 	}
 	mutex_unlock(&rpvq->rpdev->lock);
 
-	return true;
+	return ret;
 }
 
 static int imx_mu_rpmsg_callback(struct notifier_block *this,

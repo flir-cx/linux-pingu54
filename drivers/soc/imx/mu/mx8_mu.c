@@ -86,28 +86,42 @@ void MU_EnableGeneralInt(void __iomem *base, uint32_t index)
 /*
  * Wait and send message to the other core.
  */
-void MU_SendMessage(void __iomem *base, uint32_t regIndex, uint32_t msg)
+int32_t MU_SendMessage(void __iomem *base, uint32_t regIndex, uint32_t msg)
 {
 	uint32_t mask = MU_SR_TE0_MASK1 >> regIndex;
+	uint32_t tmo = 0x100000;	/* 100 - 200 ms timeout */
+#ifdef DEBUG_MU_TMO
+	static uint32_t worst_tmo = 0x100000;
+#endif
 
 	if (unlikely(version == MU_VER_ID_V10)) {
 		/* Wait TX register to be empty. */
-		while (!(readl_relaxed(base + MU_V10_ASR_OFFSET1) & mask))
+		while (--tmo && !(readl_relaxed(base + MU_V10_ASR_OFFSET1) & mask))
 			;
-		writel_relaxed(msg, base + MU_V10_ATR0_OFFSET1
-			       + (regIndex * 4));
+		if (tmo)
+			writel_relaxed(msg, base + MU_V10_ATR0_OFFSET1
+					+ (regIndex * 4));
 	} else {
 		/* Wait TX register to be empty. */
-		while (!(readl_relaxed(base + MU_ASR_OFFSET1) & mask))
+		while (--tmo && !(readl_relaxed(base + MU_ASR_OFFSET1) & mask))
 			;
-		writel_relaxed(msg, base + MU_ATR0_OFFSET1  + (regIndex * 4));
+		if (tmo)
+			writel_relaxed(msg, base + MU_ATR0_OFFSET1  + (regIndex * 4));
 	}
+#ifdef DEBUG_MU_TMO
+	if (tmo < worst_tmo) {
+		worst_tmo = tmo;
+		pr_info ("rpmsg worst tmo %d\n", worst_tmo);
+	}
+#endif
+
+	return (tmo == 0) ? -ETIMEDOUT : 0;
 }
 
 /*
  * Wait and send message to the other core with timeout mechanism.
  */
-void MU_SendMessageTimeout(void __iomem *base, uint32_t regIndex, uint32_t msg,
+int32_t MU_SendMessageTimeout(void __iomem *base, uint32_t regIndex, uint32_t msg,
 		uint32_t t)
 {
 	uint32_t mask = MU_SR_TE0_MASK1 >> regIndex;
@@ -118,7 +132,7 @@ void MU_SendMessageTimeout(void __iomem *base, uint32_t regIndex, uint32_t msg,
 		while (!(readl_relaxed(base + MU_V10_ASR_OFFSET1) & mask)) {
 			udelay(10);
 			if (timeout-- == 0)
-				return;
+	            return -ETIMEDOUT;
 		};
 
 		writel_relaxed(msg, base + MU_V10_ATR0_OFFSET1
@@ -128,11 +142,13 @@ void MU_SendMessageTimeout(void __iomem *base, uint32_t regIndex, uint32_t msg,
 		while (!(readl_relaxed(base + MU_ASR_OFFSET1) & mask)) {
 			udelay(10);
 			if (timeout-- == 0)
-				return;
+	            return -ETIMEDOUT;
 		};
 
 		writel_relaxed(msg, base + MU_ATR0_OFFSET1  + (regIndex * 4));
 	}
+
+    return 0;
 }
 
 /*
