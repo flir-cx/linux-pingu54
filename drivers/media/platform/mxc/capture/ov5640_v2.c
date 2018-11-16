@@ -124,7 +124,7 @@ struct ov5640 {
  * Maintains the information on the current state of the sesor.
  */
 static struct ov5640 ov5640_data;
-static int pwn_gpio, rst_gpio;
+static int pwn_gpio, rst_gpio, clk_gpio;
 static int prev_sysclk;
 static int AE_Target = 52, night_mode;
 static int prev_HTS;
@@ -1033,6 +1033,8 @@ static struct regulator *analog_regulator;
 static int ov5640_probe(struct i2c_client *adapter,
 				const struct i2c_device_id *device_id);
 static int ov5640_remove(struct i2c_client *client);
+static int ov5640_suspend(struct device *dev);
+static int ov5640_resume(struct device *dev);
 
 static s32 ov5640_read_reg(u16 reg, u8 *val);
 static s32 ov5640_write_reg(u16 reg, u8 val);
@@ -1054,6 +1056,8 @@ static const struct i2c_device_id ov5640_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ov5640_id);
 
+static SIMPLE_DEV_PM_OPS(ov5640_pm, ov5640_suspend, ov5640_resume);
+
 static struct i2c_driver ov5640_i2c_driver = {
 	.driver = {
 		  .owner = THIS_MODULE,
@@ -1061,6 +1065,7 @@ static struct i2c_driver ov5640_i2c_driver = {
 #ifdef CONFIG_OF
 		  .of_match_table = of_match_ptr(ov5640_of_match),
 #endif
+		  .pm = &ov5640_pm,
 		  },
 	.probe  = ov5640_probe,
 	.remove = ov5640_remove,
@@ -1098,9 +1103,30 @@ static inline void ov5640_power_down(int enable)
 	msleep(2);
 }
 
+static int ov5640_suspend(struct device *dev)
+{
+	pr_info("ov5640_suspend\n");
+
+	gpio_set_value_cansleep(pwn_gpio, 1);
+	msleep(1);
+	gpio_set_value_cansleep(clk_gpio, 0);
+	return 0;
+}
+
+static int ov5640_resume(struct device *dev)
+{
+	pr_info("ov5640_resume\n");
+
+	gpio_set_value_cansleep(clk_gpio, 1);
+	msleep(1);
+	gpio_set_value_cansleep(pwn_gpio, 0);
+	return 0;
+}
+
 static inline void ov5640_reset(void)
 {
 	/* camera reset */
+	gpio_set_value_cansleep(clk_gpio, 1);
 	gpio_set_value_cansleep(rst_gpio, 1);
 
 	/* camera power down */
@@ -1278,6 +1304,7 @@ static void ov5640_soft_reset(void)
 	10     - 3x
 	11     - 4x
  */
+#if 0
 static int ov5640_driver_capability(int strength)
 {
 	u8 temp = 0;
@@ -1296,7 +1323,7 @@ static int ov5640_driver_capability(int strength)
 
 	return 0;
 }
-
+#endif
 /* calculate sysclk */
 static int ov5640_get_sysclk(void)
 {
@@ -1479,12 +1506,13 @@ static int ov5640_get_light_freq(void)
 	return light_frequency;
 }
 
+#if 0
 static void ov5640_set_bandingfilter(void)
 {
 	int prev_VTS;
 	int band_step60, max_band60, band_step50, max_band50;
 
-	return 0;
+	return;
 	/* read preview PCLK */
 	prev_sysclk = ov5640_get_sysclk();
 
@@ -1555,6 +1583,7 @@ static int ov5640_set_night_mode(int enable)
 
 	return 0;
 }
+#endif
 
 /* enable = 0 to turn off AEC/AGC
    enable = 1 to turn on AEC/AGC */
@@ -2266,6 +2295,17 @@ static int ov5640_probe(struct i2c_client *client,
 	}
 	retval = devm_gpio_request_one(dev, rst_gpio, GPIOF_OUT_INIT_HIGH,
 					"ov5640_reset");
+	if (retval < 0)
+		return retval;
+
+	/* request clock enable pin */
+	clk_gpio = of_get_named_gpio(dev->of_node, "clk-gpios", 0);
+	if (!gpio_is_valid(clk_gpio)) {
+		dev_err(dev, "no sensor clk pin available\n");
+		return -ENODEV;
+	}
+	retval = devm_gpio_request_one(dev, clk_gpio, GPIOF_OUT_INIT_HIGH,
+					"ov5640_clk_en");
 	if (retval < 0)
 		return retval;
 
