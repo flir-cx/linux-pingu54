@@ -176,8 +176,11 @@ static int imx7ulp_cpufreq_probe(struct platform_device *pdev)
 
 	arm_reg = regulator_get(cpu_dev, "arm");
 	if (IS_ERR(arm_reg)) {
-		dev_err(cpu_dev, "failed to get regulator\n");
-		ret = -ENOENT;
+		ret = PTR_ERR(arm_reg);
+		if (ret == -EPROBE_DEFER)
+			dev_warn(cpu_dev, "regulator not ready, retry\n");
+		else
+			dev_err(cpu_dev, "failed to get regulator: %d\n", ret);
 		goto put_reg;
 	}
 
