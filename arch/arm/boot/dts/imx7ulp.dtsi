@@ -688,11 +688,11 @@
 		};
 	};
 
-	heartbeat-rpmsg {
+	heartbeat_rpmsg: heartbeat-rpmsg {
 		compatible = "fsl,heartbeat-rpmsg";
 	};
 
-	rtc-rpmsg {
+	rtc_rpmsg: rtc-rpmsg {
 		compatible = "fsl,imx-rpmsg-rtc";
 	};
 
