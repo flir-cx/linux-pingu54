@@ -486,7 +486,7 @@ int mipid_kcda914_lcd_power_on(struct mipi_dsi_info *mipi_dsi)
 
 	dsi=mipi_dsi;
 	if (!wq)
-		wq = create_singlethread_workqueue("brightness_kcda914");
+		wq = create_freezable_workqueue("brightness_kcda914");
 	queue_delayed_work(wq, &brightness_work, msecs_to_jiffies(250));
 
 	if(mipi_dsi->lcd_mipi_sel_gpio)
@@ -498,10 +498,6 @@ int mipid_kcda914_lcd_power_on(struct mipi_dsi_info *mipi_dsi)
 
 int mipid_kcda914_lcd_power_off(struct mipi_dsi_info *mipi_dsi)
 {
-	cancel_delayed_work_sync(&brightness_work);
-	destroy_workqueue(wq);
-	wq=0;
-
 	if(mipi_dsi->vf_rst_gpio)
 		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 0);
 
