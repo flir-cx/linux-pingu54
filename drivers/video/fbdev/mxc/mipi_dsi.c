@@ -1125,6 +1125,20 @@ static void mipi_dsi_shutdown(struct platform_device *pdev)
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(&pdev->dev);
 
+	if (mipi_dsi->lcd_mipi_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_en_gpio, 1);
+
+	if (mipi_dsi->vf_rst_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 0);
+
+	if (mipi_dsi->vf_4v5_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_4v5_en_gpio, 0);
+	udelay(700);
+
+	if (mipi_dsi->vf_1v8_en_gpio)
+		gpio_set_value_cansleep(mipi_dsi->vf_1v8_en_gpio, 0);
+	udelay(1000);
+
 	mipi_dsi_power_off(mipi_dsi->disp_mipi);
 }
 
