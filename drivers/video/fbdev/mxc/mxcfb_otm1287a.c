@@ -219,7 +219,7 @@ int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	}
 #endif
 	
-	otm1287a_write_reg(mipi_dsi,OTM1287A_REG_MADCTL,0x1); 
+	otm1287a_write_reg(mipi_dsi,OTM1287A_REG_MADCTL,0x2); 
 	msleep(10);
 	otm1287a_write_cmd(mipi_dsi,OTM1287A_CMD_SLPOUT);
 	msleep(120);
