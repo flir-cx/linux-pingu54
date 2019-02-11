@@ -429,6 +429,8 @@
 		interrupts = <14 GPIO_ACTIVE_HIGH>;
 		touchscreen-size-x = <640>;
 		touchscreen-size-y = <480>;
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
 		reset-gpios = <&gpio_ptc 7 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
