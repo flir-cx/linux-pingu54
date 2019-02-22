@@ -27,6 +27,12 @@ config MXC_VIU
 	help
 		This is a V4l2 capture driver based on VIU module.
 
+config VIDEO_MXC_RPMSG_CAMERA
+	tristate "mxc RPMSG support"
+	depends on VIDEO_MXC_CAPTURE
+	---help---
+		FLIR specific V4l2 capture driver based on RPMSG from M4.
+
 menu "MXC Camera/V4L2 PRP Features support"
 config VIDEO_MXC_IPU_CAMERA
 	tristate "MXC IPU Camera"
@@ -48,10 +54,16 @@ config MXC_CAMERA_OV5640
           If you plan to use the ov5640 Camera with your MXC system, say Y here.
 
 config MXC_CAMERA_OV5640_V2
-	tristate "OmniVision ov5640 camera support"
+	tristate "OmniVision ov5640 camera support v2"
 	depends on VIDEO_MXC_CAPTURE && I2C
 	help
 	  If you plan to use the ov5640 Camera with your MXC system, say Y here.
+
+config MXC_CAMERA_LEPTON_M4
+        tristate "Lepton-M4 camera support"
+	depends on VIDEO_MXC_RPMSG_CAMERA
+        ---help---
+          If you plan to use the Lepton-M4 Camera with your MXC system, say Y here.
 
 config MXC_CAMERA_OV5642
 	tristate "OmniVision ov5642 camera support"
