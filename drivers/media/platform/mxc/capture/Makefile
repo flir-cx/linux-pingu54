@@ -39,3 +39,8 @@ adv7180_tvin-objs := adv7180.o
 obj-$(CONFIG_MXC_TVIN_ADV7180) += adv7180_tvin.o
 
 obj-$(CONFIG_VIDEO_V4L2_MXC_INT_DEVICE) += v4l2-int-device.o
+
+obj-$(CONFIG_VIDEO_MXC_RPMSG_CAMERA) += rpmsg_capture.o
+rpmsg_capture-objs := mxc_rpmsg.o
+
+obj-$(CONFIG_MXC_CAMERA_LEPTON_M4) += m4_rpmsg.o
