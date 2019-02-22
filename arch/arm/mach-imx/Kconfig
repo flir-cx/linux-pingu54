@@ -271,6 +271,7 @@ config SOC_IMX7ULP
 	select PINCTRL_IMX7ULP
 	select SOC_IMX7D_CA7 if ARCH_MULTI_V7
 	select SOC_IMX7D_CM4 if ARM_SINGLE_ARMV7M
+	select NIC_301
 	help
 	  This enables support for Freescale i.MX7 Ultra Low Power processor.
 
