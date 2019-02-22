@@ -43,3 +43,8 @@ flir_csi_camera-objs := flir_csi.o
 obj-$(CONFIG_MXC_CAMERA_FLIR) += flir_csi_camera.o
 
 obj-$(CONFIG_VIDEO_V4L2_MXC_INT_DEVICE) += v4l2-int-device.o
+
+obj-$(CONFIG_VIDEO_MXC_RPMSG_CAMERA) += rpmsg_capture.o
+rpmsg_capture-objs := mxc_rpmsg.o
+
+obj-$(CONFIG_MXC_CAMERA_LEPTON_M4) += m4_rpmsg.o
