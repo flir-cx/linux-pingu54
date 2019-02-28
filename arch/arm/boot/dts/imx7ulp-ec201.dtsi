@@ -104,9 +104,40 @@
 		#reset-cells = <0>;
 	};
 
-	v4l2_cap_0 {
+	v4l2_cap_rpmsg {
 		compatible = "fsl,imx7-rpmsg-capture";
 		status = "okay";
+		port {
+			v4l2_cap_rpmsg_ep: endpoint {
+				remote-endpoint = <&m4_rpmsg_ep>;
+			};
+		};
+	};
+
+	m4_rpmsg: m4_rpmsg {
+		port {
+			m4_rpmsg_ep: endpoint {
+				remote-endpoint = <&v4l2_cap_rpmsg_ep>;
+			};
+		};
+	};
+
+	// Change memory access priorites (QoS) for AXI switches
+	// Refer to chapter 13.2.1 (NIC-301 block diagram) and
+	// chapter 13.4.2.3 (ASIB default values) of iMX7ULP reference manual
+
+	nic0: nic0@41c00000 {
+		compatible = "arm,nic-301";
+		reg = <0x41c00000 0x100000>;
+		m3_prio = <4>;		// Reduce 3D GPU prio from 5 to 4
+		m4_prio = <4>;		// Reduce 2D GPU prio from 5 to 4
+	};
+
+	nic1: nic1@41d00000 {
+		compatible = "arm,nic-301";
+		reg = <0x41d00000 0x100000>;
+		m2_prio = <5>;		// Raise Cortex-M4 prio from 1 to 5
+		m5_prio = <5>;		// Raise VIU prio from 4 to 5
 	};
 };
 
