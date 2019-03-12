@@ -772,9 +772,12 @@ static int max7_suspend(struct device *dev)
 static void max7_shutdown(struct i2c_client *client)
 {
 	int ret = 0;
-	ret = regulator_disable(max7->supply);
-	usleep_range(1000, 5000);
-	gpio_direction_output(max7->resetpin, 0);
+	if (atomic_read(&(max7->runtimesuspend)) == 0) {
+		/* max7 has not been suspended by runtime pm, enable max7 */
+		ret = regulator_disable(max7->supply);
+		usleep_range(1000, 5000);
+		gpio_direction_output(max7->resetpin, 0);
+	}
 }
 
 static int max7_runtime_resume(struct device *dev)
