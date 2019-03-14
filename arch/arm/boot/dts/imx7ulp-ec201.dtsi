@@ -25,22 +25,16 @@
 	};
 
 	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		wlan_en_reg: wlan_en_reg {
 			compatible = "regulator-fixed";
 			regulator-name = "wl";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			gpio = <&gpio_pte 6 GPIO_ACTIVE_HIGH>;
-			startup-delay-us = <70000>;
-			enable-active-high;
-		};
-
-		bt_en_reg: bt_en_reg {
-			compatible = "regulator-fixed";
-			regulator-name = "bt";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio_pte 12 GPIO_ACTIVE_HIGH>;
 			startup-delay-us = <70000>;
 			enable-active-high;
 		};
@@ -138,6 +132,18 @@
 		reg = <0x41d00000 0x100000>;
 		m2_prio = <5>;		// Raise Cortex-M4 prio from 1 to 5
 		m5_prio = <5>;		// Raise VIU prio from 4 to 5
+	};
+	
+	kim {
+		compatible = "kim";
+		nshutdown-gpio = <&gpio_pte 12 GPIO_ACTIVE_HIGH>;
+		dev_name = "/dev/ttyLP2";
+		flow_cntrl = <1>;
+		baud_rate = <3000000>;
+	};
+ 
+	btwilink {
+		compatible = "btwilink";
 	};
 };
 
@@ -239,19 +245,6 @@
 			>;
 	};
 
-	pinctrl_usdhc1: usdhc1grp {
-		fsl,pins = <
-			IMX7ULP_PAD_PTE3__SDHC1_CMD     0x43
-			IMX7ULP_PAD_PTE2__SDHC1_CLK     0x10042
-			IMX7ULP_PAD_PTE1__SDHC1_D0      0x43
-			IMX7ULP_PAD_PTE0__SDHC1_D1      0x43
-			IMX7ULP_PAD_PTE5__SDHC1_D2      0x43
-			IMX7ULP_PAD_PTE4__SDHC1_D3      0x43
-			IMX7ULP_PAD_PTE6__PTE6          0x3     /* WLAN_EN */
-			IMX7ULP_PAD_PTE7__PTE7          0x2     /* WLAN_IRQ */
-			>;
-	};
-
 	pinctrl_usdhc0: usdhc0grp {
 		fsl,pins = <
 			IMX7ULP_PAD_PTD0__PTD0      0x20000     /* USDHC0 RST */
@@ -277,6 +270,8 @@
 			IMX7ULP_PAD_PTE0__SDHC1_D1      0x43
 			IMX7ULP_PAD_PTE5__SDHC1_D2      0x43
 			IMX7ULP_PAD_PTE4__SDHC1_D3      0x43
+			IMX7ULP_PAD_PTE6__PTE6      	0x3     /* WLAN_EN */
+			IMX7ULP_PAD_PTE7__PTE7      	0x2     /* WLAN_IRQ */
 			>;
 	};
 
@@ -554,7 +549,8 @@
 		reg = <2>;
 		interrupt-parent = <&gpio_pte>;
 		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
-		platform-quirks = <1>;
+		tcxo-clock-frequency = <26000000>;
+		ref-clock-frequency = <26000000>;
 	};
 };
 

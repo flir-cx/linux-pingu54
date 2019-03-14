@@ -1782,8 +1782,10 @@ disable_per_clk:
 
 static const struct dev_pm_ops sdhci_esdhc_pmops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sdhci_esdhc_suspend, sdhci_esdhc_resume)
+#ifndef CONFIG_WLAN_VENDOR_TI 
 	SET_RUNTIME_PM_OPS(sdhci_esdhc_runtime_suspend,
 				sdhci_esdhc_runtime_resume, NULL)
+#endif
 };
 
 static struct platform_driver sdhci_esdhc_imx_driver = {

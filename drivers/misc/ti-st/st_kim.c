@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/sysfs.h>
 #include <linux/tty.h>
+#include <linux/of_gpio.h>
 
 #include <linux/skbuff.h>
 #include <linux/ti_wilink_st.h>
@@ -714,6 +715,30 @@ static const struct file_operations list_debugfs_fops = {
 	.release = single_release,
 };
 
+static struct ti_st_plat_data *get_platform_data(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	const u32 *dt_property;
+	struct ti_st_plat_data	*dt_pdata;
+	int len;
+
+	dt_pdata = kzalloc(sizeof(*dt_pdata), GFP_KERNEL);
+
+	if (!dt_pdata)
+		pr_err("Can't allocate device_tree platform data\n");
+
+	dt_property = of_get_property(np, "dev_name", &len);
+	if (dt_property)
+		memcpy(&dt_pdata->dev_name, dt_property, len);
+
+	dt_pdata->nshutdown_gpio = of_get_named_gpio(np, "nshutdown-gpio", 0);
+
+	of_property_read_u32(np, "flow_cntrl", (u32 *)&dt_pdata->flow_cntrl);
+	of_property_read_u32(np, "baud_rate", (u32 *)&dt_pdata->baud_rate);
+
+	return dt_pdata;
+}
+
 /**********************************************************************/
 /* functions called from platform device driver subsystem
  * need to have a relevant platform device entry in the platform's
@@ -724,8 +749,13 @@ static struct dentry *kim_debugfs_dir;
 static int kim_probe(struct platform_device *pdev)
 {
 	struct kim_data_s	*kim_gdata;
-	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
+	struct ti_st_plat_data	*pdata;
 	int err;
+
+	if (pdev->dev.of_node)
+		pdev->dev.platform_data = get_platform_data(&pdev->dev);
+
+	pdata = pdev->dev.platform_data;
 
 	if ((pdev->id != -1) && (pdev->id < MAX_ST_DEVICES)) {
 		/* multiple devices could exist */
@@ -800,6 +830,8 @@ err_sysfs_group:
 
 err_core_init:
 	kfree(kim_gdata);
+	if (pdev->dev.of_node)
+		kfree(pdev->dev.platform_data);
 
 	return err;
 }
@@ -827,6 +859,9 @@ static int kim_remove(struct platform_device *pdev)
 
 	kfree(kim_gdata);
 	kim_gdata = NULL;
+	if (pdev->dev.of_node)
+		kfree(pdev->dev.platform_data);
+
 	return 0;
 }
 
