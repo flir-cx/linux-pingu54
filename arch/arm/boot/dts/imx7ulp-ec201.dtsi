@@ -40,26 +40,6 @@
 		};
 	};
 
-//  /* Torch PWM, LPTPM7 (PTC15) */
-//  pwm1: tpm@40280000 {
-//      compatible = "nxp,tpm-pwm";
-//      reg = <0x40280000 0x1000>;
-//      nxp,pwm-number = <6>;
-//      assigned-clocks = <&clks IMX7ULP_CLK_LPTPM7>;
-//      assigned-clock-parents = <&clks IMX7ULP_CLK_SOSC_BUS_CLK>;
-//      clocks = <&clks IMX7ULP_CLK_LPTPM7>;
-//      #pwm-cells = <2>;
-//      pinctrl-names = "default", "sleep";
-//      pinctrl-0 = <&pinctrl_pwm1>;
-//      pinctrl-1 = <&pinctrl_pwm1>;
-//  };
-//
-//  pwm1_torch {
-//      compatible = "pwm-backlight";
-//      pwms = <&pwm1 0 200000>; // 0.2ms
-//      brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
-//  };
-
 	gpio_keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -197,12 +177,6 @@
 			>;
 		};
 
-//	pinctrl_pwm1: pwm1_grp {
-//		fsl,pins = <
-//			IMX7ULP_PAD_PTC15__TPM7_CH1  0x3
-//			>;
-//	};
-
 	pinctrl_lpi2c5: lpi2c5grp {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC4__LPI2C5_SCL    0x27
@@ -217,6 +191,8 @@
 			IMX7ULP_PAD_PTC8__LPI2C6_SCL    0x27
 			IMX7ULP_PAD_PTC9__LPI2C6_SDA    0x27
 			IMX7ULP_PAD_PTC10__PTC10        0x2 /* ACC_INT_n */
+			IMX7ULP_PAD_PTC15__PTC15  	0x3 /* TORCH */
+			IMX7ULP_PAD_PTC16__PTC16  	0x3 /* STROBE */
 			>;
 	};
 
@@ -436,6 +412,20 @@
 		compatible = "atmel,24c02";
 		reg = <0x57>;
 		pagesize = <16>;
+	};
+	
+	torch: torch@63 {
+		compatible = "leds-lm3642";
+		reg = <0x63>;
+		
+		flash-ramp = <3>;       /* 010b = 2 ms */
+		flash-time-out = <7>;   /* 111b = 800 ms */ 
+		torch-max-current = <3>;/* 011b = 375 mA */
+		flash-max-current = <7>;/* 0111b = 750 mA */
+		ivfm = <3>;		/* 011b = 3.2 V */
+		torch-ramp = <5>;	/* 101b = 512 ms */
+		torch-gpios = <&gpio_ptc 15 GPIO_ACTIVE_HIGH>;
+		strobe-gpios = <&gpio_ptc 16 GPIO_ACTIVE_HIGH>;
 	};
 };
 
