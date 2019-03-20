@@ -12,6 +12,8 @@
 #include <linux/fs.h>
 #include <linux/regmap.h>
 #include <linux/platform_data/leds-lm3642.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 #define	REG_FILT_TIME			(0x0)
 #define	REG_IVFM_MODE			(0x1)
@@ -72,11 +74,20 @@ struct lm3642_chip_data {
 	u8 br_torch;
 	u8 br_indicator;
 
+	u8 max_torch_current;
+	u8 max_flash_current;
+	u8 max_indicator_current;
+
+	u8 opmode;
+
 	enum lm3642_torch_pin_enable torch_pin;
 	enum lm3642_strobe_pin_enable strobe_pin;
 	enum lm3642_tx_pin_enable tx_pin;
 
-	struct lm3642_platform_data *pdata;
+	int tx_gpio;
+	int torch_gpio;
+	int strobe_gpio;
+
 	struct regmap *regmap;
 	struct mutex lock;
 
@@ -87,11 +98,10 @@ struct lm3642_chip_data {
 static int lm3642_chip_init(struct lm3642_chip_data *chip)
 {
 	int ret;
-	struct lm3642_platform_data *pdata = chip->pdata;
 
 	/* set enable register */
 	ret = regmap_update_bits(chip->regmap, REG_ENABLE, EX_PIN_ENABLE_MASK,
-				 pdata->tx_pin);
+				 chip->tx_pin);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to update REG_ENABLE Register\n");
 	return ret;
@@ -113,52 +123,75 @@ static int lm3642_control(struct lm3642_chip_data *chip,
 		dev_info(chip->dev, "Last FLAG is 0x%x\n", chip->last_flag);
 
 	/* brightness 0 means off-state */
-	if (!brightness)
-		opmode = MODES_STASNDBY;
+	if (!brightness) {
+		chip->opmode &= EX_PIN_ENABLE_MASK;	/* Set standby mode */
 
-	switch (opmode) {
-	case MODES_TORCH:
-		ret = regmap_update_bits(chip->regmap, REG_I_CTRL,
-					 TORCH_I_MASK << TORCH_I_SHIFT,
-					 (brightness - 1) << TORCH_I_SHIFT);
+		switch (opmode) {
+		case MODES_TORCH:
+			chip->opmode &= ~(TORCH_PIN_EN_MASK << TORCH_PIN_EN_SHIFT);
+			if (chip->torch_gpio)
+				gpio_set_value(chip->torch_gpio, 0);
+			break;
 
-		if (chip->torch_pin)
-			opmode |= (TORCH_PIN_EN_MASK << TORCH_PIN_EN_SHIFT);
-		break;
+		case MODES_FLASH:
+			chip->opmode &= ~(STROBE_PIN_EN_MASK << STROBE_PIN_EN_SHIFT);
+			if (chip->strobe_gpio)
+				gpio_set_value(chip->strobe_gpio, 0);
+			break;
 
-	case MODES_FLASH:
-		ret = regmap_update_bits(chip->regmap, REG_I_CTRL,
-					 FLASH_I_MASK << FLASH_I_SHIFT,
-					 (brightness - 1) << FLASH_I_SHIFT);
+		case MODES_INDIC:
+			chip->opmode &= ~(TX_PIN_EN_MASK << TX_PIN_EN_SHIFT);
+			if (chip->tx_gpio)
+				gpio_set_value(chip->tx_gpio, 0);
+			break;
 
-		if (chip->strobe_pin)
-			opmode |= (STROBE_PIN_EN_MASK << STROBE_PIN_EN_SHIFT);
-		break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		switch (opmode) {
+		case MODES_TORCH:
+			ret = regmap_update_bits(chip->regmap, REG_I_CTRL,
+						 TORCH_I_MASK << TORCH_I_SHIFT,
+						 (brightness - 1) << TORCH_I_SHIFT);
+			if (chip->torch_pin)
+				chip->opmode |= (TORCH_PIN_EN_MASK << TORCH_PIN_EN_SHIFT) | opmode;
+			if (chip->torch_gpio)
+				gpio_set_value(chip->torch_gpio, 1);
+			break;
 
-	case MODES_INDIC:
-		ret = regmap_update_bits(chip->regmap, REG_I_CTRL,
-					 TORCH_I_MASK << TORCH_I_SHIFT,
-					 (brightness - 1) << TORCH_I_SHIFT);
-		break;
+		case MODES_FLASH:
+			ret = regmap_update_bits(chip->regmap, REG_I_CTRL,
+						 FLASH_I_MASK << FLASH_I_SHIFT,
+						 (brightness - 1) << FLASH_I_SHIFT);
+			if (chip->strobe_pin)
+				chip->opmode |= (STROBE_PIN_EN_MASK << STROBE_PIN_EN_SHIFT) | opmode;
+			if (chip->strobe_gpio)
+				gpio_set_value(chip->strobe_gpio, 1);
+			break;
 
-	case MODES_STASNDBY:
+		case MODES_INDIC:
+			ret = regmap_update_bits(chip->regmap, REG_I_CTRL,
+						 TORCH_I_MASK << TORCH_I_SHIFT,
+						 (brightness - 1) << TORCH_I_SHIFT);
+			if (chip->tx_pin)
+				chip->opmode |= (TX_PIN_EN_MASK << TX_PIN_EN_SHIFT) | opmode;
+			if (chip->tx_gpio)
+				gpio_set_value(chip->tx_gpio, 1);
+			break;
 
-		break;
-
-	default:
-		return -EINVAL;
+		default:
+			return -EINVAL;
+		}
 	}
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to write REG_I_CTRL Register\n");
 		return ret;
 	}
 
-	if (chip->tx_pin)
-		opmode |= (TX_PIN_EN_MASK << TX_PIN_EN_SHIFT);
-
 	ret = regmap_update_bits(chip->regmap, REG_ENABLE,
 				 MODE_BITS_MASK << MODE_BITS_SHIFT,
-				 opmode << MODE_BITS_SHIFT);
+				 chip->opmode << MODE_BITS_SHIFT);
 	return ret;
 }
 
@@ -292,19 +325,15 @@ ATTRIBUTE_GROUPS(lm3642_torch);
 static int lm3642_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct lm3642_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct lm3642_chip_data *chip;
-
+	struct device_node *np = client->dev.of_node;
+	u32 value;
+	int gpio;
 	int err;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c functionality check fail.\n");
 		return -EOPNOTSUPP;
-	}
-
-	if (pdata == NULL) {
-		dev_err(&client->dev, "needs Platform Data.\n");
-		return -ENODATA;
 	}
 
 	chip = devm_kzalloc(&client->dev,
@@ -313,11 +342,9 @@ static int lm3642_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	chip->dev = &client->dev;
-	chip->pdata = pdata;
 
-	chip->tx_pin = pdata->tx_pin;
-	chip->torch_pin = pdata->torch_pin;
-	chip->strobe_pin = pdata->strobe_pin;
+	if (!np)
+		return -EINVAL;
 
 	chip->regmap = devm_regmap_init_i2c(client, &lm3642_regmap);
 	if (IS_ERR(chip->regmap)) {
@@ -330,13 +357,78 @@ static int lm3642_probe(struct i2c_client *client,
 	mutex_init(&chip->lock);
 	i2c_set_clientdata(client, chip);
 
+	/* Read control values from device tree */
+	if (of_property_read_u32(np, "flash-ramp", &value) == 0) {
+		err = regmap_update_bits(chip->regmap, REG_FLASH,
+				FLASH_RAMP_TIME_MASK << FLASH_RAMP_TIME_SHIFT,
+				value << FLASH_RAMP_TIME_SHIFT);
+	}
+	if (of_property_read_u32(np, "flash-time-out", &value) == 0) {
+		err = regmap_update_bits(chip->regmap, REG_FLASH,
+				FLASH_TOUT_TIME_MASK << FLASH_TOUT_TIME_SHIFT,
+				value << FLASH_TOUT_TIME_SHIFT);
+	}
+	if (of_property_read_u32(np, "ivfm", &value) == 0) {
+		err = regmap_update_bits(chip->regmap, REG_IVFM_MODE,
+				IVM_D_TH_MASK << IVM_D_TH_SHIFT,
+				value << IVM_D_TH_SHIFT);
+	}
+	if (of_property_read_u32(np, "torch-ramp", &value) == 0) {
+		err = regmap_update_bits(chip->regmap, REG_TORCH_TIME,
+				TORCH_RAMP_UP_TIME_MASK << TORCH_RAMP_UP_TIME_SHIFT,
+				value << TORCH_RAMP_UP_TIME_SHIFT);
+		err |= regmap_update_bits(chip->regmap, REG_TORCH_TIME,
+				TORCH_RAMP_DN_TIME_MASK << TORCH_RAMP_DN_TIME_SHIFT,
+				value << TORCH_RAMP_DN_TIME_SHIFT);
+	}
+
+	/* Read maximum currents from device tree */
+	chip->max_indicator_current = 8;
+	chip->max_torch_current = 8;
+	chip->max_flash_current = 16;
+	if (of_property_read_u32(np, "indicator-max-current", &value) == 0) {
+		chip->max_indicator_current = value + 1;
+	}
+	if (of_property_read_u32(np, "torch-max-current", &value) == 0) {
+		chip->max_torch_current = value + 1;
+	}
+	if (of_property_read_u32(np, "flash-max-current", &value) == 0) {
+		chip->max_flash_current = value + 1;
+	}
+
+	/* Read gpio signals from device tree */
+	gpio = of_get_named_gpio(np, "tx-gpios", 0);
+	if (gpio_is_valid(gpio)) {
+		err = devm_gpio_request_one(chip->dev, gpio, GPIOF_OUT_INIT_LOW, "tx-gpio");
+		if (err < 0)
+			goto err_out;
+		chip->tx_pin = LM3642_TX_PIN_ENABLE;
+		chip->tx_gpio = gpio;
+	}
+	gpio = of_get_named_gpio(np, "torch-gpios", 0);
+	if (gpio_is_valid(gpio)) {
+		err = devm_gpio_request_one(chip->dev, gpio, GPIOF_OUT_INIT_LOW, "torch-gpio");
+		if (err < 0)
+			goto err_out;
+		chip->torch_pin = LM3642_TORCH_PIN_ENABLE;
+		chip->torch_gpio = gpio;
+	}
+	gpio = of_get_named_gpio(np, "strobe-gpios", 0);
+	if (gpio_is_valid(gpio)) {
+		err = devm_gpio_request_one(chip->dev, gpio, GPIOF_OUT_INIT_LOW, "strobe-gpio");
+		if (err < 0)
+			goto err_out;
+		chip->strobe_pin = LM3642_STROBE_PIN_ENABLE;
+		chip->strobe_gpio = gpio;
+	}
+
 	err = lm3642_chip_init(chip);
 	if (err < 0)
 		goto err_out;
 
 	/* flash */
 	chip->cdev_flash.name = "flash";
-	chip->cdev_flash.max_brightness = 16;
+	chip->cdev_flash.max_brightness = chip->max_flash_current;
 	chip->cdev_flash.brightness_set_blocking = lm3642_strobe_brightness_set;
 	chip->cdev_flash.default_trigger = "flash";
 	chip->cdev_flash.groups = lm3642_flash_groups,
@@ -348,7 +440,7 @@ static int lm3642_probe(struct i2c_client *client,
 
 	/* torch */
 	chip->cdev_torch.name = "torch";
-	chip->cdev_torch.max_brightness = 8;
+	chip->cdev_torch.max_brightness = chip->max_torch_current;
 	chip->cdev_torch.brightness_set_blocking = lm3642_torch_brightness_set;
 	chip->cdev_torch.default_trigger = "torch";
 	chip->cdev_torch.groups = lm3642_torch_groups,
@@ -360,7 +452,7 @@ static int lm3642_probe(struct i2c_client *client,
 
 	/* indicator */
 	chip->cdev_indicator.name = "indicator";
-	chip->cdev_indicator.max_brightness = 8;
+	chip->cdev_indicator.max_brightness = chip->max_indicator_current;
 	chip->cdev_indicator.brightness_set_blocking =
 						lm3642_indicator_brightness_set;
 	err = led_classdev_register(&client->dev, &chip->cdev_indicator);
