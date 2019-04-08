@@ -91,7 +91,7 @@ struct ovRpmsg {
 static struct ovRpmsg ovRpmsg_data;
 
 static const struct ovRpmsg_datafmt ovRpmsg_colour_fmts[] = {
-	{MEDIA_BUS_FMT_ARGB8888_1X32, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_YUYV8_1X16, V4L2_COLORSPACE_JPEG},
 };
 
 /* Find a data format by a pixel code in an array */
@@ -175,7 +175,7 @@ static int rpmsg_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
 		cparm->capability = 0;
 		cparm->timeperframe.denominator = DEFAULT_FPS;
 		cparm->timeperframe.numerator = 1;
-		cparm->capturemode = MEDIA_BUS_FMT_ARGB8888_1X32;
+		cparm->capturemode = MEDIA_BUS_FMT_YUYV8_1X16;
 		ret = 0;
 		break;
 
@@ -308,7 +308,7 @@ static int rpmsg_get_fmt(struct v4l2_subdev *sd,
 	if (format->pad)
 		return -EINVAL;
 
-	mf->code	= MEDIA_BUS_FMT_ARGB8888_1X32;
+	mf->code	= MEDIA_BUS_FMT_YUYV8_1X16;
 	mf->colorspace	= V4L2_COLORSPACE_JPEG;
 	mf->field	= V4L2_FIELD_NONE;
 
@@ -462,20 +462,10 @@ static int rpmsg_lepton_probe(struct rpmsg_device *dev)
 
 	dev_info(&dev->dev, "new channel: 0x%x -> 0x%x!\n", dev->src, dev->dst);
 
-	/* Send LUT to M4 */
-	vaddr = dma_alloc_coherent(0, 0x40000, &paddr, GFP_DMA | GFP_KERNEL);
-	msg.type = RX_LUT;
-	msg.addr = paddr;
-	err = rpmsg_send(dev->ept, &msg, sizeof(msg));
-	if (err) {
-		pr_err("rpmsg_send failed: %d\n", err);
-		return err;
-	}
-
 	/* Set initial values for the sensor struct. */
 	memset(&ovRpmsg_data, 0, sizeof(ovRpmsg_data));
 
-	ovRpmsg_data.pix.pixelformat = V4L2_PIX_FMT_RGB32;
+	ovRpmsg_data.pix.pixelformat = V4L2_PIX_FMT_YUYV;
 	ovRpmsg_data.pix.width = 160;
 	ovRpmsg_data.pix.height = 120;
 	ovRpmsg_data.streamcap.capturemode = 0;
