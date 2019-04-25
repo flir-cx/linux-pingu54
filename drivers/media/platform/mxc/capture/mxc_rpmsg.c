@@ -762,9 +762,9 @@ static int imx_rpmsg_dma_done_handle(struct imx_rpmsg_device *rpmsg_dev)
 		}
 
 		list_move_tail(rpmsg_dev->discard.next, &rpmsg_dev->active_queue);
+		spin_unlock_irqrestore(&rpmsg_dev->slock, flags);
 
 		imx_rpmsg_config_dma(rpmsg_dev, rpmsg_dev->discard_buffer_dma, 0);
-		spin_unlock_irqrestore(&rpmsg_dev->slock, flags);
 
 		return 0;
 	}
@@ -776,8 +776,9 @@ static int imx_rpmsg_dma_done_handle(struct imx_rpmsg_device *rpmsg_dev)
 	vb->state = VB2_BUF_STATE_ACTIVE;
 
 	dma_addr = vb2_dma_contig_plane_dma_addr(vb, 0);
-	ret = imx_rpmsg_config_dma(rpmsg_dev, dma_addr, field);
 	spin_unlock_irqrestore(&rpmsg_dev->slock, flags);
+
+	ret = imx_rpmsg_config_dma(rpmsg_dev, dma_addr, field);
 	return ret;
 }
 
