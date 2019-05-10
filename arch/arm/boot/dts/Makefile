@@ -647,6 +647,7 @@ dtb-$(CONFIG_SOC_IMX7ULP) += \
 	imx7ulp-14x14-arm2.dtb \
 	imx7ulp-bblc.dtb \
 	imx7ulp-sherlock.dtb \
+	imx7ulp-sherlock-a.dtb \
 	imx7ulp-evk.dtb \
 	imx7ulp-evkb-spi-slave.dtb \
 	imx7ulp-evkb-emmc.dtb \

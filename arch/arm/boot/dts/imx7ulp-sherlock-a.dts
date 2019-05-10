@@ -8,13 +8,14 @@
 
 /dts-v1/;
 
-/*This device tree is for latest version of ec201*/
+/* This device tree is for board ec201 revision a  */
 
 #include <dt-bindings/input/input.h>
 #include "imx7ulp.dtsi"
 #include "imx7ulp-ec201.dtsi"
+#include "imx7ulp-ec201-a.dtsi"
 
 / {
-	model = "FLIR i.MX7ULP Sherlock board";
-	compatible = "flir,imx7ulp-sherlock", "flir,imx7ulp-ec201", "fsl,imx7ulp", "Generic DT based system";
+	model = "FLIR i.MX7ULP Sherlock rev a board";
+	compatible = "flir,imx7ulp-sherlock", "flir,imx7ulp-ec201-a","flir,imx7ulp-ec201", "fsl,imx7ulp", "Generic DT based system";
 };

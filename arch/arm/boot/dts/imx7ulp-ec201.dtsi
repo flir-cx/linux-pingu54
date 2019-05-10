@@ -198,10 +198,10 @@
 
 	pinctrl_lpi2c7: lpi2c7grp {
 		fsl,pins = <
-			IMX7ULP_PAD_PTC12__LPI2C7_SCL   0x27
-			IMX7ULP_PAD_PTC13__LPI2C7_SDA   0x27
-			IMX7ULP_PAD_PTC14__PTC14        0x3 /* PCAPINT_n */
-			IMX7ULP_PAD_PTC7__PTC7          0x3 /* TP_RESET_n */
+			IMX7ULP_PAD_PTE12__LPI2C7_SCL   0x27
+			IMX7ULP_PAD_PTE13__LPI2C7_SDA   0x27
+			IMX7ULP_PAD_PTE14__PTE14        0x3 /* PCAPINT_n */
+			IMX7ULP_PAD_PTF5__PTF5          0x3 /* TP_RESET_n */
 			>;
 	};
 
@@ -472,13 +472,13 @@
 	touchscreen:edt_ft5336@38 {
 		compatible = "edt,edt-ft5306";
 		reg = <0x38>;
-		interrupt-parent = <&gpio_ptc>;
+		interrupt-parent = <&gpio_pte>;
 		interrupts = <14 GPIO_ACTIVE_HIGH>;
 		touchscreen-size-x = <640>;
 		touchscreen-size-y = <480>;
 		touchscreen-inverted-x;
 		touchscreen-inverted-y;
-		reset-gpios = <&gpio_ptc 7 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio_ptf 5 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
 };
