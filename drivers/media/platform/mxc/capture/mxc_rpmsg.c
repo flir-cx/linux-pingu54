@@ -157,10 +157,12 @@ static const struct imx_rpmsg_fmt *rpmsg_fmt_by_pix_fmt(u32 pixelformat)
 	return NULL;
 }
 
+#if 0
 static struct imx_rpmsg_buffer *rpmsg_ibuf_to_buf(struct rpmsg_buf_internal *int_buf)
 {
 	return container_of(int_buf, struct imx_rpmsg_buffer, internal);
 }
+#endif
 
 static int imx_rpmsg_set_fmt(struct imx_rpmsg_device *rpmsg_dev)
 {
@@ -631,7 +633,6 @@ static void imx_rpmsg_stop_streaming(struct vb2_queue *q)
 	struct imx_rpmsg_device *rpmsg_dev = vb2_get_drv_priv(q);
 	struct imx_rpmsg_buffer *pos, *tmp;
 	struct vb2_buffer *vb;
-	void *tmpbuf;
 
 	rpmsg_dev->streaming = false;
 
