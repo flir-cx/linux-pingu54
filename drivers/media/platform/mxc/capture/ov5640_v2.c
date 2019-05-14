@@ -130,12 +130,14 @@ static int AE_Target = 52, night_mode;
 static int prev_HTS;
 static int AE_high, AE_low;
 
+#if 0
 /* difference between 'ov5640_global_init_setting' and
  * 'ov5640_init_setting_30fps_BT656':
  * 0x3103, 0x3a19, 0x3c07
  */
 static struct reg_value ov5640_global_init_setting[] = {
 };
+#endif
 
 static struct reg_value ov5640_bt656_720_480[] = {
 #if 0
@@ -553,7 +555,7 @@ static struct reg_value ov5640_init_setting_30fps_BT656[] = {
 	{0x3008, 0x02, 0x0, 0x0},
 
 };
-
+#if 0
 static struct reg_value ov5640_init_setting_30fps_VGA[] = {
 	{0x3008, 0x42, 0, 0},
 	{0x3103, 0x03, 0, 0}, {0x3017, 0xff, 0, 0}, {0x3018, 0xff, 0, 0},
@@ -642,7 +644,7 @@ static struct reg_value ov5640_init_setting_30fps_VGA[] = {
 	{0x3008, 0x02, 0, 0}, {0x3034, 0x1a, 0, 0}, {0x3035, 0x11, 0, 0},
 	{0x3036, 0x46, 0, 0}, {0x3037, 0x13, 0, 0},
 };
-
+#endif
 static struct reg_value ov5640_setting_30fps_VGA_640_480[] = {
 	{0x3c07, 0x08, 0, 0}, {0x3820, 0x41, 0, 0}, {0x3821, 0x07, 0, 0},
 	{0x3814, 0x31, 0, 0}, {0x3815, 0x31, 0, 0}, {0x3800, 0x00, 0, 0},
@@ -678,7 +680,7 @@ static struct reg_value ov5640_setting_15fps_VGA_640_480[] = {
 	{0x5001, 0xa3, 0, 0}, {0x3034, 0x1a, 0, 0}, {0x3035, 0x21, 0, 0},
 	{0x3036, 0x46, 0, 0}, {0x3037, 0x13, 0, 0}, {0x3503, 0x00, 0, 0},
 };
-
+#if 0
 static struct reg_value ov5640_setting_30fps_QVGA_320_240[] = {
 	{0x3c07, 0x08, 0, 0}, {0x3820, 0x41, 0, 0}, {0x3821, 0x07, 0, 0},
 	{0x3814, 0x31, 0, 0}, {0x3815, 0x31, 0, 0}, {0x3800, 0x00, 0, 0},
@@ -750,7 +752,7 @@ static struct reg_value ov5640_setting_15fps_NTSC_720_480[] = {
 	{0x5001, 0xa3, 0, 0}, {0x3034, 0x1a, 0, 0}, {0x3035, 0x21, 0, 0},
 	{0x3036, 0x46, 0, 0}, {0x3037, 0x13, 0, 0},
 };
-
+#endif
 static struct reg_value ov5640_setting_30fps_PAL_720_576[] = {
 	{0x3c07, 0x08, 0, 0}, {0x3820, 0x41, 0, 0}, {0x3821, 0x07, 0, 0},
 	{0x3814, 0x31, 0, 0}, {0x3815, 0x31, 0, 0}, {0x3800, 0x00, 0, 0},
