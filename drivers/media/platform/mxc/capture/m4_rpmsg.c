@@ -143,19 +143,6 @@ static int rpmsg_change_mode(enum ovRpmsg_frame_rate frame_rate,
 }
 
 /*!
- * rpmsg_s_power - V4L2 sensor interface handler for VIDIOC_S_POWER ioctl
- * @s: pointer to standard V4L2 device structure
- * @on: indicates power mode (on or off)
- *
- * Turns the power on or off, depending on the value of on and returns the
- * appropriate error code.
- */
-static int rpmsg_s_power(struct v4l2_subdev *sd, int on)
-{
-	return 0;
-}
-
-/*!
  * rpmsg_g_parm - V4L2 sensor interface handler for VIDIOC_G_PARM ioctl
  * @s: pointer to standard V4L2 sub device structure
  * @a: pointer to standard V4L2 VIDIOC_G_PARM ioctl structure
@@ -456,9 +443,6 @@ EXPORT_SYMBOL(rpmsg_setup_callback);
 static int rpmsg_lepton_probe(struct rpmsg_device *dev)
 {
 	int err;
-	void *vaddr;
-	dma_addr_t paddr;
-	struct csi_rx_msg msg;
 
 	dev_info(&dev->dev, "new channel: 0x%x -> 0x%x!\n", dev->src, dev->dst);
 
