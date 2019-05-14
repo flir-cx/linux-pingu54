@@ -191,6 +191,7 @@ static int tmp116_probe(struct i2c_client *client,
 {
 	struct tmp116 *tmp116;
 	int status;
+	struct thermal_zone_of_device_ops tzodo = { tmp116_read_temp, NULL, NULL, NULL, NULL };
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
@@ -243,7 +244,6 @@ static int tmp116_probe(struct i2c_client *client,
 		goto fail_remove_sysfs;
 	}
 
-    struct thermal_zone_of_device_ops tzodo = { tmp116_read_temp, NULL, NULL, NULL, NULL };
 	tmp116->tz = thermal_zone_of_sensor_register(&client->dev, 0,
 						     &client->dev,
 						     &tzodo);
