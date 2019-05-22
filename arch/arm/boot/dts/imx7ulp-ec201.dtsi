@@ -361,6 +361,19 @@
 			};
 		};
 	};
+	
+	/*Fuel guage */
+	lc709203f: lc709203f@0b { 
+		compatible = "onsemi,lc709203f";
+		reg = <0x0b>;
+		thermistor-beta = <0x0d34>;
+		initial-rsoc = <0xAA55>;
+		kernel-threshold-soc = <5>;
+		kernel-maximum-soc = <99>;
+		alert-low-rsoc = <0x0>;
+		alert-low-voltage = <0x0>;
+		battery-param = <1>;
+	};
 };
 
 /*  IO expander for VCAM, Lepton, Accelerometer, Temp sensor 1 and 2, EEPROM */
@@ -405,6 +418,7 @@
 		compatible = "national,lm73";
 		reg = <0x48>;
 	};
+
 
 	eeprom_24c02: eeprom_24c02@57 {
 		compatible = "atmel,24c02";
