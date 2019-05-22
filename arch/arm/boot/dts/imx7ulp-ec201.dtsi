@@ -399,16 +399,11 @@
 		reg = <0x1D>;
 		interrupt-parent = <&gpio_ptc>;
 		interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
-	 };
-
-	tmp116_1: tmp116_1@48 {
-		compatible = "ti,tmp116";
-		reg = <0x48>;
 	};
 
-	tmp116_2: tmp116_2@49 {
-		compatible = "ti,tmp116";
-		reg = <0x49>;
+	lm73: lm73@48 {
+		compatible = "national,lm73";
+		reg = <0x48>;
 	};
 
 	eeprom_24c02: eeprom_24c02@57 {
