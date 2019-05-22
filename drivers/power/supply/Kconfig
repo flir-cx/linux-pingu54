@@ -440,6 +440,11 @@ config CHARGER_PF1550
 	help
 	 Say Y to enable support for the Freescale PF1550 battery charger.
 
+config BATTERY_LC709203F
+	tristate "ON Semiconductor LC709203F Fuel Gauge driver"
+	help
+	 Say Y to enable support for the LC709203F Fuel Gauge driver.
+
 config BATTERY_RX51
 	tristate "Nokia RX-51 (N900) battery driver"
 	depends on TWL4030_MADC
