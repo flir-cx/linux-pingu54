@@ -10,6 +10,17 @@
  
 /* This device tree is for board ec201 revision a  */
 
+
+/ {
+	mipi_dsi_reset: mipi-dsi-reset {
+		reset-gpios = <&gpio_ptf 0 GPIO_ACTIVE_LOW>;   // Dummy GPIO, not used
+
+	};
+};
+
+
+
+
 &iomuxc1 {
 
 	pinctrl_lpi2c7: lpi2c7grp {
@@ -20,6 +31,13 @@
 			IMX7ULP_PAD_PTC7__PTC7          0x3 /* TP_RESET_n */
 			>;
 	};
+
+	pinctrl_mipi_dsi_reset: mipi_dsi_reset_grp {
+		fsl,pins = <
+			IMX7ULP_PAD_PTF0__PTF0    0x3 /* Dummy */
+			>;
+	};
+
 };
 
 
@@ -31,4 +49,10 @@
 		interrupts = <14 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio_ptc 7 GPIO_ACTIVE_LOW>;
 	};
+};
+
+
+/* LCD */
+&mipi_dsi {
+	lcd_panel = "ORISE-VGA";
 };

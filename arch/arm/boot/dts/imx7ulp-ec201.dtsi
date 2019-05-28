@@ -90,7 +90,7 @@
 
 	mipi_dsi_reset: mipi-dsi-reset {
 		compatible = "gpio-reset";
-		reset-gpios = <&gpio_ptf 0 GPIO_ACTIVE_LOW>;   // Dummy GPIO, not used
+		reset-gpios = <&gpio_ptc 7 GPIO_ACTIVE_LOW>;
 		reset-delay-us = <1000>;
 		#reset-cells = <0>;
 	};
@@ -148,7 +148,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_mipi_dsi_reset>;
 	pinctrl-1 = <&pinctrl_mipi_dsi_reset>;
-	lcd_panel = "ORISE-VGA";
+	lcd_panel = "TRULY-VGA-SHERLOCK";
 	status = "okay";
 	resets = <&mipi_dsi_reset>;
 };
@@ -268,7 +268,7 @@
 
 	pinctrl_mipi_dsi_reset: mipi_dsi_reset_grp {
 		fsl,pins = <
-			IMX7ULP_PAD_PTF0__PTF0    0x3 /* Dummy */
+			IMX7ULP_PAD_PTC7__PTC7    0x3 /* DISPLAY_RESET */
 			>;
 	};
 
