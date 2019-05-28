@@ -88,6 +88,12 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 	 {mipid_rm68191_get_lcd_videomode, mipid_rm68191_lcd_setup}
 	},
 #endif
+#ifdef CONFIG_FB_MXC_TRULY_PANEL_SHERLOCK
+	{
+	 "TRULY-VGA-SHERLOCK",
+	 {mipid_hx8394_get_lcd_videomode, mipid_hx8394_lcd_setup}
+	},
+#endif
 	{
 	"", {NULL, NULL}
 	}

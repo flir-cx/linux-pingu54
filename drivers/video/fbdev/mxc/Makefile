@@ -13,6 +13,7 @@ obj-$(CONFIG_FB_MXC_MIPI_DSI_SAMSUNG)           += mipi_dsi_samsung.o
 obj-$(CONFIG_FB_MXC_MIPI_DSI)			+= mipi_dsi.o
 obj-$(CONFIG_FB_MXC_LDB)			+= ldb.o
 obj-$(CONFIG_FB_MXS_SII902X) += mxsfb_sii902x.o mxsfb_sii902x_audio.o
+obj-$(CONFIG_FB_MXC_TRULY_PANEL_SHERLOCK)	+= mxcfb_hx8394_vga.o
 obj-$(CONFIG_FB_MXC_HDMI)			+= mxc_hdmi.o
 obj-$(CONFIG_FB_MXC_DCIC)				+= mxc_dcic.o
 obj-$(CONFIG_FB_MXC_SYNC_PANEL)			+= mxc_lcdif.o mxc_ipuv3_fb.o
