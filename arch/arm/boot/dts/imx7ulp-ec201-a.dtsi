@@ -43,11 +43,21 @@
 
 /* Touch screen */
 &lpi2c7 {
-
 	touchscreen:edt_ft5336@38 {
+        compatible = "edt,edt-ft5306";
+        reg = <0x38>;
 		interrupt-parent = <&gpio_ptc>;
 		interrupts = <14 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio_ptc 7 GPIO_ACTIVE_LOW>;
+        touchscreen-size-x = <640>;
+        touchscreen-size-y = <480>;
+        touchscreen-inverted-x;
+        touchscreen-inverted-y;
+        reset-gpios = <&gpio_ptc 7 GPIO_ACTIVE_LOW>;
+        status = "okay";
+	};
+
+	tsc@24{
+		status = "disabled";
 	};
 };
 
