@@ -16,7 +16,7 @@
 		reg = <0x60000000 0x20000000>;
 	};
 
-	backlight {
+	backlight_lcd {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 5 50000>;
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
@@ -462,19 +462,19 @@
 		enable-gpio = <&gpio_ptc 11 GPIO_ACTIVE_HIGH>;
 
 		tp_led1 {
-			chan-name = "tp-led1";
+			chan-name = "tp-camera";
 			led-cur = /bits/ 8 <0x32>;
 			max-cur = /bits/ 8 <0x32>;
 			linux,default-trigger = "none";
 		};
 		tp_led2 {
-			chan-name = "tp-led2";
+			chan-name = "tp-settings";
 			led-cur = /bits/ 8 <0x32>;
 			max-cur = /bits/ 8 <0x32>;
 			linux,default-trigger = "none";
 		};
 		tp_led3 {
-			chan-name = "tp-led3";
+			chan-name = "tp-gallery";
 			led-cur = /bits/ 8 <0x32>;
 			max-cur = /bits/ 8 <0x32>;
 			linux,default-trigger = "none";
