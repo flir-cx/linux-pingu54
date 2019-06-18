@@ -74,7 +74,7 @@
 		TRIG {
 			label = "TRIG";
 			linux,input-type = <1>; /* EV_KEY */
-			linux,code = <0x120>;
+			linux,code = <KEY_F6>;
 			gpios = <&gpio_ptc 12 GPIO_ACTIVE_LOW>;
 			debounce-interval = <5>;
 		};
@@ -82,7 +82,7 @@
 		SW_ON {
 			label = "SW_ON";
 			linux,input-type = <1>; /* EV_KEY */
-			linux,code = <0x100>;
+			linux,code = <KEY_F8>;
 			gpios = <&gpio_ptc 13 GPIO_ACTIVE_LOW>;
 			debounce-interval = <5>;
 		};
@@ -308,7 +308,7 @@
 
 		onkey {
 			compatible = "fsl,pf1550-onkey";
-			linux,keycode = <KEY_POWER>;
+			linux,keycode = <KEY_F8>;
 			wakeup;
 		};
 
