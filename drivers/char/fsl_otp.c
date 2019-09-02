@@ -22,6 +22,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <asm/system_info.h> // For system_serial_*
+#include "../../arch/arm/mach-imx/hardware.h" // For cpu_is_imx*
 
 #define HW_OCOTP_CTRL			0x00000000
 #define HW_OCOTP_CTRL_SET		0x00000004
@@ -642,6 +644,92 @@ static const struct of_device_id fsl_otp_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_otp_dt_ids);
 
+static int set_serial_number_imx6(int fuse_nums)
+{
+	/* HW_OCOTP_CFG0 and HW_OCOTP_CFG1 contain 32-bit values which we transform
+	 * into system unique ID / system serial. CFG0 becomes the low DWORD and
+	 * CFG1 the high DWORD. */
+	int i = 0;
+	for (i = 0; i < fuse_nums; i++) {
+		unsigned long value;
+		int status;
+		/* Each register contains a 32-bit hex number as a string, so the
+		   longest possible readout from fsl_otp_show() is 11 characters. */
+		char buf[16];
+		if (!strcmp(otp_kattr[i].attr.name, "HW_OCOTP_CFG0")) {
+			fsl_otp_show(NULL, &otp_kattr[i], buf);
+			status = kstrtoul(buf, 16, &value);
+			if (status < 0) {
+				return status;
+			}
+			system_serial_low = value;
+		}
+		if (!strcmp(otp_kattr[i].attr.name, "HW_OCOTP_CFG1")) {
+			fsl_otp_show(NULL, &otp_kattr[i], buf);
+			status = kstrtoul(buf, 16, &value);
+			if (status < 0) {
+				return status;
+			}
+			system_serial_high = value;
+		}
+	}
+	return 0;
+}
+
+static int set_serial_number_imx7(int fuse_nums)
+{
+	/* HW_OCOTP_CFG0-3 contain 16-bit values that we transform into a system
+	 * unique ID / system serial. CFG0 becomes the LSW and then we build up
+	 * from there. */
+	int i = 0;
+
+	system_serial_low = 0;
+	system_serial_high = 0;
+
+	for (i = 0; i < fuse_nums; i++) {
+		unsigned int value;
+		int status;
+
+		/* Unlike the IMX6, on the IMX7 these registers each only contain
+		 * 16-bit hex values. Therefore, the longest readout from
+		 * fsl_otp_show() is 7 characters. */
+		char buf[8];
+		if (!strcmp(otp_kattr[i].attr.name, "HW_OCOTP_CFG0")) {
+			fsl_otp_show(NULL, &otp_kattr[i], buf);
+			status = kstrtouint(buf, 16, &value);
+			if (status < 0) {
+				return status;
+			}
+			system_serial_low |= value;
+		}
+		if (!strcmp(otp_kattr[i].attr.name, "HW_OCOTP_CFG1")) {
+			fsl_otp_show(NULL, &otp_kattr[i], buf);
+			status = kstrtouint(buf, 16, &value);
+			if (status < 0) {
+				return status;
+			}
+			system_serial_low |= value << 16;
+		}
+		if (!strcmp(otp_kattr[i].attr.name, "HW_OCOTP_CFG2")) {
+			fsl_otp_show(NULL, &otp_kattr[i], buf);
+			status = kstrtouint(buf, 16, &value);
+			if (status < 0) {
+				return status;
+			}
+			system_serial_high |= value;
+		}
+		if (!strcmp(otp_kattr[i].attr.name, "HW_OCOTP_CFG3")) {
+			fsl_otp_show(NULL, &otp_kattr[i], buf);
+			status = kstrtouint(buf, 16, &value);
+			if (status < 0) {
+				return status;
+			}
+			system_serial_high |= value << 16;
+		}
+	}
+	return 0;
+}
+
 static int fsl_otp_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -710,6 +798,27 @@ static int fsl_otp_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&otp_mutex);
+
+	/* Set system serial */
+	if (cpu_is_imx7()) {
+		ret = set_serial_number_imx7(num);
+		if (ret != 0) {
+			dev_err(&pdev->dev, "Failed to set device serial: %d.\n", ret);
+			system_serial_low = 0xDEADBEA1;
+			system_serial_high = 0xDEADBEA1;
+		}
+	} else if (cpu_is_imx6()) {
+		ret = set_serial_number_imx6(num);
+		if (ret != 0) {
+			dev_err(&pdev->dev, "Failed to set device serial: %d.\n", ret);
+			system_serial_low = 0xDEADBEA1;
+			system_serial_high = 0xDEADBEA1;
+		}
+	} else {
+		dev_err(&pdev->dev, "Unknown device - unable to set serial.\n");
+		system_serial_low = 0xDEADBEA1;
+		system_serial_high = 0xDEADBEA1;
+	}
 
 	return 0;
 }
