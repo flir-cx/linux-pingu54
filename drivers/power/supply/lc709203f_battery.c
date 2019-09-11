@@ -559,11 +559,16 @@ static int lc709203f_probe(struct i2c_client *client,
 	}
 
     if (chip->pdata->battery_param) {
-        ret = lc709203f_write_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM, chip->pdata->battery_param);
-        if (ret < 0) {
-            dev_err(&client->dev, "STATUS_BIT write failed: %d\n", ret);
-            return ret;
-        }
+		u32 param = lc709203f_read_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM);
+
+		if(param != chip->pdata->battery_param)
+		{
+			ret = lc709203f_write_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM, chip->pdata->battery_param);
+			if (ret < 0) {
+				dev_err(&client->dev, "STATUS_BIT write failed: %d\n", ret);
+				return ret;
+			}
+		}
     }
 
 skip_thermistor_config:
