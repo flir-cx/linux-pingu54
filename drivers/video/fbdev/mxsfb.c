@@ -2351,6 +2351,8 @@ static int mxsfb_probe(struct platform_device *pdev)
 
 #ifndef CONFIG_FB_IMX64_DEBUG
 	console_lock();
+	//hack to fix display sync
+	fb_blank(fb_info, FB_BLANK_NORMAL);
 	ret = fb_blank(fb_info, FB_BLANK_UNBLANK);
 	console_unlock();
 	if (ret < 0) {
