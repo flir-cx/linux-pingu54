@@ -7,6 +7,11 @@
  */
 
 / {
+
+	aliases {
+		lcdif = &lcdif;
+	};
+
 	chosen {
 		stdout-path = &lpuart4;
 	};
@@ -157,6 +162,7 @@
 	status = "okay";
 	disp-dev = "mipi_dsi_northwest";
 	display = <&display0>;
+	bootlogo = <0x0 0x0>;
 
 	display0: display@0 {
 		bits-per-pixel = <32>;
