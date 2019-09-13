@@ -515,9 +515,9 @@
 			/* CY_CORE_EWG_NONE */
 			cy,easy_wakeup_gesture = <0>;
 
-			cy,btn_keys = < KEY_RECORD
-							KEY_PLAY
-							KEY_SETUP>;
+			cy,btn_keys = < KEY_F11		/*Camera*/
+							KEY_F7		/*Archive*/
+							KEY_F12>;	/*Settings*/
 			cy,btn_keys-tag = <0>;
 
 			cy,mt {
