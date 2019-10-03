@@ -56,17 +56,26 @@
 			regulator-always-on;
 		};
 
-		vcam_en_reg: vcam_en_reg {
+		vcam_en_reg_dovdd: vcam_en_reg_dovdd {
 			compatible = "regulator-fixed";
-			regulator-name = "vcam_en";
+			regulator-name = "vcam_en_reg_dovdd";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
+			gpio = <&gpio_ptf 16 GPIO_ACTIVE_HIGH>;
+			startup-delay-us = <0>;
+			enable-active-high;
+		};
+		
+		vcam_en_reg_avdd: vcam_en_reg_avdd {
+			compatible = "regulator-fixed";
+			regulator-name = "vcam_en_reg_avdd";
+			regulator-min-microvolt = <2700000>;
+			regulator-max-microvolt = <2700000>;
 			gpio = <&gpio_ptf 17 GPIO_ACTIVE_HIGH>;
 			startup-delay-us = <0>;
 			enable-active-high;
-			regulator-boot-on;
-			regulator-always-on;
 		};
+
 	};
 
 	gpio_keys {
@@ -172,14 +181,6 @@
 
 &iomuxc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog_1>;
-
-	pinctrl_hog_1: hoggrp-1 {
-    	fsl,pins = <
- 			IMX7ULP_PAD_PTC0__PTC0      0x20002  /* SHUTTER_IN */
- 			IMX7ULP_PAD_PTC1__PTC1      0x20002  /* SHUTTER_OUT */
- 			>;
-	};
 
 	pinctrl_pwm0: pwm0grp {
 		fsl,pins = <
@@ -280,10 +281,6 @@
 
 	pinctrl_camera: camera_grp {
 		fsl,pins = <
-			IMX7ULP_PAD_PTF16__PTF16    0x20043  /* CAMERA CLK ENABLE*/
-			IMX7ULP_PAD_PTF15__PTF15    0x20043  /* CAMERA PWDN */
-			IMX7ULP_PAD_PTF14__PTF14    0x20043  /* CAMERA RESET */
-			IMX7ULP_PAD_PTF17__PTF17    0x20043  /* CAMERA ENABLE */
 			IMX7ULP_PAD_PTF3__VIU_PCLK  0x10043
 			IMX7ULP_PAD_PTF6__VIU_D2    0x43
 			IMX7ULP_PAD_PTF7__VIU_D3    0x43
@@ -293,6 +290,11 @@
 			IMX7ULP_PAD_PTF11__VIU_D7   0x43
 			IMX7ULP_PAD_PTF12__VIU_D8   0x43
 			IMX7ULP_PAD_PTF13__VIU_D9   0x43
+			IMX7ULP_PAD_PTF14__PTF14    0x20043  /* CAMERA RESET */
+			IMX7ULP_PAD_PTF15__PTF15    0x20043  /* CAMERA PWDN */
+			IMX7ULP_PAD_PTF16__PTF16    0x20043  /* CAMERA 1V8 ENABLE*/
+			IMX7ULP_PAD_PTF17__PTF17    0x20043  /* CAMERA 2V8 ENABLE */
+			IMX7ULP_PAD_PTC0__PTC0    	0x3  	 /* CAMERA DUMMY CLK ENABLE */
 			>;
 	};
 };
@@ -410,14 +412,15 @@
 		pinctrl-0 = <&pinctrl_camera>;
 		clocks = <&clks IMX7ULP_CLK_DUMMY>;
 		clock-names = "csi_mclk";
-		pwn-gpios = <&gpio_ptf 15 GPIO_ACTIVE_HIGH>;
+		DOVDD-supply = <&vcam_en_reg_dovdd>; /* 1.8v */
+		AVDD-supply = <&vcam_en_reg_avdd>;  /* 2.8v */
+        pwn-gpios = <&gpio_ptf 15 GPIO_ACTIVE_HIGH>;
 		rst-gpios = <&gpio_ptf 14 GPIO_ACTIVE_HIGH>;
-		clk-gpios = <&gpio_ptf 16 GPIO_ACTIVE_HIGH>;
+		clk-gpios = <&gpio_ptc 0 GPIO_ACTIVE_HIGH>;
 		csi_id = <0>;
 		mclk = <24000000>;
 		mclk_source = <0>;
 		status = "okay";
-
 		port {
 			ov5640_ep: endpoint {
 				remote-endpoint = <&viu_ep>;
@@ -425,9 +428,9 @@
 		};
 	};
 
-	acc_mma8452: acc_mma8452@1D {
-		compatible = "fsl,mma8452";
-		reg = <0x1D>;
+	acc_kxtj3: acc_kxtj3@0F {
+		compatible = "kionix,kxtj21009";
+		reg = <0x0F>;
 		interrupt-parent = <&gpio_ptc>;
 		interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
 	};
@@ -437,7 +440,6 @@
 		reg = <0x48>;
 	};
 
-
 	eeprom_24c02: eeprom_24c02@57 {
 		compatible = "atmel,24c02";
 		reg = <0x57>;
@@ -446,8 +448,7 @@
 	
 	torch: torch@63 {
 		compatible = "leds-lm3642";
-		reg = <0x63>;
-		
+		reg = <0x63>;		
 		flash-ramp = <3>;       /* 011b = 2 ms */
 		flash-time-out = <7>;   /* 111b = 800 ms */ 
 		torch-max-current = <3>;/* 011b = 375 mA */
@@ -458,9 +459,9 @@
 		strobe-gpios = <&gpio_ptc 16 GPIO_ACTIVE_HIGH>;
 	};
 	
-	touchpad_leds: toucpad_leds@32 {
-		compatible = "national,lp5521";
-		reg = <0x32>;
+	touchpad_leds: touchpad_leds@30 {
+		compatible = "national,lp5562";
+		reg = <0x30>;
 		
 		label = "touchpad-leds";
 		clock-mode = <1>;	/* Internal clock */
@@ -480,6 +481,12 @@
 		};
 		tp_led3 {
 			chan-name = "tp-gallery";
+			led-cur = /bits/ 8 <0x32>;
+			max-cur = /bits/ 8 <0x32>;
+			linux,default-trigger = "none";
+		};
+		tp_led4 {
+			chan-name = "tp-NA";
 			led-cur = /bits/ 8 <0x32>;
 			max-cur = /bits/ 8 <0x32>;
 			linux,default-trigger = "none";

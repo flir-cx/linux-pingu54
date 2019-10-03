@@ -1,0 +1,86 @@
+
+/*
+ * Copyright 2019 FLIR
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+ 
+/* This device tree is for board ec201 revision b  */
+/ {
+	regulators {
+		vcam_en_reg_avdd: vcam_en_reg_avdd {
+			status = "disabled";
+		};
+		vcam_en_reg_dovdd: vcam_en_reg_dovdd {
+			status = "diabled";
+		};
+
+		vcam_en_reg: vcam_en_reg {
+			compatible = "regulator-fixed";
+			regulator-name = "vcam_en";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&gpio_ptf 17 GPIO_ACTIVE_HIGH>;
+			startup-delay-us = <0>;
+			enable-active-high;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+	};
+};
+
+&lpi2c6 {
+
+	ov5640: ov5640@3c {
+		/delete-property/ DOVDD-supply; /* 1.8v */
+		/delete-property/ AVDD-supply;  /* 2.8v */
+		clk-gpios = <&gpio_ptf 16 GPIO_ACTIVE_HIGH>;
+	};
+
+	acc_mma8452: acc_mma8452@1D {
+		compatible = "fsl,mma8452";
+		reg = <0x1D>;
+		interrupt-parent = <&gpio_ptc>;
+		interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	acc_kxtj3: acc_kxtj3@0F {
+		status = "disabled";
+	};
+
+	touchpad_leds: touchpad_leds@30 {
+		status = "disabled";
+	};
+
+	touchpad_leds2: touchpad_leds2@32 {
+		compatible = "national,lp5521";
+		reg = <0x32>;
+		
+		label = "touchpad-leds";
+		clock-mode = <1>;	/* Internal clock */
+		enable-gpio = <&gpio_ptc 11 GPIO_ACTIVE_HIGH>;
+
+		tp_led1 {
+			chan-name = "tp-camera";
+			led-cur = /bits/ 8 <0x32>;
+			max-cur = /bits/ 8 <0x32>;
+			linux,default-trigger = "none";
+		};
+		tp_led2 {
+			chan-name = "tp-settings";
+			led-cur = /bits/ 8 <0x32>;
+			max-cur = /bits/ 8 <0x32>;
+			linux,default-trigger = "none";
+		};
+		tp_led3 {
+			chan-name = "tp-gallery";
+			led-cur = /bits/ 8 <0x32>;
+			max-cur = /bits/ 8 <0x32>;
+			linux,default-trigger = "none";
+		};
+	};
+};
