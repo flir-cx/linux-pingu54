@@ -151,6 +151,17 @@
 		m2_prio = <5>;		// Raise Cortex-M4 prio from 1 to 5
 		m5_prio = <5>;		// Raise VIU prio from 4 to 5
 	};
+
+	snvs: snvs@41070000 {
+		compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
+		reg = <0x41070000 0x10000>;
+		snvs_rtc: snvs-rtc-lp {
+			compatible = "fsl,sec-v4.0-mon-rtc-lp";
+			regmap = <&snvs>;
+			offset = <0x34>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
 };
 
 &cpu0 {
