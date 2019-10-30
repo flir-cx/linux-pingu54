@@ -2756,6 +2756,8 @@ static int lpuart_suspend(struct device *dev)
 		pm_runtime_set_suspended(sport->port.dev);
 	}
 
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
@@ -2910,6 +2912,8 @@ static int lpuart_resume(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	int ret;
+
+	pinctrl_pm_select_default_state(dev);
 
 	if (lpuart_uport_is_active(sport)) {
 		if (lpuart_is_32(sport))

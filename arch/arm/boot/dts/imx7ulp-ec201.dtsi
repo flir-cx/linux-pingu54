@@ -170,9 +170,8 @@
 
 /* LCD */
 &mipi_dsi {
-	pinctrl-names = "default", "sleep";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_mipi_dsi_reset>;
-	pinctrl-1 = <&pinctrl_mipi_dsi_reset>;
 	lcd_panel = "TRULY-VGA-SHERLOCK";
 	status = "okay";
 	resets = <&mipi_dsi_reset>;
@@ -195,7 +194,7 @@
 
 	pinctrl_pwm0: pwm0grp {
 		fsl,pins = <
-			IMX7ULP_PAD_PTC6__TPM4_CH5  0x3
+			IMX7ULP_PAD_PTC6__TPM4_CH5  0x0
 			>;
 	};
 
@@ -215,14 +214,34 @@
 			>;
 	};
 
+	pinctrl_lpi2c5_sleep: lpi2c5grp_sleep {
+		fsl,pins = <
+			IMX7ULP_PAD_PTC4__PTC4          0x0
+			IMX7ULP_PAD_PTC5__PTC5          0x0
+			IMX7ULP_PAD_PTC19__PTC19        0x3  /* PMIC_INT */
+			IMX7ULP_PAD_PTC18__PTC18        0x27 /* PMIC_WD */
+			>;
+	};
+
 	pinctrl_lpi2c6: lpi2c6grp {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC8__LPI2C6_SCL    0x27
 			IMX7ULP_PAD_PTC9__LPI2C6_SDA    0x27
 			IMX7ULP_PAD_PTC10__PTC10        0x2 /* ACC_INT_n */
-			IMX7ULP_PAD_PTC11__PTC11        0x3 /* TP_LED_EN */
-			IMX7ULP_PAD_PTC15__PTC15  	0x3 /* TORCH */
-			IMX7ULP_PAD_PTC16__PTC16  	0x3 /* STROBE */
+			IMX7ULP_PAD_PTC11__PTC11        0x0 /* TP_LED_EN */
+			IMX7ULP_PAD_PTC15__PTC15  	    0x0 /* TORCH */
+			IMX7ULP_PAD_PTC16__PTC16  	    0x0 /* STROBE */
+			>;
+	};
+
+	pinctrl_lpi2c6_sleep: lpi2c6grp_sleep {
+		fsl,pins = <
+			IMX7ULP_PAD_PTC8__PTC8          0x0
+			IMX7ULP_PAD_PTC9__PTC9          0x0
+			IMX7ULP_PAD_PTC10__PTC10        0x0 /* ACC_INT_n */
+			IMX7ULP_PAD_PTC11__PTC11        0x0 /* TP_LED_EN */
+			IMX7ULP_PAD_PTC15__PTC15  	    0x0 /* TORCH */
+			IMX7ULP_PAD_PTC16__PTC16  	    0x0 /* STROBE */
 			>;
 	};
 
@@ -235,10 +254,26 @@
 			>;
 	};
 
+	pinctrl_lpi2c7_sleep: lpi2c7grp_sleep {
+		fsl,pins = <
+			IMX7ULP_PAD_PTE12__PTE12        0x0
+			IMX7ULP_PAD_PTE13__PTE13        0x0
+			IMX7ULP_PAD_PTE14__PTE14  		0x0 /* PCAPINT_n */
+			IMX7ULP_PAD_PTF5__PTF5          0x3 /* TP_RESET_n */
+			>;
+	};
+
 	pinctrl_lpuart4: lpuart4grp {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC3__LPUART4_RX    0x3
 			IMX7ULP_PAD_PTC2__LPUART4_TX    0x3
+			>;
+	};
+
+	pinctrl_lpuart4_sleep: lpuart4grp_sleep {
+		fsl,pins = <
+			IMX7ULP_PAD_PTC3__PTC3    0x0
+			IMX7ULP_PAD_PTC2__PTC2    0x0
 			>;
 	};
 
@@ -251,6 +286,18 @@
  			IMX7ULP_PAD_PTE15__PTE15    	0x3     /* BT_EN */
  			IMX7ULP_PAD_PTF18__PTF18    	0x3     /* BT_WAKE_HOST */
  			IMX7ULP_PAD_PTF19__PTF19    	0x3     /* HOST_WAKE_BT */
+			>;
+	};
+
+	pinctrl_lpuart6_sleep: lpuart6grp_sleep {
+		fsl,pins = <
+			IMX7ULP_PAD_PTE10__PTE10        0x0
+			IMX7ULP_PAD_PTE11__PTE11        0x0
+			IMX7ULP_PAD_PTE9__PTE9          0x0
+			IMX7ULP_PAD_PTE8__PTE8          0x0
+ 			IMX7ULP_PAD_PTE15__PTE15    	0x0     /* BT_EN */
+ 			IMX7ULP_PAD_PTF18__PTF18    	0x0     /* BT_WAKE_HOST */
+ 			IMX7ULP_PAD_PTF19__PTF19    	0x0     /* HOST_WAKE_BT */
 			>;
 	};
 
@@ -284,6 +331,19 @@
 			>;
 	};
 
+	pinctrl_usdhc1_sleep: usdhc1grp_sleep {
+		fsl,pins = <
+			IMX7ULP_PAD_PTE3__PTE3          0x0
+			IMX7ULP_PAD_PTE2__PTE2          0x0
+			IMX7ULP_PAD_PTE1__PTE1          0x0
+			IMX7ULP_PAD_PTE0__PTE0          0x0
+			IMX7ULP_PAD_PTE5__PTE5          0x0
+			IMX7ULP_PAD_PTE4__PTE4          0x0
+			IMX7ULP_PAD_PTE6__PTE6      	0x0     /* WLAN_EN */
+			IMX7ULP_PAD_PTE7__PTE7      	0x0     /* WLAN_IRQ */
+			>;
+	};
+
 	pinctrl_mipi_dsi_reset: mipi_dsi_reset_grp {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC7__PTC7    0x3 /* DISPLAY_RESET */
@@ -305,18 +365,37 @@
 			IMX7ULP_PAD_PTF15__PTF15    0x20043  /* CAMERA PWDN */
 			IMX7ULP_PAD_PTF16__PTF16    0x20043  /* CAMERA 1V8 ENABLE*/
 			IMX7ULP_PAD_PTF17__PTF17    0x20043  /* CAMERA 2V8 ENABLE */
-			IMX7ULP_PAD_PTC0__PTC0    	0x3  	 /* CAMERA DUMMY CLK ENABLE */
+			IMX7ULP_PAD_PTC0__PTC0    	0x0  	 /* CAMERA DUMMY CLK ENABLE */
+			>;
+	};
+
+	pinctrl_camera_sleep: camera_grp_sleep {
+		fsl,pins = <
+			IMX7ULP_PAD_PTF3__PTF3      0x0
+			IMX7ULP_PAD_PTF6__PTF6      0x0
+			IMX7ULP_PAD_PTF7__PTF7      0x0
+			IMX7ULP_PAD_PTF8__PTF8      0x0
+			IMX7ULP_PAD_PTF9__PTF9      0x0
+			IMX7ULP_PAD_PTF10__PTF10    0x0
+			IMX7ULP_PAD_PTF11__PTF11    0x0
+			IMX7ULP_PAD_PTF12__PTF12    0x0
+			IMX7ULP_PAD_PTF13__PTF13    0x0
+			IMX7ULP_PAD_PTF14__PTF14    0x20043  /* CAMERA RESET */
+			IMX7ULP_PAD_PTF15__PTF15    0x20043  /* CAMERA PWDN */
+			IMX7ULP_PAD_PTF16__PTF16    0x20043  /* CAMERA 1V8 ENABLE*/
+			IMX7ULP_PAD_PTF17__PTF17    0x20043  /* CAMERA 2V8 ENABLE */
+			IMX7ULP_PAD_PTC0__PTC0    	0x0  	 /* CAMERA DUMMY CLK ENABLE */
 			>;
 	};
 };
 
 /*  PMIC */
 &lpi2c5 {
-	#address-cells = <1>;
+        #address-cells = <1>;
 	#size-cells = <0>;
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_lpi2c5>;
-	pinctrl-1 = <&pinctrl_lpi2c5>;
+	pinctrl-1 = <&pinctrl_lpi2c5_sleep>;
 	status = "okay";
 
 	pmic: pf1550@08 {
@@ -413,14 +492,12 @@
 	#size-cells = <0>;
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_lpi2c6>;
-	pinctrl-1 = <&pinctrl_lpi2c6>;
+	pinctrl-1 = <&pinctrl_lpi2c6_sleep>;
 	status = "okay";
 
 	ov5640: ov5640@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_camera>;
 		clocks = <&clks IMX7ULP_CLK_DUMMY>;
 		clock-names = "csi_mclk";
 		DOVDD-supply = <&vcam_en_reg_dovdd>; /* 1.8v */
@@ -511,7 +588,7 @@
 	#size-cells = <0>;
 	pinctrl-names = "default",  "sleep";
 	pinctrl-0 = <&pinctrl_lpi2c7>;
-	pinctrl-1 = <&pinctrl_lpi2c7>;
+	pinctrl-1 = <&pinctrl_lpi2c7_sleep>;
 	status = "okay";
 
 	touchscreen_v2:tsc@24{
@@ -583,16 +660,15 @@
 };
 
 &lpuart4 { /* console */
-	pinctrl-names = "default", "sleep";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart4>;
-	pinctrl-1 = <&pinctrl_lpuart4>;
 	status = "okay";
 };
 
 &lpuart6 { /* BT */
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_lpuart6>;
-	pinctrl-1 = <&pinctrl_lpuart6>;
+	pinctrl-1 = <&pinctrl_lpuart6_sleep>;
 	/* Default 48 MHz FIRC clk does not run at 48 MHz, use 24 MHz SOSC */
 	assigned-clock-parents = <&clks IMX7ULP_CLK_SOSC_BUS_CLK>;
 	assigned-clock-rates = <24000000>;
@@ -648,7 +724,7 @@
 &usdhc1 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc1>;
-	pinctrl-1 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_sleep>;
 	bus-width = <4>;
 	pm-ignore-notify;
 	keep-power-in-suspend;
@@ -669,6 +745,9 @@
 };
 
 &viu {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_camera>;
+	pinctrl-1 = <&pinctrl_camera_sleep>;
 	status = "okay";
 	port {
 	viu_ep: endpoint {
