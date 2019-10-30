@@ -1515,6 +1515,8 @@ static int imx_viu_suspend(struct device *dev)
 	struct imx_viu_device *viu_dev = v4l2_dev_to_viu_dev(v4l2_dev);
 	int ret;
 
+	pr_info("imx_viu_suspend\n");
+
 	if (!vb2_is_streaming(&viu_dev->queue))
 		return 0;
 
@@ -1525,6 +1527,8 @@ static int imx_viu_suspend(struct device *dev)
 	/* disable ERROR irq to make release smooth */
 	imx_viu_irq_disable(viu_dev, ERROR_IRQ);
 	imx_viu_irq_disable(viu_dev, DMA_END_IRQ);
+
+	pinctrl_pm_select_sleep_state(dev);
 
 	/* save registers for resume */
 	imx_viu_save_reg_stack(viu_dev, &viu_dev->reset);
@@ -1540,6 +1544,8 @@ static int imx_viu_resume(struct device *dev)
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
 	struct imx_viu_device *viu_dev = v4l2_dev_to_viu_dev(v4l2_dev);
 
+	pr_info("imx_viu_resume\n");
+
 	if (!vb2_is_streaming(&viu_dev->queue))
 		return 0;
 
@@ -1550,6 +1556,8 @@ static int imx_viu_resume(struct device *dev)
 	imx_viu_restore_reg_stack(viu_dev, &viu_dev->reset);
 	imx_viu_irq_enable(viu_dev, DMA_END_IRQ);
 	imx_viu_irq_enable(viu_dev, ERROR_IRQ);
+
+	pinctrl_pm_select_default_state(dev);
 
 	return 0;
 }
