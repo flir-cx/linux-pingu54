@@ -1522,8 +1522,8 @@ static int mipi_dsi_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops mipi_dsi_pm_ops = {
-	.suspend = mipi_dsi_suspend,
-	.resume  = mipi_dsi_resume,
+	.suspend_late = mipi_dsi_suspend,
+	.resume_early  = mipi_dsi_resume,
 	.runtime_suspend = mipi_dsi_runtime_suspend,
 	.runtime_resume  = mipi_dsi_runtime_resume,
 	.runtime_idle	 = NULL,
