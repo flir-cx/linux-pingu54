@@ -1250,6 +1250,10 @@ static irqreturn_t imx_viu_irq_handler(int irq, void *dev_id)
 			/* DMA_ACT is set during vertical active, recover */
 			recover = true;
 			imx_viu_irq_enable(viu_dev, VSYNC_IRQ);
+
+			if (0x2 == errcode) {
+				writel(scr & ~SCR_DMA_ACT, viu_dev->base + VIU_SCR);
+			}
 		}
 		return IRQ_HANDLED;
 	}
