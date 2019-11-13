@@ -105,7 +105,7 @@
 	mipi_dsi_reset: mipi-dsi-reset {
 		compatible = "gpio-reset";
 		reset-gpios = <&gpio_ptc 7 GPIO_ACTIVE_LOW>;
-		reset-delay-us = <1000>;
+		reset-delay-us = <5000>;
 		#reset-cells = <0>;
 	};
 
