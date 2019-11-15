@@ -1522,7 +1522,7 @@ static int imx_viu_suspend(struct device *dev)
 	pr_info("imx_viu_suspend\n");
 
 	if (!vb2_is_streaming(&viu_dev->queue))
-		return 0;
+		goto pin_sleep;
 
 	ret = wait_for_completion_timeout(&viu_dev->dma_done, HZ / 10);
 	if (!ret) {
@@ -1532,13 +1532,14 @@ static int imx_viu_suspend(struct device *dev)
 	imx_viu_irq_disable(viu_dev, ERROR_IRQ);
 	imx_viu_irq_disable(viu_dev, DMA_END_IRQ);
 
-	pinctrl_pm_select_sleep_state(dev);
-
 	/* save registers for resume */
 	imx_viu_save_reg_stack(viu_dev, &viu_dev->reset);
 
 	clk_disable_unprepare(viu_dev->ipg_clk);
 	release_bus_freq(BUS_FREQ_HIGH);
+
+pin_sleep:
+	pinctrl_pm_select_sleep_state(dev);
 
 	return 0;
 }
@@ -1551,7 +1552,7 @@ static int imx_viu_resume(struct device *dev)
 	pr_info("imx_viu_resume\n");
 
 	if (!vb2_is_streaming(&viu_dev->queue))
-		return 0;
+		goto pin_restore;
 
 	request_bus_freq(BUS_FREQ_HIGH);
 	clk_prepare_enable(viu_dev->ipg_clk);
@@ -1561,6 +1562,7 @@ static int imx_viu_resume(struct device *dev)
 	imx_viu_irq_enable(viu_dev, DMA_END_IRQ);
 	imx_viu_irq_enable(viu_dev, ERROR_IRQ);
 
+pin_restore:
 	pinctrl_pm_select_default_state(dev);
 
 	return 0;
