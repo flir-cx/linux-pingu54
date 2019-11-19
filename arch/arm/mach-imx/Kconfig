@@ -44,6 +44,15 @@ config MXC_USE_EPIT
 	  uses the same clocks as the GPT. Anyway, on some systems the GPT
 	  may be in use for other purposes.
 
+config IMX7ULP_BOOTTIME
+       bool "Use IMX7ULP timer for boottime timestamps"
+
+config IMX_BOOTTIME
+       bool "Show boot time timestamps in startup log"
+	   depends on IMX7ULP_BOOTTIME
+	   help
+	   	Create a new config for other timers than imx7ulp if needed.
+
 config HAVE_IMX_RNG
        bool
 
