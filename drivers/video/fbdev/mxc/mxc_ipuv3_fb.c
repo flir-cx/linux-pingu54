@@ -55,6 +55,10 @@
 #include <linux/time.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_IMX_BOOTTIME
+#include <boottime.h>
+#endif
+
 #include "mxc_dispdrv.h"
 
 static int swap_disp_panel(struct fb_info *fbi, int panel);
@@ -2688,13 +2692,12 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (mxc_fbi->cur_prefetch)
 		goto next;
 
-#ifdef CONFIG_MXC_EPIT_BOOTTIME
+#ifdef CONFIG_IMX_BOOTTIME
 	if (mxc_fbi->ipu_ch == MEM_BG_SYNC) {
-		extern u32 board_get_time(void);
 		static int init;
 
 		if (++init == 5)
-			pr_info("overlay boottime %d\n", board_get_time());
+			pr_info("overlay boottime %llu\n", board_get_time());
 	}
 #endif
 	if (ipu_update_channel_buffer(mxc_fbi->ipu, mxc_fbi->ipu_ch, IPU_INPUT_BUFFER,
