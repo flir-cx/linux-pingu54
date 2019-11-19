@@ -33,8 +33,29 @@ config MXC_DEBUG_BOARD
 	  data/address de-multiplexing and decode, signal level shift,
 	  interrupt control and various board functions.
 
-config MXC_EPIT_BOOTTIME
-	bool "Use EPIT to show boot time"
+config IMX_BOOTTIME
+	bool "Show imx boot time timestamps in startup log"
+
+choice
+	prompt "Select imx boot time source"
+	default IMX_BOOTTIME_KERNEL_STD
+	depends on IMX_BOOTTIME
+
+	config IMX_KERNEL_STD_BOOTTIME
+		bool "Standard linux timekeeping."
+		help
+			Use regular Linux timekeeping features.
+
+	config MXC_EPIT_BOOTTIME
+		bool "EPIT timer"
+		help
+			Use the EPIT timer (e.g. on iMX6).
+
+	config IMX7ULP_BOOTTIME
+		bool "IMX7ULP TSMR"
+		help
+			Use iMX7ULP specific counter.
+endchoice
 
 config HAVE_IMX_ANATOP
 	bool
