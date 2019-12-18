@@ -28,6 +28,8 @@
 #include "uvc_video.h"
 #include "uvc_v4l2.h"
 
+//#define BULK
+
 /* --------------------------------------------------------------------------
  * Requests handling
  */
@@ -61,6 +63,7 @@ struct uvc_format {
 static struct uvc_format uvc_formats[] = {
 	{ 16, V4L2_PIX_FMT_YUYV  },
 	{ 0,  V4L2_PIX_FMT_MJPEG },
+	{ 16, V4L2_PIX_FMT_Y16   },
 };
 
 static int
@@ -205,11 +208,13 @@ uvc_v4l2_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	if (ret < 0)
 		return ret;
 
+#ifndef BULK
 	/*
 	 * Complete the alternate setting selection setup phase now that
 	 * userspace is ready to provide video frames.
 	 */
-	uvc_function_setup_continue(uvc);
+	//uvc_function_setup_continue(uvc);
+#endif
 	uvc->state = UVC_STATE_STREAMING;
 
 	return 0;
