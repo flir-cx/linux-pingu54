@@ -160,6 +160,17 @@ enum pf1550_pmic_reg {
 #define PF1550_CHARG_REG_THM_REG_CNFG_REGTEMP_SHIFT	2
 #define PF1550_CHARG_REG_THM_REG_CNFG_REGTEMP_MASK	(0x3 << 2)
 
+#define PF1550_CHARG_REG_VBUS_INLIM_CNFG_MASK 0xf8
+#define PF1550_CHARG_REG_VBUS_INLIM_CNFG_SHIFT 3
+
+#define PF1550_CHARG_REG_CHG_OPER_CHG_OPER_MASK 0x3
+
+enum pf1550_chg_oper{
+	CHARGER_OFF_LINEAR_OFF = 0,
+	CHARGER_OFF_LINEAR_ON  = 1,
+	CHARGER_ON_LINEAR_ON   = 2
+};
+
 #define PMIC_IRQ_SW1_LS		BIT(0)
 #define PMIC_IRQ_SW2_LS		BIT(1)
 #define PMIC_IRQ_SW3_LS		BIT(2)
@@ -227,6 +238,31 @@ enum pf1550_regulators {
 	PF1550_LDO2,
 	PF1550_LDO3,
 };
+
+enum pf1550_ilim {
+	_10ma = 0,
+	_15ma = 1,
+	_20ma = 2,
+	_25ma = 3,
+	_30ma = 4,
+	_35ma = 5,
+	_40ma = 6,
+	_45ma = 7,
+	_50ma = 8,
+	_100ma = 9,
+	_150ma = 10,
+	_200ma = 11,
+	_300ma = 12,
+	_400ma = 13,
+	_500ma = 14,
+	_600ma = 15,
+	_700ma = 16,
+	_800ma = 17,
+	_900ma = 18,
+	_1000ma = 19,
+	_1500ma = 20
+};
+
 
 struct pf1550_irq_info {
 	unsigned int irq;

@@ -21,6 +21,7 @@
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/mfd/pf1550.h>
+#include <linux/usb/phy.h>
 
 #define PF1550_CHARGER_NAME		"pf1550-charger"
 #define PF1550_DEFAULT_CONSTANT_VOLT	4200000
@@ -38,7 +39,9 @@ struct pf1550_charger {
 	int irq;
 	struct delayed_work irq_work;
 	struct mutex mutex;
-
+	struct usb_phy *usb_phy;
+	struct notifier_block usb_nb;
+	struct work_struct usb_work;
 	u32 constant_volt;
 	u32 min_system_volt;
 	u32 thermal_regulation_temp;
@@ -494,6 +497,95 @@ static int pf1550_set_thermal_regulation_temp(struct pf1550_charger *chg,
 			PF1550_CHARG_REG_THM_REG_CNFG_REGTEMP_MASK, data);
 }
 
+static int pf1550_set_charger_operation(struct pf1550_charger *chg, bool on)
+{
+
+	u8 op = on ? CHARGER_ON_LINEAR_ON: CHARGER_OFF_LINEAR_OFF;
+
+	return regmap_update_bits(chg->pf1550->regmap,
+			PF1550_CHARG_REG_CHG_OPER,
+			PF1550_CHARG_REG_CHG_OPER_CHG_OPER_MASK, op);
+}
+
+
+
+static int pf1550_set_battery_charge_current(struct pf1550_charger *chg,
+		unsigned int mA)
+{
+	unsigned int ilim;
+
+	if(mA >= 1500)
+		ilim = _1500ma;
+	else if(mA >= 1000)
+		ilim = _1000ma;
+	else if(mA >= 900)
+		ilim = _900ma;
+	else if(mA >= 800)
+		ilim = _800ma;
+	else if(mA >= 700)
+		ilim = _700ma;
+	else if(mA >= 600)
+		ilim = _600ma;
+	else if(mA >= 500)
+		ilim = _500ma;
+	else if(mA >= 400)
+		ilim = _400ma;
+	else if(mA >= 300)
+		ilim = _300ma;
+	else if(mA >= 200)
+		ilim = _200ma;
+	else if(mA >= 100)
+		ilim = _100ma;
+	else 
+		ilim = _10ma ;
+
+	ilim <<= PF1550_CHARG_REG_VBUS_INLIM_CNFG_SHIFT;
+
+	dev_dbg(chg->dev, "Charge current: %u (0x%x)\n",
+			mA, ilim);
+
+	return regmap_update_bits(chg->pf1550->regmap,
+			PF1550_CHARG_REG_VBUS_INLIM_CNFG,
+			PF1550_CHARG_REG_VBUS_INLIM_CNFG_MASK, ilim);
+}
+
+static void pf1550_usb_work(struct work_struct *data)
+{
+	struct pf1550_charger *chg =
+			container_of(data, struct pf1550_charger, usb_work);
+	unsigned int min, max;
+	usb_phy_get_charger_current(chg->usb_phy, &min, &max);
+
+	switch(chg->usb_phy->chg_state)
+	{
+		case USB_CHARGER_DEFAULT:
+		case USB_CHARGER_ABSENT:
+			pf1550_set_charger_operation(chg, false);
+		break;
+
+		case USB_CHARGER_PRESENT:
+			//force 1500ma if charger type is cdp
+			if(chg->usb_phy->chg_type == CDP_TYPE )
+				max = 1500;
+			pf1550_set_battery_charge_current(chg, max);
+			pf1550_set_charger_operation(chg, true);
+		break;
+	}
+
+	dev_dbg(chg->dev, " usb chg_state,chg_type %x %x \n",
+			chg->usb_phy->chg_state, chg->usb_phy->chg_type);
+	return;
+}
+
+static int pf1550_charger_usb_notifier_call(struct notifier_block *usb_nb,
+		unsigned long data, void *phy)
+{
+	struct pf1550_charger *chg = container_of(usb_nb, struct pf1550_charger, usb_nb);
+	queue_work(system_power_efficient_wq, &chg->usb_work);
+
+	return NOTIFY_OK;
+}
+
 /*
  * Sets charger registers to proper and safe default values.
  */
@@ -608,6 +700,13 @@ static int pf1550_charger_probe(struct platform_device *pdev)
 		}
 	}
 
+	chg->usb_phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
+	if (!IS_ERR_OR_NULL(chg->usb_phy)) {
+		INIT_WORK(&chg->usb_work, pf1550_usb_work);
+		chg->usb_nb.notifier_call = pf1550_charger_usb_notifier_call;
+		usb_register_notifier(chg->usb_phy, &chg->usb_nb);
+	}
+
 	psy_cfg.drv_data = chg;
 
 	chg->psy_desc.name = PF1550_CHARGER_NAME;
@@ -635,6 +734,8 @@ static int pf1550_charger_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&chg->irq_work);
 	power_supply_unregister(chg->charger);
+	if (!IS_ERR_OR_NULL(chg->usb_phy))
+		usb_unregister_notifier(chg->usb_phy, &chg->usb_nb);
 
 	return 0;
 }
