@@ -412,6 +412,7 @@
 
 		charger {
 			compatible = "fsl,pf1550-charger";
+			fsl,min-system-microvolt = <4300000>;
 		};
 
 		regulators {
@@ -706,6 +707,7 @@
 	srp-disable;
 	hnp-disable;
 	adp-disable;
+	phy-charger-detection;
 	status = "okay";
 };
 
