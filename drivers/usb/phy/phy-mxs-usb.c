@@ -138,6 +138,10 @@
 #define DCD_CONTROL				0x800
 #define DCD_CLOCK				(DCD_CONTROL + 0x4)
 #define DCD_STATUS				(DCD_CONTROL + 0x8)
+#define DCD_TIMER1				(DCD_CONTROL + 0x14)
+
+#define DCD_TIMER1_TDCD_DBNC_SHIFT	16
+#define DCD_TIMER1_TDCD_DBNC_MASK	0x3ff
 
 #define DCD_CONTROL_SR				BIT(25)
 #define DCD_CONTROL_START			BIT(24)
@@ -875,6 +879,10 @@ static int mxs_phy_dcd_start(struct mxs_phy *mxs_phy)
 	value = readl(base + DCD_CONTROL);
 	writel(value | DCD_CONTROL_SR, base + DCD_CONTROL);
 
+	value = readl(base + DCD_TIMER1);
+	value &= ~((DCD_TIMER1_TDCD_DBNC_MASK) << DCD_TIMER1_TDCD_DBNC_SHIFT);
+	writel(value | ((0x80 & DCD_TIMER1_TDCD_DBNC_MASK) << DCD_TIMER1_TDCD_DBNC_SHIFT) , base + DCD_TIMER1);
+
 	if (!mxs_phy->clk_rate)
 		return -EINVAL;
 
@@ -909,12 +917,13 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 		value = readl(base + DCD_CONTROL);
 		if (value & DCD_CONTROL_IF) {
 			value = readl(base + DCD_STATUS);
+			/*
 			if (value & DCD_STATUS_ACTIVE) {
 				dev_err(phy->dev, "still detecting\n");
 				chgr_type = UNKNOWN_TYPE;
 				break;
 			}
-
+*/
 			if (value & DCD_STATUS_TO) {
 				dev_err(phy->dev, "detect timeout\n");
 				chgr_type = UNKNOWN_TYPE;
