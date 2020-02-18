@@ -309,6 +309,55 @@ static void pf1550_chg_vbus_isr(struct pf1550_charger *chg)
 		power_supply_changed(chg->charger);
 }
 
+static void pf1550_chg_thm_ok_toggle_charging(struct pf1550_charger *chg)
+{
+	unsigned int chg_int_ok;
+	unsigned int chg_oper;
+	unsigned int vbus_ok;
+	unsigned int thm_ok;
+
+	dev_info(chg->dev, "Enable/disable charging based on THM_OK and VBUS_OK.\n");
+
+	if (regmap_read(chg->pf1550->regmap, PF1550_CHARG_REG_CHG_INT_OK, &chg_int_ok)) {
+		dev_err(chg->dev, "Read CHG_SNS error.\n");
+		return;
+	}
+
+	vbus_ok = chg_int_ok & PF1550_CHG_INT_OK_VBUS_OK_MASK;
+	thm_ok = chg_int_ok & PF1550_CHG_INT_OK_THM_OK_MASK;
+
+	/*
+     * Check if charging should be enabled based on JEITA thermal range
+	 * and if VBUS is OK.
+     *
+     * (VBUS provides the thermistor voltage so thermistor value only valid
+     * when VBUS is present)
+     *
+	 */
+
+	if (thm_ok && vbus_ok){
+		/* Inside range and VBUS OK. Enable charging. */
+		dev_info(chg->dev, "Inside THM range and VBUS OK, enable charging.\n");
+		chg_oper = CHARGER_ON_LINEAR_ON;
+	} else {
+		/* Outside range or VBUS not OK. Disable charging. */
+		dev_info(chg->dev, "Outside of THM range or VBUS not OK, disable charging.\n");
+		chg_oper = CHARGER_OFF_LINEAR_ON;
+	}
+
+	if (regmap_update_bits(chg->pf1550->regmap, PF1550_CHARG_REG_CHG_OPER,
+				PF1550_CHARG_REG_CHG_OPER_CHG_OPER_MASK, chg_oper)) {
+		dev_err(chg->dev, "Update CHG_OPER error.\n");
+		return;
+	}
+}
+
+static void pf1550_chg_thm_isr(struct pf1550_charger *chg)
+{
+	dev_info(chg->dev, "Thermal interrupt.\n");
+	return pf1550_chg_thm_ok_toggle_charging(chg);
+}
+
 static irqreturn_t pf1550_charger_irq_handler(int irq, void *data)
 {
 	struct pf1550_charger *chg = data;
@@ -332,6 +381,12 @@ static void pf1550_charger_irq_work(struct work_struct *work)
 
 	mutex_lock(&chg->mutex);
 
+	/* Reset interrupts before handling that might cause new interrupts */
+	if (regmap_read(chg->pf1550->regmap, PF1550_CHARG_REG_CHG_INT, &status))
+		dev_err(chg->dev, "Read CHG_INT error.\n");
+	if (regmap_write(chg->pf1550->regmap, PF1550_CHARG_REG_CHG_INT, status))
+		dev_err(chg->dev, "clear CHG_INT error.\n");
+
 	for (i = 0; i < ARRAY_SIZE(pf1550_charger_irqs); i++)
 		if (chg->irq == pf1550_charger_irqs[i].virq)
 			irq_type = pf1550_charger_irqs[i].irq;
@@ -353,16 +408,11 @@ static void pf1550_charger_irq_work(struct work_struct *work)
 		dev_info(chg->dev, "DPM interrupt.\n");
 		break;
 	case PF1550_CHARG_IRQ_THMI:
-		dev_info(chg->dev, "Thermal interrupt.\n");
+		pf1550_chg_thm_isr(chg);
 		break;
 	default:
 		dev_err(chg->dev, "unknown interrupt occurred.\n");
 	}
-
-	if (regmap_read(chg->pf1550->regmap, PF1550_CHARG_REG_CHG_INT, &status))
-		dev_err(chg->dev, "Read CHG_INT error.\n");
-	if (regmap_write(chg->pf1550->regmap, PF1550_CHARG_REG_CHG_INT, status))
-		dev_err(chg->dev, "clear CHG_INT error.\n");
 
 	mutex_unlock(&chg->mutex);
 }
@@ -500,11 +550,17 @@ static int pf1550_set_thermal_regulation_temp(struct pf1550_charger *chg,
 static int pf1550_set_charger_operation(struct pf1550_charger *chg, bool on)
 {
 
-	u8 op = on ? CHARGER_ON_LINEAR_ON: CHARGER_OFF_LINEAR_OFF;
+	if (on)
+	{
+		// enable charging if in allowed thermal range
+		pf1550_chg_thm_ok_toggle_charging(chg);
+		return 0;
+	}
 
 	return regmap_update_bits(chg->pf1550->regmap,
 			PF1550_CHARG_REG_CHG_OPER,
-			PF1550_CHARG_REG_CHG_OPER_CHG_OPER_MASK, op);
+			PF1550_CHARG_REG_CHG_OPER_CHG_OPER_MASK,
+			CHARGER_OFF_LINEAR_ON);
 }
 
 
@@ -724,6 +780,9 @@ static int pf1550_charger_probe(struct platform_device *pdev)
 	}
 
 	ret = pf1550_reg_init(chg);
+
+	if(!ret)
+		pf1550_chg_thm_ok_toggle_charging(chg);
 
 	return ret;
 }
