@@ -50,6 +50,7 @@
 #define REG_GET(x, e, s) (((x) & REG_MASK(e, s)) >> (s))
 
 extern int rpmsg_send_buffer(dma_addr_t eba);
+extern int rpmsg_drop_buffers(void);
 extern int rpmsg_setup_callback(void (*func)(uint32_t addr, uint32_t buf_num, void *ptr), void *ptr);
 
 struct imx_rpmsg_input {
@@ -695,18 +696,10 @@ static struct vb2_ops imx_rpmsg_vb2_ops = {
 
 static int imx_rpmsg_dma_done_handle(struct imx_rpmsg_device *rpmsg_dev, dma_addr_t dma_addr)
 {
-#if 0 	/* Still problems with what seems to be "double reporting" of done dma transfers, use approach with no checks instead.
-		/ TODO: this should be investigated more */
-	bool found = false;
+	int buf_idx = 0;
 	unsigned long flags;
 	struct imx_rpmsg_buffer *buf, *tmp;
 	struct vb2_buffer *vb;
-    static dma_addr_t last_dma = 0;
-    if (dma_addr == last_dma) {
-		dev_err(rpmsg_dev->dev, "Same dma addr: 0x%X as previous reported done.", dma_addr);
-    }
-
-    last_dma = dma_addr;
 
 	spin_lock_irqsave(&rpmsg_dev->slock, flags);
 
@@ -716,6 +709,7 @@ static int imx_rpmsg_dma_done_handle(struct imx_rpmsg_device *rpmsg_dev, dma_add
 		return -ENOBUFS;
 	}
 
+	/* Find the matching buffer by dma addr */
 	list_for_each_entry_safe(buf, tmp,
 			&rpmsg_dev->active_queue, internal.queue) {
 		vb = &buf->vb.vb2_buf;
@@ -724,57 +718,28 @@ static int imx_rpmsg_dma_done_handle(struct imx_rpmsg_device *rpmsg_dev, dma_add
 			list_del_init(&buf->internal.queue);
 			to_vb2_v4l2_buffer(vb)->sequence = rpmsg_dev->frame_count++;
 			vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
-			found = true;
 			break;
 		}
+		buf_idx++;
 	}
 
-	if (!found) {
-        dma_addr_t dm[16] = {0};
-        int d = 0, i = 0;
-        list_for_each_entry_safe(buf, tmp,
-                &rpmsg_dev->active_queue, internal.queue) {
+	/*
+	 * If the dma addr doesn't match the first buffer in the list a buffer
+	 * must have been lost so we have to reset the buffer list in the m4
+	 * and queue all active buffers again.
+	 */
+	if (buf_idx > 0) {
+		dma_addr_t dma_to_m4;
+		/* reset buffers in m4 */
+		rpmsg_drop_buffers();
+		/* readd buffers m4 with same order as in driver */
+		list_for_each_entry_safe(buf, tmp,
+				&rpmsg_dev->active_queue, internal.queue) {
 			vb = &buf->vb.vb2_buf;
-			dm[d++] = vb2_dma_contig_plane_dma_addr(vb, 0);
-			if (d >= 16) break;
-        }
-		spin_unlock_irqrestore(&rpmsg_dev->slock, flags);
-
-		dev_err(rpmsg_dev->dev, "Couldn't find matching vb2_buf for dma addr: 0x%X "
-				"[ 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X ]", dma_addr,
-				dm[0], dm[1], dm[2], dm[3], dm[4], dm[5], dm[6], dm[7],
-				dm[8], dm[9], dm[10], dm[11], dm[12], dm[13], dm[14], dm[15]);
-		return 0;
+			dma_to_m4 = vb2_dma_contig_plane_dma_addr(vb, 0);
+			imx_rpmsg_config_dma(rpmsg_dev, dma_to_m4, 0);
+		}
 	}
-
-	spin_unlock_irqrestore(&rpmsg_dev->slock, flags);
-#endif
-
-	unsigned long flags;
-	struct imx_rpmsg_buffer *buf;
-	struct vb2_buffer *vb;
-
-	spin_lock_irqsave(&rpmsg_dev->slock, flags);
-
-	if (unlikely(list_empty(&rpmsg_dev->active_queue))) {
-		WARN_ON(1);
-		spin_unlock_irqrestore(&rpmsg_dev->slock, flags);
-		return -ENOBUFS;
-	}
-
-	buf = list_first_entry (&rpmsg_dev->active_queue,
-			struct imx_rpmsg_buffer,
-			internal.queue);
-
-	if (!buf) {
-		spin_unlock_irqrestore(&rpmsg_dev->slock, flags);
-		return -ENOBUFS;
-	}
-
-	vb = &buf->vb.vb2_buf;
-	list_del_init(&buf->internal.queue);
-	to_vb2_v4l2_buffer(vb)->sequence = rpmsg_dev->frame_count++;
-	vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 
 	spin_unlock_irqrestore(&rpmsg_dev->slock, flags);
 
@@ -784,11 +749,7 @@ static int imx_rpmsg_dma_done_handle(struct imx_rpmsg_device *rpmsg_dev, dma_add
 static void imx_rpmsg_callback(uint32_t addr, uint32_t buf_num, void *ptr)
 {
 	struct imx_rpmsg_device *rpmsg_dev = ptr;
-/*    static u32 nbr = 0;
-    if((++nbr % 900) == 0) {
-        dev_err(rpmsg_dev->dev, "Received %d rpmsg done callback (streaming: %d).", nbr, rpmsg_dev->streaming);
-    }
-*/
+
 	if (rpmsg_dev->streaming)
 		imx_rpmsg_dma_done_handle(rpmsg_dev, (dma_addr_t)addr);
 }

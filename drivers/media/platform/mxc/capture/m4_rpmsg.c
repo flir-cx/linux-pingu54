@@ -67,12 +67,13 @@ enum rxtypes {
 	RX_BUF_1,
 	RX_BUF_2,
 	RX_BUF_3,
+	DROP_BUFFERS = 100,
 };
 
-struct csi_rx_msg {
+typedef struct {
 	uint32_t type;
 	uint32_t addr;
-};
+} csi_msg_t;
 
 struct ovRpmsg {
 	struct v4l2_subdev		subdev;
@@ -393,7 +394,7 @@ static struct v4l2_subdev_ops ovRpsg_subdev_ops = {
 int rpmsg_send_buffer(dma_addr_t eba)
 {
 	int err = 0;
-	struct csi_rx_msg msg;
+	csi_msg_t msg;
 	static int buffer_num;
 
 	msg.type = RX_BUF_0 + buffer_num;
@@ -408,6 +409,25 @@ int rpmsg_send_buffer(dma_addr_t eba)
 EXPORT_SYMBOL(rpmsg_send_buffer);
 
 /*
+ * rpmsg_drop_buffers
+ *
+ * Tell M4 to drop all non-processed buffers
+ */
+
+int rpmsg_drop_buffers(void)
+{
+	int err = 0;
+	csi_msg_t msg;
+	msg.type = DROP_BUFFERS;
+	msg.addr = 0;
+
+	err = rpmsg_send(ovRpmsg_data.rpmsg_dev->ept, &msg, sizeof(msg));
+	return err;
+}
+EXPORT_SYMBOL(rpmsg_drop_buffers);
+
+
+/*
  * rpmsg_lepton_callback
  *
  * Callback from RPMSG when buffer is received from M4
@@ -416,16 +436,13 @@ EXPORT_SYMBOL(rpmsg_send_buffer);
 static int rpmsg_lepton_callback(struct rpmsg_device *dev, void *data, int len,
 		void *priv, u32 src)
 {
-	struct {
-		uint32_t addr;
-		uint32_t buf_num;
-	} *msg = data;
+	csi_msg_t *msg = (csi_msg_t *)data;
 //	print_hex_dump(KERN_INFO, "incoming message:", DUMP_PREFIX_NONE, 16, 1, data, len, true);
 
 //	pr_info("Got %X %d\n", msg->addr, msg->buf_num);
 
 	if (ovRpmsg_data.callback) {
-		ovRpmsg_data.callback(msg->addr, msg->buf_num, ovRpmsg_data.callback_dev);
+		ovRpmsg_data.callback(msg->addr, msg->type, ovRpmsg_data.callback_dev);
 	}
 
 	return 0;
