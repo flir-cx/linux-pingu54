@@ -1222,6 +1222,8 @@ static int ov5640_regulator_enable(struct device *dev)
 		dev_warn(dev, "cannot get core voltage\n");
 	}
 
+	msleep(1); /* make sure DOVDD has stabilized before turning on AVDD */
+
 	analog_regulator = devm_regulator_get(dev, "AVDD");
 	if (!IS_ERR(analog_regulator)) {
 		regulator_set_voltage(analog_regulator,
