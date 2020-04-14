@@ -1086,10 +1086,12 @@ static int imx_viu_start_streaming(struct vb2_queue *q,
 	if (ret)
 		goto clean_up_discard;
 
-	/* enable ERROR interrupt here */
-	imx_viu_irq_enable(viu_dev, ERROR_IRQ);
 	/* enable dma transfer */
 	imx_viu_irq_enable(viu_dev, DMA_END_IRQ);
+
+	/* enable ERROR interrupt */
+	imx_viu_irq_enable(viu_dev, ERROR_IRQ);
+
 	ret = imx_viu_config_dma(viu_dev, dma_addr, 0);
 	if (ret)
 		goto clean_up_irq;
@@ -1097,10 +1099,10 @@ static int imx_viu_start_streaming(struct vb2_queue *q,
 	return 0;
 
 clean_up_irq:
-	/* disable ERROR interrupt here */
+
 	imx_viu_irq_disable(viu_dev, ERROR_IRQ);
-	/* enable dma transfer */
 	imx_viu_irq_disable(viu_dev, DMA_END_IRQ);
+
 
 clean_up_discard:
 	INIT_LIST_HEAD(&viu_dev->discard);
