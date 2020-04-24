@@ -407,7 +407,6 @@
 		onkey {
 			compatible = "fsl,pf1550-onkey";
 			linux,keycode = <KEY_F8>;
-			wakeup;
 		};
 
 		charger {
