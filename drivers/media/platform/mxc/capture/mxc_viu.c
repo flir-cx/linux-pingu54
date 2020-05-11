@@ -485,8 +485,6 @@ static void imx_viu_soft_reset(struct imx_viu_device *viu_dev)
 {
 	unsigned int scr;
 
-	return; 
-
 	scr = readl(viu_dev->base + VIU_SCR);
 
 	/* set reset */
@@ -1087,6 +1085,7 @@ clean_up_irq:
 	imx_viu_irq_disable(viu_dev, ERROR_IRQ);
 	imx_viu_irq_disable(viu_dev, DMA_END_IRQ);
 
+	imx_viu_soft_reset(viu_dev);
 
 clean_up_discard:
 	INIT_LIST_HEAD(&viu_dev->discard);
@@ -1105,7 +1104,6 @@ clean_up:
 	INIT_LIST_HEAD(&viu_dev->active_queue);
 
 	spin_unlock_irqrestore(&viu_dev->slock, flags);
-
 
 	return ret;
 }
@@ -1128,6 +1126,8 @@ static void imx_viu_stop_streaming(struct vb2_queue *q)
 	/* disable ERROR irq to make release smooth */
 	imx_viu_irq_disable(viu_dev, ERROR_IRQ);
 	imx_viu_irq_disable(viu_dev, DMA_END_IRQ);
+
+	imx_viu_soft_reset(viu_dev);
 
 	spin_lock_irqsave(&viu_dev->slock, flags);
 
@@ -1265,10 +1265,14 @@ static irqreturn_t imx_viu_irq_handler(int irq, void *dev_id)
 	writel(scr, viu_dev->base + VIU_SCR);
 
 	if (scr & SCR_ERROR_IRQ) {
-		dev_warn(viu_dev->dev, "ERROR IRQ %#x, reset VIU\n",
-				      SCR_GET_ERROR_CODE(scr));
-		imx_viu_soft_reset(viu_dev);
 		errcode = SCR_GET_ERROR_CODE(scr);
+		if (0x1 == errcode) {
+			dev_dbg(viu_dev->dev, "ERROR IRQ %#x.\n",
+					errcode);
+		} else {
+			dev_warn(viu_dev->dev, "ERROR IRQ %#x.\n",
+					errcode);
+		}
 		if (0x1 == errcode || 0x2 == errcode) {
 			/* DMA_ACT is set during vertical active, recover */
 			recover = true;
