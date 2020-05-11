@@ -961,29 +961,13 @@ static int imx_viu_queue_setup(struct vb2_queue *q,
 	struct v4l2_pix_format *fmt = &viu_dev->v4l2_pix_fmt;
 
 	/* TODO: don't support multiple plane format */
+	if (!*num_planes || *num_planes > 1)
+		*num_planes = 1;
 
 	WARN_ON(*num_buffers < IMX_VIU_MIN_BUFS);
 
 	if (sizes[0] <= 0)
 		sizes[0] = fmt->sizeimage;
-
-	switch (fmt->pixelformat) {
-	case V4L2_PIX_FMT_UYVY:
-		if (!*num_planes || *num_planes > 1)
-			*num_planes = 1;
-		break;
-	case V4L2_PIX_FMT_YUYV:
-		if (!*num_planes || *num_planes > 1)
-			*num_planes = 1;
-		break;
-	case V4L2_PIX_FMT_ABGR32:
-		if (!*num_planes || *num_planes > 1)
-			*num_planes = 1;
-		break;
-	default:
-		/* unsupported format */
-		return -EINVAL;
-	}
 
 	return 0;
 }
