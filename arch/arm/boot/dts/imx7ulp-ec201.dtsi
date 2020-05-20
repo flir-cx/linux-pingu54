@@ -21,6 +21,12 @@
 		reg = <0x60000000 0x20000000>;
 	};
 
+	reserved-memory {
+		linux,cma {
+			size = <0x12000000>;
+		};
+	};
+
 	backlight_lcd {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 5 1000000>;
