@@ -38,6 +38,8 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
 
+#include "m4_rpmsg.h"
+
 #define IMX_RPMSG_DRV_NAME	"imx-rpmsg-v4l2"
 #define IMX_RPMSG_MAX_SUBDEV_NUM	4
 
@@ -51,6 +53,7 @@
 
 extern int rpmsg_send_buffer(dma_addr_t eba);
 extern int rpmsg_drop_buffers(void);
+extern int rpmsg_set_resolution(uint32_t res_mode);
 extern int rpmsg_setup_callback(void (*func)(uint32_t addr, uint32_t buf_num, void *ptr), void *ptr);
 
 struct imx_rpmsg_input {
@@ -342,6 +345,8 @@ static int imx_rpmsg_vidioc_s_fmt_vid_cap(struct file *filp, void *fh,
 	struct v4l2_pix_format *v4l2_pix_fmt = &f->fmt.pix;
 	const struct imx_rpmsg_fmt *rpmsg_fmt;
 
+	dev_info(rpmsg_dev->dev, "%s width %d  height %d\n", __func__, f->fmt.pix.width, f->fmt.pix.height);
+
 	ret = imx_rpmsg_vidioc_try_fmt_vid_cap(filp, rpmsg_dev, f);
 	if (ret < 0)
 		return ret;
@@ -356,6 +361,11 @@ static int imx_rpmsg_vidioc_s_fmt_vid_cap(struct file *filp, void *fh,
 	rpmsg_dev->v4l2_pix_fmt.bytesperline = v4l2_pix_fmt->bytesperline;
 	rpmsg_dev->v4l2_pix_fmt.field	= v4l2_pix_fmt->field;
 	rpmsg_dev->buf_type		= f->type;
+
+	if(v4l2_pix_fmt->width == IR_RESOLUTION_FULL_WIDTH)
+		rpmsg_set_resolution(ovRpmsg_mode_QQVGA_160_120);
+	else if(v4l2_pix_fmt->width == IR_RESOLUTION_REDUCED_WIDTH)
+		rpmsg_set_resolution(ovRpmsg_mode_QQVGA_128_96);
 
 	return 0;
 }
@@ -910,8 +920,8 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 
 	/* Seems necessary to set up some default parameters */
 	rpmsg_dev->v4l2_pix_fmt.pixelformat = V4L2_PIX_FMT_YUYV;
-	rpmsg_dev->v4l2_pix_fmt.width	= 160;
-	rpmsg_dev->v4l2_pix_fmt.height	= 120;
+	rpmsg_dev->v4l2_pix_fmt.width	= IR_RESOLUTION_DEFAULT_WIDTH;
+	rpmsg_dev->v4l2_pix_fmt.height	= IR_RESOLUTION_DEFAULT_HEIGHT;
 	rpmsg_dev->v4l2_pix_fmt.sizeimage = (16 >> 3) *
 			rpmsg_dev->v4l2_pix_fmt.height *
 			rpmsg_dev->v4l2_pix_fmt.width;
