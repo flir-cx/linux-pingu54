@@ -32,15 +32,12 @@
 #include <linux/rpmsg.h>
 #include <linux/dma-mapping.h>
 
+#include "m4_rpmsg.h"
+
 #define MIN_FPS 9
 #define MAX_FPS 9
 #define DEFAULT_FPS 9
 
-enum ovRpmsg_mode {
-	ovRpmsg_mode_MIN = 0,
-	ovRpmsg_mode_QQVGA_160_120 = 0,
-	ovRpmsg_mode_MAX = 0
-};
 
 enum ovRpmsg_frame_rate {
 	ovRpmsg_9_fps,
@@ -67,6 +64,7 @@ enum rxtypes {
 	RX_BUF_1,
 	RX_BUF_2,
 	RX_BUF_3,
+	SET_RESOLUTION = 10,
 	DROP_BUFFERS = 100,
 };
 
@@ -119,7 +117,7 @@ static int rpmsg_change_mode_direct(enum ovRpmsg_frame_rate frame_rate,
 	pr_info("%s: mode = %d, frame_rate = %d bp2\n", __func__, mode, frame_rate);
 
 
-	if (mode != ovRpmsg_mode_QQVGA_160_120 || frame_rate != ovRpmsg_9_fps) {
+	if ((mode != ovRpmsg_mode_QQVGA_128_96 && mode != ovRpmsg_mode_QQVGA_160_120 ) || frame_rate != ovRpmsg_9_fps) {
 		return -EINVAL;
 	}
 
@@ -326,12 +324,14 @@ static int rpmsg_enum_framesizes(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
+	pr_info("%s: width:%d  height:%d", __func__, fse->max_width, fse->max_height);
 	if (fse->index > ovRpmsg_mode_MAX)
 		return -EINVAL;
 
-	fse->max_width = 160;
+
+	fse->max_width = IR_RESOLUTION_DEFAULT_WIDTH;
 	fse->min_width = fse->max_width;
-	fse->max_height = 120;
+	fse->max_height = IR_RESOLUTION_DEFAULT_HEIGHT;
 	fse->min_height = fse->max_height;
 	return 0;
 }
@@ -348,6 +348,7 @@ static int rpmsg_enum_frameintervals(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_frame_interval_enum *fie)
 {
+	pr_info("%s: width:%d  height:%d", __func__, fie->width, fie->height);
 	if (fie->index != 0)
 		return -EINVAL;
 
@@ -359,7 +360,7 @@ static int rpmsg_enum_frameintervals(struct v4l2_subdev *sd,
 
 	fie->interval.numerator = 1;
 
-	if (fie->width == 160 && fie->height == 120) {
+	if ((fie->width == IR_RESOLUTION_REDUCED_WIDTH && fie->height == IR_RESOLUTION_REDUCED_HEIGHT) || (fie->width == IR_RESOLUTION_FULL_WIDTH && fie->height == IR_RESOLUTION_FULL_HEIGHT)) {
 		fie->interval.denominator = 9;
 		return 0;
 	}
@@ -428,6 +429,30 @@ EXPORT_SYMBOL(rpmsg_drop_buffers);
 
 
 /*
+ * rpmsg_change_resolution
+ *
+ * Tell M4 to change resolution
+ */
+
+int rpmsg_set_resolution(uint32_t res_mode)
+{
+	int err = 0;
+	csi_msg_t msg;
+	msg.type = SET_RESOLUTION;
+
+	if(res_mode > ovRpmsg_mode_MAX)
+		return -1;
+
+	msg.addr = res_mode;
+
+	err = rpmsg_send(ovRpmsg_data.rpmsg_dev->ept, &msg, sizeof(msg));
+
+	return err;
+}
+EXPORT_SYMBOL(rpmsg_set_resolution);
+
+
+/*
  * rpmsg_lepton_callback
  *
  * Callback from RPMSG when buffer is received from M4
@@ -467,8 +492,8 @@ static int rpmsg_lepton_probe(struct rpmsg_device *dev)
 	memset(&ovRpmsg_data, 0, sizeof(ovRpmsg_data));
 
 	ovRpmsg_data.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-	ovRpmsg_data.pix.width = 160;
-	ovRpmsg_data.pix.height = 120;
+	ovRpmsg_data.pix.width = IR_RESOLUTION_DEFAULT_WIDTH;
+	ovRpmsg_data.pix.height = IR_RESOLUTION_DEFAULT_HEIGHT;
 	ovRpmsg_data.streamcap.capturemode = 0;
 	ovRpmsg_data.streamcap.timeperframe.denominator = DEFAULT_FPS;
 	ovRpmsg_data.streamcap.timeperframe.numerator = 1;
