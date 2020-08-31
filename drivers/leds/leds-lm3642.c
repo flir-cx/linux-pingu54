@@ -461,6 +461,9 @@ static int lm3642_probe(struct i2c_client *client,
 		goto err_create_indicator_file;
 	}
 
+	//Always start with torch off
+	lm3642_control(chip, 0, MODES_TORCH);
+
 	dev_info(&client->dev, "LM3642 is initialized\n");
 	return 0;
 
@@ -472,14 +475,21 @@ err_out:
 	return err;
 }
 
-static int lm3642_remove(struct i2c_client *client)
+static void lm3642_shutdown(struct i2c_client *client)
 {
 	struct lm3642_chip_data *chip = i2c_get_clientdata(client);
+
+	lm3642_control(chip, 0, MODES_TORCH);
 
 	led_classdev_unregister(&chip->cdev_indicator);
 	led_classdev_unregister(&chip->cdev_torch);
 	led_classdev_unregister(&chip->cdev_flash);
 	regmap_write(chip->regmap, REG_ENABLE, 0);
+}
+
+static int lm3642_remove(struct i2c_client *client)
+{
+	lm3642_shutdown(client);
 	return 0;
 }
 
@@ -497,6 +507,7 @@ static struct i2c_driver lm3642_i2c_driver = {
 		   },
 	.probe = lm3642_probe,
 	.remove = lm3642_remove,
+	.shutdown = lm3642_shutdown,
 	.id_table = lm3642_id,
 };
 
