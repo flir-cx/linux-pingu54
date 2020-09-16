@@ -1464,6 +1464,7 @@ static int ov5640_set_VTS(int VTS)
 #endif
 
 /* read shutter, in number of line period */
+#if 0
 static int ov5640_get_shutter(void)
 {
 	int shutter;
@@ -1477,7 +1478,6 @@ static int ov5640_get_shutter(void)
 	return shutter;
 }
 
-#if 0
 /* write shutter, in number of line period */
 static int ov5640_set_shutter(int shutter)
 {
@@ -1498,7 +1498,7 @@ static int ov5640_set_shutter(int shutter)
 	return 0;
 }
 #endif
-
+#if 0
 /* read gain, 16 = 1x */
 static int ov5640_get_gain16(void)
 {
@@ -1511,7 +1511,7 @@ static int ov5640_get_gain16(void)
 	return gain16;
 }
 
-#if 0
+
 /* write gain, 16 = 1x */
 static int ov5640_set_gain16(int gain16)
 {
@@ -1807,12 +1807,12 @@ static int ov5640_change_mode_direct(enum ov5640_frame_rate frame_rate,
 static int ov5640_change_mode_exposure_calc(enum ov5640_frame_rate frame_rate,
 			    enum ov5640_mode mode)
 {
-	int prev_shutter, prev_gain16, average;
+//	int prev_shutter, prev_gain16, average;
 //	int cap_shutter, cap_gain16;
 //	int cap_sysclk, cap_HTS, cap_VTS;
 //	int light_freq, cap_bandfilt, cap_maxband;
 	//long cap_gain16_shutter;
-	u8 temp;
+//	u8 temp;
 	struct reg_value *pModeSetting = NULL;
 	s32 ArySize = 0;
 	int retval = 0;
@@ -1833,13 +1833,13 @@ static int ov5640_change_mode_exposure_calc(enum ov5640_frame_rate frame_rate,
 		return -EINVAL;
 
 	/* read preview shutter */
-	prev_shutter = ov5640_get_shutter();
+//	prev_shutter = ov5640_get_shutter();
 
 	/* read preview gain */
-	prev_gain16 = ov5640_get_gain16();
+//	prev_gain16 = ov5640_get_gain16();
 
 	/* get average */
-	average = ov5640_read_reg(0x56a1, &temp);
+//	average = ov5640_read_reg(0x56a1, &temp);
 
 	/* turn off night mode for capture */
 //	ov5640_set_night_mode(0);
@@ -2403,6 +2403,8 @@ static int ov5640_probe(struct i2c_client *client,
 	ov5640_reset();
 
 	ov5640_power_down(0);
+
+	msleep(20);
 
 	retval = ov5640_read_reg(OV5640_CHIP_ID_HIGH_BYTE, &chip_id_high);
 	if (retval < 0 || chip_id_high != 0x56) {
