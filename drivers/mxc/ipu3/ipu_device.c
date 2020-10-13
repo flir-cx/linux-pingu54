@@ -3660,8 +3660,6 @@ static int mxc_ipu_release(struct inode *inode, struct file *file)
 		}
 	}
 	mutex_unlock(&ipu_alloc_lock);
-	atomic_dec(&file_index);
-
 	return 0;
 }
 
