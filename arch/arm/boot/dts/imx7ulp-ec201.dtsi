@@ -23,7 +23,7 @@
 
 	reserved-memory {
 		linux,cma {
-			size = <0x12000000>;
+			size = <0xC000000>;
 		};
 	};
 
