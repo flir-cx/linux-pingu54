@@ -649,6 +649,10 @@ int usb_gadget_connect(struct usb_gadget *gadget)
 		goto out;
 	}
 
+	/* When we connect UVC without cable, v4l device will be opened again in this state, which results in a kernel bug*/
+	if (gadget->state == USB_STATE_NOTATTACHED && gadget->connected)
+		goto out;
+
 	if (gadget->deactivated) {
 		/*
 		 * If gadget is deactivated we only save new state.
@@ -687,6 +691,10 @@ int usb_gadget_disconnect(struct usb_gadget *gadget)
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
+
+	/* When we connect UVC without cable, v4l device will be opened by udev again in this state, which results in a kernel bug*/
+	if (gadget->state == USB_STATE_NOTATTACHED && gadget->connected)
+		goto out;
 
 	if (gadget->deactivated) {
 		/*
