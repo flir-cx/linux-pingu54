@@ -71,6 +71,8 @@ struct flir_csi_dt_data{
 	int mclk;
 	int capturemode;
 	u32 format;
+	struct i2c_client *client;
+	struct sensor_data *sensor;
 };
 
 /*!
@@ -691,6 +693,7 @@ static int flir_csi_probe(struct i2c_client *client,
 	struct device_node *np = client->dev.of_node;
 	u32 val;
 	const char *format;
+	struct device *dev = &client->dev;
 
 	dtdata = devm_kzalloc(&client->dev, sizeof(*dtdata), GFP_KERNEL);
 
@@ -698,6 +701,8 @@ static int flir_csi_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to alloc dtdata\n");
 		return -ENOMEM;
 	}
+	dev_set_drvdata(dev, (void *)dtdata); //set private data...
+	dtdata->client = client;
 
 	if (of_property_read_u32(np, "csi_id", &val) == 0) {
 		dtdata->csi_id = val;
@@ -744,6 +749,7 @@ static int flir_csi_probe(struct i2c_client *client,
 	}
 
 	sensor->i2c_client = client;
+	dtdata->sensor = sensor;
 	sensor->pix.pixelformat = dtdata->format;
 	sensor->pix.width = flir_csi_mode_info_data[0][dtdata->capturemode].width;
 	sensor->pix.height = flir_csi_mode_info_data[0][dtdata->capturemode].height;
@@ -769,9 +775,12 @@ static int flir_csi_probe(struct i2c_client *client,
  */
 static int flir_csi_remove(struct i2c_client *client)
 {
-	dev_dbg(&client->dev, "%s\n", __func__);
+	struct device *dev = &client->dev;
+	struct flir_csi_dt_data *dtdata = dev_get_drvdata(dev);
+	struct sensor_data *sensor = dtdata->sensor;
 
-	v4l2_int_device_unregister(&flir_csi_int_device[0]);
+	dev_dbg(&client->dev, "%s\n", __func__);
+	v4l2_int_device_unregister(&flir_csi_int_device[sensor->csi]);
 
 	return 0;
 }
