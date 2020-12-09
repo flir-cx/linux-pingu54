@@ -71,10 +71,9 @@ struct mipi_dsi_lcd_callback {
 	/* callback for lcd panel operation */
 	void (*get_mipi_lcd_videomode)(struct fb_videomode **, int *,
 			struct mipi_lcd_config **);
-	int  (*mipi_lcd_setup)(struct mipi_dsi_info *);
-	int  (*mipi_lcd_power_on)(struct mipi_dsi_info *);
-	int  (*mipi_lcd_power_off)(struct mipi_dsi_info *);
-
+	int (*mipi_lcd_setup)(struct mipi_dsi_info *);
+	int (*mipi_lcd_power_on)(struct mipi_dsi_info *);
+	int (*mipi_lcd_power_off)(struct mipi_dsi_info *);
 };
 
 struct mipi_dsi_match_lcd {
@@ -106,6 +105,7 @@ struct mipi_dsi_info {
 	char				*lcd_panel;
 	char				*vf_panel;
 	int				irq;
+	int				lcd_power_gpio;
 	int				lcd_mipi_sel_gpio;
 	int				lcd_mipi_en_gpio;
 	int				vf_4v5_en_gpio;
@@ -144,6 +144,10 @@ struct mipi_dsi_info {
 	int (*mipi_dsi_dcs_cmd)(struct mipi_dsi_info *mipi,
 			u8 cmd, const u32 *param, int num);
 };
+
+void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
+		       bool cmd_mode);
+int mipi_dsi_power_on(struct mxc_dispdrv_handle *disp);
 
 #ifdef CONFIG_FB_MXC_TRULY_WVGA_SYNC_PANEL
 void mipid_hx8369_get_lcd_videomode(struct fb_videomode **mode, int *size,

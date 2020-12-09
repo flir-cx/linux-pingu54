@@ -177,7 +177,7 @@ static int otm1287a_write_reg(struct mipi_dsi_info *mipi_dsi, u32 reg, u32 data)
 
 	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
 		&buf, 0);
-	if(err)
+	if (err)
 		dev_err(&mipi_dsi->pdev->dev,"otm1287a_write_reg err:%d \n",err);
 	return err;
 }
@@ -187,50 +187,78 @@ static int otm1287a_write_cmd(struct mipi_dsi_info *mipi_dsi, u32 cmd)
 	int err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE,
 		&cmd, 0);
 	msleep(1);
-	if(err)
+	if (err)
 		dev_err(&mipi_dsi->pdev->dev,"otm1287a_write_cmd err:%d \n",err);
 	return err;
 }
 
 int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 {
-	int i;
-	if(mipi_dsi->lcd_mipi_sel_gpio)
+	int ret;
+
+	if (mipi_dsi->lcd_mipi_sel_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
 	msleep(20);
 
-	for(i=0;i<ARRAY_SIZE(lcd_setup);i++)
+	for (int i = 0; i < ARRAY_SIZE(lcd_setup); i++)
 	{
-		mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
-				&lcd_setup[i].address_shift, 0);
-		if(lcd_setup[i].buf_size == 2)
-			mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
-					(u32*) lcd_setup[i].buf, 0);
+		ret = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+					 &lcd_setup[i].address_shift, 0);
+		if (ret)
+			dev_err(&mipi_dsi->pdev->dev, "otm1287a_lcd_setup Error %i writing %u \n", ret, i);
+		if (lcd_setup[i].buf_size == 2)
+			ret = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+						 (u32 *)lcd_setup[i].buf, 0);
 		else
-			mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_LONG_WRITE,
-					(u32*) lcd_setup[i].buf, lcd_setup[i].buf_size);
+			ret = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_DCS_LONG_WRITE,
+						 (u32 *)lcd_setup[i].buf, lcd_setup[i].buf_size);
+		if (ret)
+			dev_err(&mipi_dsi->pdev->dev, "otm1287a_lcd_setup Error %i writing packet %u (%u)\n",
+				ret, i, lcd_setup[i].buf_size);
 	}
 
-	otm1287a_write_reg(mipi_dsi,OTM1287A_REG_MADCTL,0x2);
+	ret = otm1287a_write_reg(mipi_dsi, OTM1287A_REG_MADCTL, 0x2);
+	if (ret)
+		dev_err(&mipi_dsi->pdev->dev, "Error writing packet MADCTL\n");
 	msleep(10);
-	otm1287a_write_cmd(mipi_dsi,OTM1287A_CMD_SLPOUT);
+	ret = otm1287a_write_cmd(mipi_dsi, OTM1287A_CMD_SLPOUT);
+	if (ret)
+		dev_err(&mipi_dsi->pdev->dev, "Error writing packet SLPOUT\n");
 	msleep(120);
-	otm1287a_write_cmd(mipi_dsi,OTM1287A_CMD_DISPON);
+	ret = otm1287a_write_cmd(mipi_dsi, OTM1287A_CMD_DISPON);
+	if (ret)
+		dev_err(&mipi_dsi->pdev->dev, "Error writing packet DISPON\n");
 
 	return 0;
 }
 
 int mipid_otm1287a_lcd_power_on(struct mipi_dsi_info *mipi_dsi)
 {
-	if(mipi_dsi->lcd_mipi_sel_gpio)
-		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
+	struct device *dev = &mipi_dsi->pdev->dev;
+
+	dev_dbg(dev, "Power on LCD\n");
+	if (mipi_dsi->lcd_power_gpio){
+		gpio_set_value_cansleep(mipi_dsi->lcd_power_gpio, 1);
+	}
+	gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
+	mipi_dsi_power_on(mipi_dsi->disp_mipi);
+	mipi_dsi_set_mode(mipi_dsi, 1);
+	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+	mipid_otm1287a_lcd_setup(mipi_dsi);
+	mipi_dsi_set_mode(mipi_dsi, 0);
+	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
 	return 0;
 }
 
 
 int mipid_otm1287a_lcd_power_off(struct mipi_dsi_info *mipi_dsi)
 {
+	struct device *dev = &mipi_dsi->pdev->dev;
+
+	dev_dbg(dev, "Power off LCD\n");
+	if (mipi_dsi->lcd_power_gpio){
+		gpio_set_value_cansleep(mipi_dsi->lcd_power_gpio, 0);
+	}
 	return 0;
 }
-
 
