@@ -111,6 +111,43 @@ static const struct _mipi_dsi_phy_pll_clk mipi_dsi_phy_pll_clk_table[] = {
 	{160,  0x04}, /*  150-160MHz	*/
 };
 
+static ssize_t reinitdisplay_store(struct device *dev, struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
+
+	mipi_dsi->lcd_callback->mipi_lcd_power_off(mipi_dsi);
+	mipi_dsi->lcd_callback->mipi_lcd_power_on(mipi_dsi);
+
+	mipi_dsi_set_mode(mipi_dsi, 1);
+	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+	mipi_dsi->lcd_callback->mipi_lcd_setup(mipi_dsi);
+	mipi_dsi_set_mode(mipi_dsi, 0);
+	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+	return strlen(buf);
+}
+static DEVICE_ATTR(reinitdisplay, 0644, NULL, reinitdisplay_store);
+
+static ssize_t poweroffdisplay_store(struct device *dev, struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
+
+	mipi_dsi->lcd_callback->mipi_lcd_power_off(mipi_dsi);
+	return strlen(buf);
+}
+static DEVICE_ATTR(poweroffdisplay, 0644, NULL, poweroffdisplay_store);
+
+static struct attribute *mipidsi_sysfs_attrs[] = {
+	&dev_attr_reinitdisplay.attr,
+	&dev_attr_poweroffdisplay.attr,
+	NULL
+};
+
+static struct attribute_group mipidsi_attr_control_grp = {
+	.name = "control",
+	.attrs = mipidsi_sysfs_attrs,
+};
 static int valid_mode(int pixel_fmt)
 {
 	return ((pixel_fmt == IPU_PIX_FMT_RGB24)  ||
@@ -267,9 +304,9 @@ static int mipi_dsi_pkt_read(struct mipi_dsi_info *mipi_dsi,
 	}
 
 	if ((len <= read_len) &&
-		((len + DSI_GEN_PLD_DATA_BUF_SIZE) >= read_len))
+	    ((len + DSI_GEN_PLD_DATA_BUF_SIZE) >= read_len)) {
 		return 0;
-	else {
+	} else {
 		dev_err(&mipi_dsi->pdev->dev,
 			"actually read_len:%d != len:%d.\n", read_len, len);
 		return -ERANGE;
@@ -474,10 +511,9 @@ static irqreturn_t mipi_dsi_irq_handler(int irq, void *data)
 	mipi_dsi_read_register(mipi_dsi, MIPI_DSI_ERROR_MSK1, &mask1);
 
 	if ((status0 & (~mask0)) || (status1 & (~mask1))) {
-		if(printk_ratelimit())
-			dev_err(&mipi_dsi->pdev->dev,
-			"mipi_dsi IRQ status0:0x%x, status1:0x%x!\n",
-			status0, status1);
+		dev_err_ratelimited(&mipi_dsi->pdev->dev,
+				    "mipi_dsi IRQ status0:0x%x, status1:0x%x!\n",
+				    status0, status1);
 	}
 
 	return IRQ_HANDLED;
@@ -661,7 +697,7 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 				"clk enable error:%d!\n", err);
 		mipi_dsi_enable_controller(mipi_dsi, true);
 		mipi_dsi_set_mode(mipi_dsi, true);
-		if(mipi_dsi->vf_callback)
+		if (mipi_dsi->vf_callback)
 			mipi_dsi->vf_callback->mipi_lcd_setup(
 			mipi_dsi);
 
@@ -762,10 +798,10 @@ static int mipi_swap_panel(struct mxc_dispdrv_handle *disp,
 	struct mipi_dsi_info    *mipi_dsi;
 	mipi_dsi = mxc_dispdrv_getdata(disp);
 
-	if(!mipi_dsi->lcd_mipi_sel_gpio || !mipi_dsi->vf_callback )
+	if (!mipi_dsi->lcd_mipi_sel_gpio || !mipi_dsi->vf_callback)
 		return -EINVAL;
 
-	if(active)
+	if (active)
 	{
 		mipi_dsi->lcd_callback->mipi_lcd_power_off(mipi_dsi);
 		mipi_dsi->vf_callback->mipi_lcd_power_on(mipi_dsi);
@@ -999,6 +1035,19 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	if 0
 		goto dev_reset_fail;
 
+	mipi_dsi->lcd_power_gpio = of_get_named_gpio(np, "lcd_power", 0);
+	if (gpio_is_valid(mipi_dsi->lcd_power_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->lcd_power_gpio,
+					    GPIOF_OUT_INIT_HIGH, "lcd_power");
+		if (ret) {
+			dev_err(&pdev->dev, "unable to get lcd_power gpio\n");
+			return ret;
+		}
+	} else {
+		dev_warn(&pdev->dev, "LCD power control not detected\n");
+		mipi_dsi->lcd_power_gpio = 0;
+	}
+
 	mipi_dsi->lcd_mipi_sel_gpio = of_get_named_gpio(np, "lcd_mipi_sel", 0);
 	if (gpio_is_valid(mipi_dsi->lcd_mipi_sel_gpio)) {
 		ret = devm_gpio_request_one(&pdev->dev, mipi_dsi->lcd_mipi_sel_gpio,
@@ -1007,10 +1056,9 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "unable to get lcd_mipi_sel gpio\n");
 			return ret;
 		}
-	}
-	else
+	} else {
 		mipi_dsi->lcd_mipi_sel_gpio = 0;
-
+	}
 
 	mipi_dsi->lcd_mipi_en_gpio = of_get_named_gpio(np, "lcd_mipi_en", 0);
 	if (gpio_is_valid(mipi_dsi->lcd_mipi_en_gpio)) {
@@ -1103,6 +1151,12 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	mipi_dsi->mipi_dsi_pkt_write = mipi_dsi_pkt_write;
 	mipi_dsi->mipi_dsi_dcs_cmd   = mipi_dsi_dcs_cmd;
 
+	ret = sysfs_create_group(&pdev->dev.kobj, &mipidsi_attr_control_grp);
+	if (ret) {
+		pr_err("FADDEV Error creating sysfs grp control\n");
+		goto dispdrv_reg_fail;
+	}
+
 	mxc_dispdrv_setdata(mipi_dsi->disp_mipi, mipi_dsi);
 	dev_set_drvdata(&pdev->dev, mipi_dsi);
 
@@ -1110,7 +1164,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	return ret;
 
 dispdrv_reg_fail:
-	if(mipi_dsi->vf_panel)
+	if (mipi_dsi->vf_panel)
 		kfree(mipi_dsi->vf_panel);
 	kfree(mipi_dsi->lcd_panel);
 kstrdup_fail:
@@ -1145,6 +1199,7 @@ static void mipi_dsi_shutdown(struct platform_device *pdev)
 static int mipi_dsi_remove(struct platform_device *pdev)
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(&pdev->dev);
+	sysfs_remove_group(&pdev->dev.kobj, &mipidsi_attr_control_grp);
 
 	mxc_dispdrv_puthandle(mipi_dsi->disp_mipi);
 	mxc_dispdrv_unregister(mipi_dsi->disp_mipi);
@@ -1162,17 +1217,17 @@ static int mipi_dsi_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(&pdev->dev);
 
-	if(mipi_dsi->lcd_mipi_en_gpio)
+	if (mipi_dsi->lcd_mipi_en_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_en_gpio, 1);
 
-	if(mipi_dsi->vf_rst_gpio)
+	if (mipi_dsi->vf_rst_gpio)
 		gpio_set_value_cansleep(mipi_dsi->vf_rst_gpio, 0);
 
-	if(mipi_dsi->vf_4v5_en_gpio)
+	if (mipi_dsi->vf_4v5_en_gpio)
 		gpio_set_value_cansleep(mipi_dsi->vf_4v5_en_gpio, 0);
 	udelay(700);
 
-	if(mipi_dsi->vf_1v8_en_gpio)
+	if (mipi_dsi->vf_1v8_en_gpio)
 		gpio_set_value_cansleep(mipi_dsi->vf_1v8_en_gpio, 0);
 	udelay(1000);
 
@@ -1183,16 +1238,16 @@ static int mipi_dsi_resume(struct platform_device *pdev)
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(&pdev->dev);
 
-	if(mipi_dsi->lcd_mipi_en_gpio)
+	if (mipi_dsi->lcd_mipi_en_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_en_gpio, 0);
 
-	if(mipi_dsi->vf_callback) {
+	if (mipi_dsi->vf_callback) {
 		mipi_dsi->vf_callback->mipi_lcd_setup(mipi_dsi);
 
 		if (mipi_dsi->vf_callback->mipi_lcd_power_off)
 			mipi_dsi->vf_callback->mipi_lcd_power_off(mipi_dsi);
 
-		if(mipi_dsi->lcd_mipi_sel_gpio)
+		if (mipi_dsi->lcd_mipi_sel_gpio)
 			gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
 	}
 
