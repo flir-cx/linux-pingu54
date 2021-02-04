@@ -1,0 +1,61 @@
+
+/*
+ * Copyright 2015 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+#include <dt-bindings/input/input.h>
+
+/ {
+	leds { 
+		compatible = "gpio-leds";
+		rdy-led {
+			label = "rdy-led";
+			gpios = <&cg_pca9534_0x42 0 GPIO_ACTIVE_LOW>;
+		        default-state = "off";
+		};
+		run-led {
+			label = "run-led";
+			gpios = <&cg_pca9534_0x42 1 GPIO_ACTIVE_LOW>;
+		        default-state = "off";
+		};
+		pass-led {
+			label = "pass-led";
+			gpios = <&cg_pca9534_0x42 2 GPIO_ACTIVE_LOW>;
+		        default-state = "off";
+		};
+		fail-led {
+			label = "fail-led";
+			gpios = <&cg_pca9534_0x42 3 GPIO_ACTIVE_LOW>;
+		        default-state = "off";
+		};
+	};
+
+	fad {
+		compatible = "flir,fad";
+		hasTrigger = <1>;
+		trigger-gpio = <&gpio7 12 GPIO_ACTIVE_LOW>;
+	};
+};
+
+
+&i2c3 {
+	cg_pca9534_0x42: cg_pca9534_0x42@21 {
+		//pwr ctrl I/O Expander
+		compatible = "nxp,pca9534";
+		reg = <0x21>;
+		gpio-controller;
+		interrupt-parent = <&gpio4>; //I2C3_Alert_n
+		//interrupts = <7 0x2>;  //ec101-c
+		interrupts = <5 0x2>;    //ec101-d
+		interrupt-controller;
+		interrupts-shared;
+                #interrupt-cells = <2>;
+                #gpio-cells = <2>;
+	};
+};

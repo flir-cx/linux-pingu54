@@ -1,0 +1,36 @@
+
+/*
+ * Copyright 2016 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/input/input.h>
+
+&i2c4 {
+      legp_24c02: legp_24c02@54 {
+		compatible = "atmel,24c02";
+		reg = <0x54>;
+		pagesize = <16>;
+		};
+
+      legp_xos8700:legp_fxos8700@1f  {
+		compatible = "freescale,fxos8700";
+		reg = <0x1f>;
+		position = <9>; ////X = Y, Y=X, Z=-Z  se fxos8700.c
+		};
+
+	gps:legp_gps@42 {
+		compatible = "ublox,m8";
+		reg = <0x42>;
+                interrupt-pin = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+                reset-pin = <&leif_pca9534_0x46 6 GPIO_ACTIVE_HIGH>;
+                vin-supply = <&reg_gps_en>;
+	};
+
+};

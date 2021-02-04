@@ -1,0 +1,318 @@
+
+/*
+ * Copyright 2015 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/input/input.h>
+/*This file represents evio-b and later*/
+
+/ {
+	erla-keyboard {
+		compatible = "gpio-keys";
+
+		autorepeat;
+		keyboard_right {
+			label = "Right";
+			gpio-key;
+			gpios = <&evio_pca9534_0x40 0 GPIO_ACTIVE_LOW>;
+			linux,code = <106>;
+		};
+		keyboard_left {
+			label = "Left";
+			gpio-key;
+			gpios = <&evio_pca9534_0x40 1 GPIO_ACTIVE_LOW>;
+			linux,code = <105>;
+		};
+		keyboard_up {
+			label = "Up";
+			gpio-key;
+			gpios = <&evio_pca9534_0x40 2 GPIO_ACTIVE_LOW>;
+			linux,code = <103>;
+		};
+		keyboard_down {
+			label = "Down";
+			gpio-key;
+			gpios = <&evio_pca9534_0x40 5 GPIO_ACTIVE_LOW>;
+			linux,code = <108>;
+		};
+
+		keyboard_press {
+			label = "Press";
+			gpio-key;
+			gpios = <&evio_pca9534_0x40 6 GPIO_ACTIVE_LOW>;
+			linux,code = <28>;
+		};
+		keyboard_back {
+			label = "Back";
+			gpio-key;
+			gpios = <&evio_pca9534_0x40 4 GPIO_ACTIVE_LOW>;
+			linux,code = <59>;
+		};
+		keyboard_archive {
+			label = "Archive";
+			gpio-key;
+			gpios = <&evio_pca9534_0x40 7 GPIO_ACTIVE_LOW>;
+			linux,code = <65>; //F7
+		};
+		button_trigger {
+			label = "Trigger";
+			gpio-key;
+			gpios = <&evio_pca9534_0x40 3 GPIO_ACTIVE_LOW>;
+			linux,code = <64>;
+		};
+		button_autofocus {
+			label = "Autofocus";
+			gpio-key;
+			gpios = <&evio_pca9534_0x42 0 GPIO_ACTIVE_LOW>;
+			linux,code = <3>;
+		};
+		button_prog {
+			label = "Prog";
+			gpio-key;
+			gpios = <&evio_pca9534_0x42 1 GPIO_ACTIVE_LOW>;
+			linux,code = <67>;
+		};
+		button_laser {
+			label = "Laser";
+			gpio-key;
+			debounce-interval = <100>;
+			gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_KPASTERISK>;
+		};
+	};
+
+	leds { 
+		compatible = "gpio-leds";
+		debug-led {
+			label = "sdcard-led"; //name sdcard-led used by autofs 
+			//to turn-on and off when filesystem is mounted
+			gpios = <&evio_pca9534_0x46 4 GPIO_ACTIVE_LOW>;
+		        default-state = "off";
+			linux,default-trigger = "mmc1";
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_audio_en: reg_audio_en {
+			compatible = "regulator-fixed";
+			regulator-name = "reg_audio_en";
+			gpio = <&evio_pca9534_0x46 6 GPIO_ACTIVE_HIGH>;
+			startup-delay-us = <4000>;
+			enable-active-high;
+		};
+		reg_gps_en: reg_gps_en {
+			compatible = "regulator-fixed";
+			regulator-name = "reg_gps_en";
+			gpio = <&evio_pca9534_0x46 1 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+	};
+	
+	sound: sound {
+		compatible = "fsl,imx-audio-tlv320aic31xx";
+		model = "imx-audio-tlv320aic31xx";
+		cpu-dai = <&ssi1>;
+		audio-routing =
+			"Ext Spk", "SPK",
+			"MIC1RP", "Mic Jack";
+		audio-codec = <&tlv320aic31xx>;
+		mux-int-port = <1>;
+		mux-ext-port = <5>;
+	};
+};
+
+&i2c3 {
+
+	fusb30x@22 {
+		//I/O Expander
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		status = "okay";
+		//status = "disabled";
+		fairchild,vbus5v	= <&gpio6 10 0>;  //FIXME: Unused IO pin
+		fairchild,vbusOther	= <&gpio6 11 0>;  //FIXME: Unused IO pin
+		fairchild,int_n         = <&gpio6 16 0>;
+		usbmux-gpio-pol         = <&evio_pca9534_0x42 2 GPIO_ACTIVE_HIGH>;
+		usbmux-gpio-amsel       = <&evio_pca9534_0x42 3 GPIO_ACTIVE_HIGH>;
+		usbmux-gpio-en          = <&evio_pca9534_0x42 4 GPIO_ACTIVE_HIGH>;
+	};
+
+	bq24298@6b {
+		compatible = "ti,bq24298";
+		reg = <0x6b>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <15 2>;
+		ti,usb-charger-detection = <&usbotg>;
+		status = "okay";
+	};
+
+	evio_pca9534_0x40: evio_pca9534_0x40@20 {
+		//Keyboard I/O exapander
+		compatible = "nxp,pca9534";
+		reg = <0x20>;
+		gpio-controller;
+		interrupt-parent = <&gpio4>; //I2C3_Alert_n
+		//interrupts = <7 0x2>;   //ec101-c
+		interrupts = <5 0x2>;     //ec101-d
+		interrupt-controller;
+		interrupts-shared;
+                #interrupt-cells = <2>;
+                #gpio-cells = <2>;
+	};
+
+	evio_pca9534_0x42: evio_pca9534_0x42@21 {
+		//pwr ctrl I/O Expander
+		compatible = "nxp,pca9534";
+		reg = <0x21>;
+		gpio-controller;
+		interrupt-parent = <&gpio4>; //I2C3_Alert_n
+		//interrupts = <7 0x2>;  //ec101-c
+		interrupts = <5 0x2>;    //ec101-d
+		interrupt-controller;
+		interrupts-shared;
+                #interrupt-cells = <2>;
+                #gpio-cells = <2>;
+	};
+
+	evio_pca9534_0x46: evio_pca9534_0x46@23 {
+		compatible = "nxp,pca9534";
+		reg = <0x23>;
+		gpio-controller;
+                #gpio-cells = <2>;
+	};
+
+	tlv320aic31xx: tlv320aic31xx@18 {
+		compatible = "ti,tlv320aic3100";
+		reg = <0x18>;
+                ai31xx-micbias-vg = <1>; // 1=2.0V 2=2.5V 3=AVDD(3.15V)
+                HPVDD-supply = <&reg_audio_en>;
+                SPRVDD-supply = <&reg_audio_en>;
+                SPLVDD-supply = <&reg_audio_en>;
+                AVDD-supply = <&reg_audio_en>;
+                IOVDD-supply = <&reg_audio_en>;
+                DVDD-supply = <&reg_audio_en>;
+		gpio-reset = <&evio_pca9534_0x46 0 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&i2c4 {
+        battery: bq27542@55 {
+		compatible = "ti,bq27542";
+		reg = <0x55>;
+	};
+
+	touchscreen:edt_ft5336@38 {
+		compatible = "edt,ft5x06";
+		reg = <0x38>;
+		num-buttons = <0>;
+
+		edt_mirror_x = <1>;
+		edt_mirror_y = <1>;
+		edt_max_x = <640>;
+		edt_max_y = <480>;
+
+		use_parameters = <0>;
+		interrupt-parent = <&gpio7>;
+		interrupts = <13 GPIO_ACTIVE_HIGH>;
+		touchscreen-size-x = <640>;
+		touchscreen-size-y = <480>;
+		reset-gpios = <&evio_pca9534_0x46 7 GPIO_ACTIVE_HIGH>;
+		//		wake-gpios = <&roco_pca9534 5 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	gps:evgp_gps@42 {
+		compatible = "ublox,m8";
+		reg = <0x42>;
+                interrupt-pin = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+                reset-pin = <&evio_pca9534_0x42 5 GPIO_ACTIVE_LOW>;
+                vin-supply = <&reg_gps_en>;
+		
+	};
+
+	evgp_24c02: evgp_24c02@54 {
+		compatible = "atmel,24c02";
+		reg = <0x54>;
+		pagesize = <16>;
+	};
+	
+};
+
+/*SD-card*/
+&usdhc1 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+	cd-gpios = <&gpio6 14 GPIO_ACTIVE_HIGH>;
+	wp-gpios = <&evio_pca9534_0x46 3 GPIO_ACTIVE_HIGH>;
+	vqmmc-supply = <&DA9063_LDO4>;
+	max-frequency = <100000000>;
+	status = "okay";
+};
+
+&iomuxc{
+	imx6dl-ec101 {
+		pinctrl_usdhc2: usdhc2grp {
+
+			fsl,pins = <
+				MX6QDL_PAD_SD2_CMD__SD2_CMD    0x170B9
+				MX6QDL_PAD_SD2_CLK__SD2_CLK    0x100B9
+				MX6QDL_PAD_SD2_DAT0__SD2_DATA0 0x170B9
+				MX6QDL_PAD_SD2_DAT1__SD2_DATA1 0x170B9
+				MX6QDL_PAD_SD2_DAT2__SD2_DATA2 0x170B9
+				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x170B9
+
+			>;
+		};
+
+		pinctrl_usdhc1: usdhc1grp {
+
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x17069
+				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x10069
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x17069
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x17069
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x17069
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x17069
+			>;
+		};
+	
+		pinctrl_usdhc1_100mhz: usdhc3grp100mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x170f9
+				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x100f9
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x170f9
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x170f9
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x170f9
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x170f9
+			>;
+		};
+
+		pinctrl_usdhc1_200mhz: usdhc3grp200mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x170f9
+				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x100f9
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x170f9
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x170f9
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x170f9
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x170f9
+			>;
+		};
+	};
+};
+
+
+
+
+

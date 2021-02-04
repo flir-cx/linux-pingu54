@@ -1,0 +1,28 @@
+
+/*
+ * Copyright 2016 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/input/input.h>
+
+&i2c4 {
+      evlc2_24c02: evlc2_24c02@56 {
+		compatible = "atmel,24c02";
+		reg = <0x56>;
+		pagesize = <16>;
+		};
+
+      evlc2_fxos8700:evlc2_fxos8700@1e  {
+		compatible = "freescale,fxos8700";
+		reg = <0x1e>;
+		position = <8>; ////X = -Z, Y=-Y, Z=-X  -->Appcore config 1,1,1  XYZ (EVLC2)
+		};
+
+	};
