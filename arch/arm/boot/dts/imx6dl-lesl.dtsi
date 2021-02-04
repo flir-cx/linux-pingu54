@@ -1,0 +1,29 @@
+
+/*
+ * Copyright 2016 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+
+
+&i2c3 {
+lesl_24c02: lesl_24c02@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
+		pagesize = <16>;
+	};
+
+BH1750FVI_0xB8: ambientlightsensor@24 {
+		//Ambient light sensor BH1750FVI_WSOF6I
+		compatible = "rohm,bh1750";
+		dvi-pin = <&leif_pca9534_0x42 5 GPIO_ACTIVE_LOW>;
+		reg = <0x5c>;
+		};
+};
+
