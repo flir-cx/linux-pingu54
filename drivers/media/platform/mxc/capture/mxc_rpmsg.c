@@ -54,6 +54,7 @@
 extern int rpmsg_send_buffer(dma_addr_t eba);
 extern int rpmsg_drop_buffers(void);
 extern int rpmsg_set_resolution(uint32_t res_mode);
+extern int rpmsg_set_pixelformat(uint32_t res_format);
 extern int rpmsg_setup_callback(void (*func)(uint32_t addr, uint32_t buf_num, void *ptr), void *ptr);
 
 struct imx_rpmsg_input {
@@ -122,6 +123,13 @@ static const struct imx_rpmsg_fmt rpmsg_fmts[] = {
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
 		.bpp		= 16,
 	},
+	{
+		.name		= "Y16",
+		.fourcc		= V4L2_PIX_FMT_Y16,
+		.pix_fmt	= V4L2_PIX_FMT_Y16,
+		.mbus_code	= MEDIA_BUS_FMT_Y16_1X16,
+		.bpp		= 16,
+	},
 };
 
 static const struct imx_rpmsg_input inputs[] = {
@@ -174,6 +182,7 @@ static int imx_rpmsg_set_fmt(struct imx_rpmsg_device *rpmsg_dev)
 
 	switch (rpmsg_fmt->mbus_code) {
 	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_Y16_1X16:
 		/* YUYV */
 		break;
 	default:
@@ -346,7 +355,8 @@ static int imx_rpmsg_vidioc_s_fmt_vid_cap(struct file *filp, void *fh,
 	const struct imx_rpmsg_fmt *rpmsg_fmt;
 
 	dev_info(rpmsg_dev->dev, "%s width %d  height %d\n", __func__, f->fmt.pix.width, f->fmt.pix.height);
-
+	dev_info(rpmsg_dev->dev, "%s field %d  bytesperline: %d sizeimage: %d\n", __func__, f->fmt.pix.field, f->fmt.pix.bytesperline, f->fmt.pix.sizeimage);
+	
 	ret = imx_rpmsg_vidioc_try_fmt_vid_cap(filp, rpmsg_dev, f);
 	if (ret < 0)
 		return ret;
@@ -359,13 +369,18 @@ static int imx_rpmsg_vidioc_s_fmt_vid_cap(struct file *filp, void *fh,
 	rpmsg_dev->v4l2_pix_fmt.height	= v4l2_pix_fmt->height;
 	rpmsg_dev->v4l2_pix_fmt.sizeimage	= v4l2_pix_fmt->sizeimage;
 	rpmsg_dev->v4l2_pix_fmt.bytesperline = v4l2_pix_fmt->bytesperline;
-	rpmsg_dev->v4l2_pix_fmt.field	= v4l2_pix_fmt->field;
+	rpmsg_dev->v4l2_pix_fmt.field	= V4L2_FIELD_NONE;
 	rpmsg_dev->buf_type		= f->type;
 
 	if(v4l2_pix_fmt->width == IR_RESOLUTION_FULL_WIDTH)
 		rpmsg_set_resolution(ovRpmsg_mode_QQVGA_160_120);
 	else if(v4l2_pix_fmt->width == IR_RESOLUTION_REDUCED_WIDTH)
 		rpmsg_set_resolution(ovRpmsg_mode_QQVGA_128_96);
+
+	if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_YUYV)
+		rpmsg_set_pixelformat(ovRpmsg_format_YUYV);
+	else if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
+		rpmsg_set_pixelformat(ovRpmsg_format_Y16);
 
 	return 0;
 }
@@ -553,6 +568,11 @@ static int imx_rpmsg_queue_setup(struct vb2_queue *q,
 		sizes[0] = fmt->sizeimage;
 		break;
 	case V4L2_PIX_FMT_YUYV:
+		if (!*num_planes || *num_planes > 1)
+			*num_planes = 1;
+		sizes[0] = fmt->sizeimage;
+		break;
+	case V4L2_PIX_FMT_Y16:
 		if (!*num_planes || *num_planes > 1)
 			*num_planes = 1;
 		sizes[0] = fmt->sizeimage;

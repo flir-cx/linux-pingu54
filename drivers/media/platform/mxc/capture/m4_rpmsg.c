@@ -65,6 +65,7 @@ enum rxtypes {
 	RX_BUF_2,
 	RX_BUF_3,
 	SET_RESOLUTION = 10,
+	SET_PIXELFORMAT = 11,
 	DROP_BUFFERS = 100,
 };
 
@@ -91,6 +92,7 @@ static struct ovRpmsg ovRpmsg_data;
 
 static const struct ovRpmsg_datafmt ovRpmsg_colour_fmts[] = {
 	{MEDIA_BUS_FMT_YUYV8_1X16, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_Y16_1X16, V4L2_COLORSPACE_RAW},
 };
 
 /* Find a data format by a pixel code in an array */
@@ -273,8 +275,8 @@ static int rpmsg_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (!fmt) {
-		mf->code	= ovRpmsg_colour_fmts[0].code;
-		mf->colorspace	= ovRpmsg_colour_fmts[0].colorspace;
+		mf->code	= fmt->code;
+		mf->colorspace	= fmt->colorspace;
 	}
 
 	mf->field	= V4L2_FIELD_NONE;
@@ -290,12 +292,13 @@ static int rpmsg_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
+	const struct ovRpmsg_datafmt *fmt = rpmsg_find_datafmt(mf->code);
 
 	if (format->pad)
 		return -EINVAL;
 
-	mf->code	= MEDIA_BUS_FMT_YUYV8_1X16;
-	mf->colorspace	= V4L2_COLORSPACE_JPEG;
+	mf->code	= fmt->code;
+	mf->colorspace	= fmt->colorspace;
 	mf->field	= V4L2_FIELD_NONE;
 
 	return 0;
@@ -450,6 +453,27 @@ int rpmsg_set_resolution(uint32_t res_mode)
 	return err;
 }
 EXPORT_SYMBOL(rpmsg_set_resolution);
+
+
+/*
+ * rpmsg_change_pixelformat
+ *
+ * Tell M4 to change pixelformat to YUYV or Y16
+ */
+
+int rpmsg_set_pixelformat(uint32_t res_format)
+{
+	int err = 0;
+	csi_msg_t msg;
+	msg.type = SET_PIXELFORMAT;
+
+	msg.addr = res_format;
+
+	err = rpmsg_send(ovRpmsg_data.rpmsg_dev->ept, &msg, sizeof(msg));
+
+	return err;
+}
+EXPORT_SYMBOL(rpmsg_set_pixelformat);
 
 
 /*
