@@ -292,6 +292,16 @@ static const struct soc_mbus_lookup mbus_fmt[] = {
 		.order			= SOC_MBUS_ORDER_LE,
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
+},	{
+	.code = MEDIA_BUS_FMT_Y16_1X16,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_Y16,
+		.name			= "Grey 16bit",
+		.bits_per_sample	= 16,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
+	},
 }, {
 	.code = MEDIA_BUS_FMT_SGRBG8_1X8,
 	.fmt = {
