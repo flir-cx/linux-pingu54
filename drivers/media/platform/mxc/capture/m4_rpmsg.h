@@ -15,6 +15,13 @@ enum ovRpmsg_mode {
 	ovRpmsg_mode_MAX = 1
 };
 
+enum ovRpmsg_format {
+	ovRpmsg_format_MIN = 0,
+	ovRpmsg_format_YUYV = 0,
+	ovRpmsg_format_Y16 = 1,
+	ovRpmsg_format_MAX = 1
+};
+
 #define IR_RESOLUTION_FULL_WIDTH  160
 #define IR_RESOLUTION_FULL_HEIGHT 120
 #define IR_RESOLUTION_REDUCED_WIDTH  128
