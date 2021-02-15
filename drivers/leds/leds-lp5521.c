@@ -592,19 +592,6 @@ static int lp5521_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int lp5521_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(client);
-	struct lp55xx_chip *chip = led->chip;
-	struct lp55xx_platform_data *pdata = chip->pdata;
-
-	if (gpio_is_valid(pdata->enable_gpio)) {
-		gpio_set_value_cansleep(pdata->enable_gpio, 0);
-	}
-
-	return 0;
-}
-
 static void lp5521_reset_device(struct lp55xx_chip *chip)
 {
 	struct lp55xx_device_config *cfg = chip->cfg;
@@ -613,30 +600,6 @@ static void lp5521_reset_device(struct lp55xx_chip *chip)
 
 	/* no error checking here because no ACK from the device after reset */
 	lp55xx_write(chip, addr, val);
-}
-
-static int lp5521_resume(struct i2c_client *client)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(client);
-	struct lp55xx_chip *chip = led->chip;
-	struct lp55xx_platform_data *pdata = chip->pdata;
-
-	if (gpio_is_valid(pdata->enable_gpio)) {
-		gpio_set_value_cansleep(pdata->enable_gpio, 1);
-		usleep_range(1000, 2000); /* 500us abs min. */
-	}
-
-	lp5521_reset_device(chip);
-
-	/*
-	 * Exact value is not available. 10 - 20ms
-	 * appears to be enough for reset.
-	 */
-	usleep_range(10000, 20000);
-
-	lp5521_post_init_device(chip);
-
-	return 0;
 }
 
 static const struct i2c_device_id lp5521_id[] = {
@@ -662,8 +625,6 @@ static struct i2c_driver lp5521_driver = {
 	.probe		= lp5521_probe,
 	.remove		= lp5521_remove,
 	.id_table	= lp5521_id,
-	.suspend	= lp5521_suspend,
-	.resume		= lp5521_resume,
 };
 
 module_i2c_driver(lp5521_driver);
