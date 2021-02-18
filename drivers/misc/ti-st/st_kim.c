@@ -831,15 +831,7 @@ err_core_init:
 static int kim_remove(struct platform_device *pdev)
 {
 	/* free the GPIOs requested */
-	struct ti_st_plat_data	*pdata;
 	struct kim_data_s	*kim_gdata;
-
-	if (pdev->dev.of_node) {
-		pr_debug("use device tree data");
-		pdata = dt_pdata;
-	} else {
-		pdata = pdev->dev.platform_data;
-	}
 
 	kim_gdata = platform_get_drvdata(pdev);
 
