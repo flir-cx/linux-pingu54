@@ -192,7 +192,7 @@
 		reg = <0x20>;
 		gpio-controller;
 		interrupt-parent = <&gpio4>; //I2C3_Alert_n
-		interrupts = <5 0x2>;
+		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		interrupts-shared;
                 #interrupt-cells = <2>;
@@ -204,7 +204,7 @@
 		reg = <0x21>;
 		gpio-controller;
 		interrupt-parent = <&gpio4>; //I2C3_Alert_n
-		interrupts = <5 0x2>;
+		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		interrupts-shared;
                 #interrupt-cells = <2>;
@@ -218,7 +218,7 @@
 		gpio-controller;
 		/*leif-a missing interrupt pin*/
 		interrupt-parent = <&gpio4>; //I2C3_Alert_n
-		interrupts = <5 0x2>;
+		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		interrupts-shared;
 		        #interrupt-cells = <2>;
