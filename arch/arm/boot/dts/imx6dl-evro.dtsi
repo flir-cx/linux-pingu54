@@ -145,8 +145,8 @@ evro_pca9534_0x48: evro_pca9534_0x48@24 {
 		reg = <0x24>;
 		gpio-controller;
 		interrupt-parent = <&gpio4>; //I2C3_Alert_n
-		//interrupts = <7 0x2>;  //ec101-c
-		interrupts = <5 0x2>;    //ec101-d
+		//interrupts = <7 IRQ_TYPE_LEVEL_LOW>;  //ec101-c
+		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;    //ec101-d
 		interrupt-controller;
 		interrupts-shared;
                 #interrupt-cells = <2>;
@@ -214,7 +214,7 @@ evro_pca9534_0x46: evro_pca9534_0x46@23 {
 		reg = <0x23>;
 		gpio-controller;
 		interrupt-parent = <&gpio4>; //I2C3_Alert_n
-		interrupts = <5 0x2>;
+		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		interrupts-shared;
                 #interrupt-cells = <2>;
