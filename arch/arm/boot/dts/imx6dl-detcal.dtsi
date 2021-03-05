@@ -51,11 +51,11 @@
 		compatible = "nxp,pca9534";
 		reg = <0x21>;
 		gpio-controller;
-		interrupt-parent = <&gpio4>; //I2C3_Alert_n
-		//interrupts = <7 IRQ_TYPE_LEVEL_LOW>;  //ec101-c
-		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;    //ec101-d
-		interrupt-controller;
-		interrupts-shared;
+		/* interrupt-parent = <&gpio4>; //I2C3_Alert_n */
+		/* //interrupts = <7 IRQ_TYPE_LEVEL_LOW>;  //ec101-c */
+		/* interrupts = <5 IRQ_TYPE_LEVEL_LOW>;    //ec101-d */
+		/* interrupt-controller; */
+		/* interrupts-shared; */
                 #interrupt-cells = <2>;
                 #gpio-cells = <2>;
 	};
