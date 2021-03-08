@@ -848,6 +848,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	mipi_dsi = devm_kzalloc(&pdev->dev, sizeof(*mipi_dsi), GFP_KERNEL);
 	if (!mipi_dsi)
 		return -ENOMEM;
+	mipi_dsi->pdev = pdev;
 
 	ret = of_property_read_string(np, "lcd_panel", &lcd_panel);
 	if (ret) {
@@ -953,7 +954,6 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		goto kstrdup_fail;
 	}
 
-	mipi_dsi->pdev = pdev;
 	mipi_dsi->disp_mipi = mxc_dispdrv_register(&mipi_dsi_drv);
 	if (IS_ERR(mipi_dsi->disp_mipi)) {
 		dev_err(&pdev->dev, "mxc_dispdrv_register error\n");
