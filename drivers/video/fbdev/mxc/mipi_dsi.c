@@ -111,36 +111,53 @@ static const struct _mipi_dsi_phy_pll_clk mipi_dsi_phy_pll_clk_table[] = {
 	{160,  0x04}, /*  150-160MHz	*/
 };
 
-static ssize_t reinitdisplay_store(struct device *dev, struct device_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t power_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
-	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
-
-	mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
-	mipi_dsi->primary_cb->mipi_lcd_power_on(mipi_dsi);
-
-	mipi_dsi_set_mode(mipi_dsi, 1);
-	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-	mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
-	mipi_dsi_set_mode(mipi_dsi, 0);
-	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-	return strlen(buf);
+        return sprintf(buf, "off primary* secondary\n");
 }
-static DEVICE_ATTR(reinitdisplay, 0644, NULL, reinitdisplay_store);
-
-static ssize_t poweroffdisplay_store(struct device *dev, struct device_attribute *attr,
+static ssize_t power_store(struct device *dev, struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
 
-	mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
+        if (strncmp(buf, "off", strlen("off")) == 0) {
+                dev_err(dev, "Shut off all displays\n");
+                mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
+                mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
+        } else if (strncmp(buf, "primary", strlen("primary")) == 0) {
+                dev_err(dev, "Power on primary display\n");
+                mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
+                mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
+                mipi_dsi->primary_cb->mipi_lcd_power_on(mipi_dsi);
+
+                mipi_dsi_set_mode(mipi_dsi, 1);
+                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+                mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
+                mipi_dsi_set_mode(mipi_dsi, 0);
+                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+
+        } else if (strncmp(buf, "secondary", strlen("secondary")) == 0) {
+                dev_err(dev, "Power on secondary display\n");
+                mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
+                mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
+                mipi_dsi->secondary_cb->mipi_lcd_power_on(mipi_dsi);
+
+                mipi_dsi_set_mode(mipi_dsi, 1);
+                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+                mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
+                mipi_dsi_set_mode(mipi_dsi, 0);
+                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+        } else {
+                dev_err(dev, "Unknown command\n");
+        }
+
 	return strlen(buf);
 }
-static DEVICE_ATTR(poweroffdisplay, 0644, NULL, poweroffdisplay_store);
+static DEVICE_ATTR(power, 0644, power_show, power_store);
 
 static struct attribute *mipidsi_sysfs_attrs[] = {
-	&dev_attr_reinitdisplay.attr,
-	&dev_attr_poweroffdisplay.attr,
+	&dev_attr_power.attr,
 	NULL
 };
 
