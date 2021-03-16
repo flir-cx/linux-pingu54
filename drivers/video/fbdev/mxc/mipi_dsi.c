@@ -116,12 +116,12 @@ static ssize_t reinitdisplay_store(struct device *dev, struct device_attribute *
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
 
-	mipi_dsi->lcd_callback->mipi_lcd_power_off(mipi_dsi);
-	mipi_dsi->lcd_callback->mipi_lcd_power_on(mipi_dsi);
+	mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
+	mipi_dsi->primary_cb->mipi_lcd_power_on(mipi_dsi);
 
 	mipi_dsi_set_mode(mipi_dsi, 1);
 	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-	mipi_dsi->lcd_callback->mipi_lcd_setup(mipi_dsi);
+	mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
 	mipi_dsi_set_mode(mipi_dsi, 0);
 	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
 	return strlen(buf);
@@ -133,7 +133,7 @@ static ssize_t poweroffdisplay_store(struct device *dev, struct device_attribute
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
 
-	mipi_dsi->lcd_callback->mipi_lcd_power_off(mipi_dsi);
+	mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
 	return strlen(buf);
 }
 static DEVICE_ATTR(poweroffdisplay, 0644, NULL, poweroffdisplay_store);
@@ -619,8 +619,8 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 	for (i = 0; i < ARRAY_SIZE(mipi_dsi_lcd_db); i++) {
 		if (!strcmp(mipi_dsi->lcd_panel,
 			mipi_dsi_lcd_db[i].lcd_panel)) {
-			mipi_dsi->lcd_callback =
-				&mipi_dsi_lcd_db[i].lcd_callback;
+			mipi_dsi->primary_cb =
+				&mipi_dsi_lcd_db[i].cb;
                         dev_err(dev, "Found primary panel %s.\n", mipi_dsi_lcd_db[i].lcd_panel);
 			break;
 		}
@@ -634,8 +634,8 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 	for (i = 0; i < ARRAY_SIZE(mipi_dsi_lcd_db); i++) {
 		if (!strcmp(mipi_dsi->vf_panel,
 			mipi_dsi_lcd_db[i].lcd_panel)) {
-			mipi_dsi->vf_callback =
-				&mipi_dsi_lcd_db[i].lcd_callback;
+			mipi_dsi->secondary_cb =
+				&mipi_dsi_lcd_db[i].cb;
                         dev_err(dev, "Found secondary panel %s.\n", mipi_dsi_lcd_db[i].lcd_panel);
 			break;
 		}
@@ -645,7 +645,7 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 	}
 
 	/* get the videomode in the order: cmdline->platform data->driver */
-	mipi_dsi->lcd_callback->get_mipi_lcd_videomode(&mipi_lcd_modedb, &size,
+	mipi_dsi->primary_cb->get_mipi_lcd_videomode(&mipi_lcd_modedb, &size,
 					&mipi_dsi->lcd_config);
 	err = fb_find_mode(&setting->fbi->var, setting->fbi,
 				setting->dft_mode_str,
@@ -702,11 +702,7 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 				"clk enable error:%d!\n", err);
 		mipi_dsi_enable_controller(mipi_dsi, true);
 		mipi_dsi_set_mode(mipi_dsi, true);
-		if (mipi_dsi->vf_callback)
-			mipi_dsi->vf_callback->mipi_lcd_setup(
-			mipi_dsi);
-
-		err = mipi_dsi->lcd_callback->mipi_lcd_setup(
+		err = mipi_dsi->primary_cb->mipi_lcd_setup(
 			mipi_dsi);
 		if (err < 0) {
 			dev_err(&mipi_dsi->pdev->dev,
@@ -803,19 +799,19 @@ static int mipi_swap_panel(struct mxc_dispdrv_handle *disp,
 	struct mipi_dsi_info    *mipi_dsi;
 	mipi_dsi = mxc_dispdrv_getdata(disp);
 
-	if (!mipi_dsi->lcd_mipi_sel_gpio || !mipi_dsi->vf_callback)
+	if (!mipi_dsi->lcd_mipi_sel_gpio || !mipi_dsi->secondary_cb)
 		return -EINVAL;
 
 	if (active)
 	{
-		mipi_dsi->lcd_callback->mipi_lcd_power_off(mipi_dsi);
-		mipi_dsi->vf_callback->mipi_lcd_power_on(mipi_dsi);
+		mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
+		mipi_dsi->secondary_cb->mipi_lcd_power_on(mipi_dsi);
 		mipi_dsi->active_panel = 1;
 	}
 	else
 	{
-		mipi_dsi->vf_callback->mipi_lcd_power_off(mipi_dsi);
-		mipi_dsi->lcd_callback->mipi_lcd_power_on(mipi_dsi);
+		mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
+		mipi_dsi->primary_cb->mipi_lcd_power_on(mipi_dsi);
 		mipi_dsi->active_panel = 0;
 	}
 	return 0;
@@ -1251,11 +1247,11 @@ static int mipi_dsi_resume(struct platform_device *pdev)
 	if (mipi_dsi->lcd_mipi_en_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_en_gpio, 0);
 
-	if (mipi_dsi->vf_callback) {
-		mipi_dsi->vf_callback->mipi_lcd_setup(mipi_dsi);
+	if (mipi_dsi->secondary_cb) {
+		mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
 
-		if (mipi_dsi->vf_callback->mipi_lcd_power_off)
-			mipi_dsi->vf_callback->mipi_lcd_power_off(mipi_dsi);
+		if (mipi_dsi->secondary_cb->mipi_lcd_power_off)
+			mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
 
 		if (mipi_dsi->lcd_mipi_sel_gpio)
 			gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
