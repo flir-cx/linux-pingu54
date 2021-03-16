@@ -77,7 +77,7 @@ struct mipi_dsi_callback {
 };
 
 struct mipi_dsi_match_lcd {
-	char *lcd_panel;
+	char *panel;
 	struct mipi_dsi_callback cb;
 };
 
@@ -102,8 +102,8 @@ struct mipi_dsi_info {
 	u32				dphy_pll_config;
 	int				dev_id;
 	int				disp_id;
-	char				*lcd_panel;
-	char				*vf_panel;
+	char				*primary_panel;
+	char				*secondary_panel;
 	int				irq;
 	int				lcd_power_gpio;
 	int				lcd_mipi_sel_gpio;
