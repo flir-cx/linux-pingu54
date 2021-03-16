@@ -143,11 +143,14 @@ struct mipi_dsi_info {
 			u8 data_type, const u32 *buf, int len);
 	int (*mipi_dsi_dcs_cmd)(struct mipi_dsi_info *mipi,
 			u8 cmd, const u32 *param, int num);
+	int (*mipi_dsi_power_on)(struct mxc_dispdrv_handle *disp);
+	void (*mipi_dsi_set_mode)(struct mipi_dsi_info *mipi_dsi,
+		       bool cmd_mode);
 };
 
-void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
+static void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
 		       bool cmd_mode);
-int mipi_dsi_power_on(struct mxc_dispdrv_handle *disp);
+static int mipi_dsi_power_on(struct mxc_dispdrv_handle *disp);
 
 #ifdef CONFIG_FB_MXC_TRULY_WVGA_SYNC_PANEL
 void mipid_hx8369_get_lcd_videomode(struct fb_videomode **mode, int *size,

@@ -3020,6 +3020,12 @@ static int swap_disp_panel(struct fb_info *fbi, int panel)
 	return mxcfbi->dispdrv->drv->swap_panel(mxcfbi->dispdrv, fbi,panel);
 }
 
+static ssize_t disp_panel_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+        return sprintf(buf, "overlay\n");
+}
+
 static ssize_t disp_panel_store(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
@@ -3034,9 +3040,8 @@ static ssize_t disp_panel_store(struct device *dev,
 
 	return count;
 }
-static DEVICE_ATTR(disp_panel, S_IWUGO, NULL, disp_panel_store);
 
-
+static DEVICE_ATTR(disp_panel, S_IWUSR | S_IRUGO, disp_panel_show, disp_panel_store);
 
 static int mxcfb_get_crtc(struct device *dev, struct mxcfb_info *mxcfbi,
 			  enum crtc crtc)
