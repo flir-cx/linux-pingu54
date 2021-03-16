@@ -621,22 +621,27 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 			mipi_dsi_lcd_db[i].lcd_panel)) {
 			mipi_dsi->lcd_callback =
 				&mipi_dsi_lcd_db[i].lcd_callback;
+                        dev_err(dev, "Found primary panel %s.\n", mipi_dsi_lcd_db[i].lcd_panel);
 			break;
 		}
 	}
 	if (i == ARRAY_SIZE(mipi_dsi_lcd_db)) {
-		dev_err(dev, "failed to find supported lcd panel.\n");
+		dev_err(dev, "failed to find supported primary panel.\n");
 		return -EINVAL;
 	}
-
+        
 	/*Find handle to second display*/
 	for (i = 0; i < ARRAY_SIZE(mipi_dsi_lcd_db); i++) {
 		if (!strcmp(mipi_dsi->vf_panel,
 			mipi_dsi_lcd_db[i].lcd_panel)) {
 			mipi_dsi->vf_callback =
 				&mipi_dsi_lcd_db[i].lcd_callback;
+                        dev_err(dev, "Found secondary panel %s.\n", mipi_dsi_lcd_db[i].lcd_panel);
 			break;
 		}
+	}
+	if (i == ARRAY_SIZE(mipi_dsi_lcd_db)) {
+		dev_err(dev, "failed to find supported secondary panel.\n");
 	}
 
 	/* get the videomode in the order: cmdline->platform data->driver */
@@ -956,6 +961,9 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 
 	/*Second panel is optional*/
 	ret = of_property_read_string(np, "vf_panel", &vf_panel);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to find secondary panel (vf_panel)\n");
+	}
 
 	ret = of_property_read_u32(np, "dev_id", &dev_id);
 	if (ret) {
