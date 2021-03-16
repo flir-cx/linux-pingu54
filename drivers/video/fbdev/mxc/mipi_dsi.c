@@ -30,7 +30,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
-#include <linux/reset.h>
+//#include <linux/reset.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <video/mipi_display.h>
@@ -519,7 +519,7 @@ static irqreturn_t mipi_dsi_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static inline void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
+static void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
 	bool cmd_mode)
 {
 	u32	val;
@@ -1032,7 +1032,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 *		goto dev_reset_fail;
 *	}
 */
-	if 0
+	if (0)
 		goto dev_reset_fail;
 
 	mipi_dsi->lcd_power_gpio = of_get_named_gpio(np, "lcd_power", 0);
@@ -1150,6 +1150,8 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	mipi_dsi->mipi_dsi_pkt_read  = mipi_dsi_pkt_read;
 	mipi_dsi->mipi_dsi_pkt_write = mipi_dsi_pkt_write;
 	mipi_dsi->mipi_dsi_dcs_cmd   = mipi_dsi_dcs_cmd;
+	mipi_dsi->mipi_dsi_power_on  = mipi_dsi_power_on;
+	mipi_dsi->mipi_dsi_set_mode  = mipi_dsi_set_mode;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &mipidsi_attr_control_grp);
 	if (ret) {
