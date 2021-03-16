@@ -67,7 +67,7 @@ struct mipi_lcd_config {
 };
 
 struct mipi_dsi_info;
-struct mipi_dsi_callback {
+struct mipi_dsi_cb {
 	/* callback for lcd panel operation */
 	void (*get_mipi_lcd_videomode)(struct fb_videomode **, int *,
 			struct mipi_lcd_config **);
@@ -78,7 +78,7 @@ struct mipi_dsi_callback {
 
 struct mipi_dsi_match_lcd {
 	char *panel;
-	struct mipi_dsi_callback cb;
+	struct mipi_dsi_cb cb;
 };
 
 struct mipi_dsi_bus_mux {
@@ -134,8 +134,8 @@ struct mipi_dsi_info {
 	/* board related power control */
 	struct backlight_device		*bl;
 	/* callback for lcd panel operation */
-	struct mipi_dsi_callback	*primary_cb;
-	struct mipi_dsi_callback	*secondary_cb;
+	struct mipi_dsi_cb	*primary_cb;
+	struct mipi_dsi_cb	*secondary_cb;
 
 	int (*mipi_dsi_pkt_read)(struct mipi_dsi_info *mipi,
 			u8 data_type, u32 *buf, int len);
