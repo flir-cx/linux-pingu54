@@ -617,11 +617,11 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 	struct  device		 *dev = &mipi_dsi->pdev->dev;
 
 	for (i = 0; i < ARRAY_SIZE(mipi_dsi_lcd_db); i++) {
-		if (!strcmp(mipi_dsi->lcd_panel,
-			mipi_dsi_lcd_db[i].lcd_panel)) {
+		if (!strcmp(mipi_dsi->primary_panel,
+			mipi_dsi_lcd_db[i].panel)) {
 			mipi_dsi->primary_cb =
 				&mipi_dsi_lcd_db[i].cb;
-                        dev_err(dev, "Found primary panel %s.\n", mipi_dsi_lcd_db[i].lcd_panel);
+                        dev_err(dev, "Found primary panel %s.\n", mipi_dsi_lcd_db[i].panel);
 			break;
 		}
 	}
@@ -632,11 +632,11 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
         
 	/*Find handle to second display*/
 	for (i = 0; i < ARRAY_SIZE(mipi_dsi_lcd_db); i++) {
-		if (!strcmp(mipi_dsi->vf_panel,
-			mipi_dsi_lcd_db[i].lcd_panel)) {
+		if (!strcmp(mipi_dsi->secondary_panel,
+			mipi_dsi_lcd_db[i].panel)) {
 			mipi_dsi->secondary_cb =
 				&mipi_dsi_lcd_db[i].cb;
-                        dev_err(dev, "Found secondary panel %s.\n", mipi_dsi_lcd_db[i].lcd_panel);
+                        dev_err(dev, "Found secondary panel %s.\n", mipi_dsi_lcd_db[i].panel);
 			break;
 		}
 	}
@@ -934,8 +934,8 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	struct mipi_dsi_info *mipi_dsi;
 	struct resource *res;
 	u32 dev_id, disp_id;
-	const char *lcd_panel;
-	const char *vf_panel = "dummy";
+	const char *primary_panel;
+	const char *secondary_panel = "dummy";
 	unsigned int mux;
 	int ret = 0;
 
@@ -949,14 +949,14 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	mipi_dsi->pdev = pdev;
 
-	ret = of_property_read_string(np, "lcd_panel", &lcd_panel);
+	ret = of_property_read_string(np, "lcd_panel", &primary_panel);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to read of property lcd_panel\n");
 		return ret;
 	}
 
 	/*Second panel is optional*/
-	ret = of_property_read_string(np, "vf_panel", &vf_panel);
+	ret = of_property_read_string(np, "vf_panel", &secondary_panel);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to find secondary panel (vf_panel)\n");
 	}
@@ -1130,15 +1130,15 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	else
 		dev_warn(&pdev->dev, "invalid dev_id or disp_id muxing\n");
 
-	mipi_dsi->vf_panel = kstrdup(vf_panel, GFP_KERNEL);
-	if (!mipi_dsi->vf_panel) {
+	mipi_dsi->secondary_panel = kstrdup(secondary_panel, GFP_KERNEL);
+	if (!mipi_dsi->secondary_panel) {
 		dev_err(&pdev->dev, "failed to allocate vf panel name\n");
 		ret = -ENOMEM;
 		goto kstrdup_fail;
 	}
 
-	mipi_dsi->lcd_panel = kstrdup(lcd_panel, GFP_KERNEL);
-	if (!mipi_dsi->lcd_panel) {
+	mipi_dsi->primary_panel = kstrdup(primary_panel, GFP_KERNEL);
+	if (!mipi_dsi->primary_panel) {
 		dev_err(&pdev->dev, "failed to allocate lcd panel name\n");
 		ret = -ENOMEM;
 		goto kstrdup_fail;
@@ -1170,9 +1170,9 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	return ret;
 
 dispdrv_reg_fail:
-	if (mipi_dsi->vf_panel)
-		kfree(mipi_dsi->vf_panel);
-	kfree(mipi_dsi->lcd_panel);
+	if (mipi_dsi->secondary_panel)
+		kfree(mipi_dsi->secondary_panel);
+	kfree(mipi_dsi->primary_panel);
 kstrdup_fail:
 get_parent_regmap_fail:
 dev_reset_fail:
@@ -1213,7 +1213,7 @@ static int mipi_dsi_remove(struct platform_device *pdev)
 	if (mipi_dsi->disp_power_on)
 		regulator_disable(mipi_dsi->disp_power_on);
 
-	kfree(mipi_dsi->lcd_panel);
+	kfree(mipi_dsi->primary_panel);
 	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
