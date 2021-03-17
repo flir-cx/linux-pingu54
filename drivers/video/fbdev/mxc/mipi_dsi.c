@@ -56,26 +56,33 @@
 static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 #ifdef CONFIG_FB_MXC_TRULY_WVGA_SYNC_PANEL
 	{
-	 "TRULY-WVGA",
-	 {mipid_hx8369_get_lcd_videomode, mipid_hx8369_lcd_setup, NULL, NULL}
+		"TRULY-WVGA", {
+			mipid_hx8369_get_lcd_videomode, mipid_hx8369_lcd_setup,
+			NULL
+		}
 	},
 #endif
 #ifdef CONFIG_FB_MXC_ORISE_OTM1287A
 	{
-	 "ORISE-VGA",
-	 {mipid_otm1287a_get_lcd_videomode, mipid_otm1287a_lcd_setup,
-	  mipid_otm1287a_lcd_power_on, mipid_otm1287a_lcd_power_off}
+		"ORISE-VGA", {
+			mipid_otm1287a_get_lcd_videomode, mipid_otm1287a_lcd_setup,
+			mipid_otm1287a_lcd_power_set
+		}
 	},
 #endif
 #ifdef CONFIG_FB_MXC_KOPIN_KCDA914
 	{
-	 "KOPIN-VGA",
-	 {mipid_kcda914_get_lcd_videomode, mipid_kcda914_lcd_setup,
-	  mipid_kcda914_lcd_power_on, mipid_kcda914_lcd_power_off}
+		"KOPIN-VGA", {
+			mipid_kcda914_get_lcd_videomode, mipid_kcda914_lcd_setup,
+			mipid_kcda914_lcd_power_set
+		}
 	},
 #endif
 	{
-	"", {NULL, NULL}
+		"", {
+			NULL, NULL,
+			NULL
+		}
 	}
 };
 
@@ -123,13 +130,13 @@ static ssize_t power_store(struct device *dev, struct device_attribute *attr,
 
         if (strncmp(buf, "off", strlen("off")) == 0) {
                 dev_err(dev, "Shut off all displays\n");
-                mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
-                mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
+                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
         } else if (strncmp(buf, "primary", strlen("primary")) == 0) {
                 dev_err(dev, "Power on primary display\n");
-                mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
-                mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
-                mipi_dsi->primary_cb->mipi_lcd_power_on(mipi_dsi);
+                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
 
                 mipi_dsi_set_mode(mipi_dsi, 1);
                 msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
@@ -139,9 +146,9 @@ static ssize_t power_store(struct device *dev, struct device_attribute *attr,
 
         } else if (strncmp(buf, "secondary", strlen("secondary")) == 0) {
                 dev_err(dev, "Power on secondary display\n");
-                mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
-                mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
-                mipi_dsi->secondary_cb->mipi_lcd_power_on(mipi_dsi);
+                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
 
                 mipi_dsi_set_mode(mipi_dsi, 1);
                 msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
@@ -821,14 +828,14 @@ static int mipi_swap_panel(struct mxc_dispdrv_handle *disp,
 
 	if (active)
 	{
-		mipi_dsi->primary_cb->mipi_lcd_power_off(mipi_dsi);
-		mipi_dsi->secondary_cb->mipi_lcd_power_on(mipi_dsi);
+		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
 		mipi_dsi->active_panel = 1;
 	}
 	else
 	{
-		mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
-		mipi_dsi->primary_cb->mipi_lcd_power_on(mipi_dsi);
+		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
 		mipi_dsi->active_panel = 0;
 	}
 	return 0;
@@ -1267,8 +1274,8 @@ static int mipi_dsi_resume(struct platform_device *pdev)
 	if (mipi_dsi->secondary_cb) {
 		mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
 
-		if (mipi_dsi->secondary_cb->mipi_lcd_power_off)
-			mipi_dsi->secondary_cb->mipi_lcd_power_off(mipi_dsi);
+		if (mipi_dsi->secondary_cb->mipi_lcd_power_set)
+			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
 
 		if (mipi_dsi->lcd_mipi_sel_gpio)
 			gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);

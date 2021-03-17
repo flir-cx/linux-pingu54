@@ -233,32 +233,27 @@ int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	return 0;
 }
 
-int mipid_otm1287a_lcd_power_on(struct mipi_dsi_info *mipi_dsi)
+int mipid_otm1287a_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state)
 {
 	struct device *dev = &mipi_dsi->pdev->dev;
 
-	dev_dbg(dev, "Power on LCD\n");
-	if (mipi_dsi->lcd_power_gpio){
-		gpio_set_value_cansleep(mipi_dsi->lcd_power_gpio, 1);
-	}
-	gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
-	mipi_dsi->mipi_dsi_power_on(mipi_dsi->disp_mipi);
-	mipi_dsi->mipi_dsi_set_mode(mipi_dsi, 1);
-	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-	mipid_otm1287a_lcd_setup(mipi_dsi);
-	mipi_dsi->mipi_dsi_set_mode(mipi_dsi, 0);
-	msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-	return 0;
-}
-
-
-int mipid_otm1287a_lcd_power_off(struct mipi_dsi_info *mipi_dsi)
-{
-	struct device *dev = &mipi_dsi->pdev->dev;
-
-	dev_dbg(dev, "Power off LCD\n");
-	if (mipi_dsi->lcd_power_gpio){
-		gpio_set_value_cansleep(mipi_dsi->lcd_power_gpio, 0);
+	if (state) {
+		dev_dbg(dev, "Power on LCD\n");
+		if (mipi_dsi->lcd_power_gpio){
+			gpio_set_value_cansleep(mipi_dsi->lcd_power_gpio, 1);
+		}
+		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
+		mipi_dsi->mipi_dsi_power_on(mipi_dsi->disp_mipi);
+		mipi_dsi->mipi_dsi_set_mode(mipi_dsi, 1);
+		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+		mipid_otm1287a_lcd_setup(mipi_dsi);
+		mipi_dsi->mipi_dsi_set_mode(mipi_dsi, 0);
+		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+	} else {
+		dev_dbg(dev, "Power off LCD\n");
+		if (mipi_dsi->lcd_power_gpio){
+			gpio_set_value_cansleep(mipi_dsi->lcd_power_gpio, 0);
+		}
 	}
 	return 0;
 }
