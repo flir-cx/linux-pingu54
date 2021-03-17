@@ -868,27 +868,19 @@ static int mipi_dsi_setup(struct mxc_dispdrv_handle *disp,
 	fbi->var.pixclock = pixclock;
 	return 0;
 }
+
 static int mipi_swap_panel(struct mxc_dispdrv_handle *disp,
 			  struct fb_info *fbi, int active)
 {
 
-	struct mipi_dsi_info    *mipi_dsi;
-	mipi_dsi = mxc_dispdrv_getdata(disp);
+	struct mipi_dsi_info *mipi_dsi = mxc_dispdrv_getdata(disp);
 
-	if (!mipi_dsi->lcd_mipi_sel_gpio || !mipi_dsi->secondary_cb)
-		return -EINVAL;
-
-	if (active)
-	{
-		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
-		mipi_dsi->active_panel = 1;
-	}
-	else
-	{
-		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
-		mipi_dsi->active_panel = 0;
+	if (active) {
+		//select viewfinder
+		mipi_dsi_select_panel(mipi_dsi, 2);
+	} else {
+		//select lcd
+		mipi_dsi_select_panel(mipi_dsi, 1);
 	}
 	return 0;
 }
