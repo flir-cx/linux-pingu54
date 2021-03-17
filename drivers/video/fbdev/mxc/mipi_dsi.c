@@ -58,6 +58,7 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 	{
 		"TRULY-WVGA", {
 			mipid_hx8369_get_lcd_videomode, mipid_hx8369_lcd_setup,
+			NULL,
 			NULL
 		}
 	},
@@ -66,7 +67,8 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 	{
 		"ORISE-VGA", {
 			mipid_otm1287a_get_lcd_videomode, mipid_otm1287a_lcd_setup,
-			mipid_otm1287a_lcd_power_set
+			mipid_otm1287a_lcd_power_set,
+			mipid_otm1287a_lcd_power_get
 		}
 	},
 #endif
@@ -74,13 +76,15 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 	{
 		"KOPIN-VGA", {
 			mipid_kcda914_get_lcd_videomode, mipid_kcda914_lcd_setup,
-			mipid_kcda914_lcd_power_set
+			mipid_kcda914_lcd_power_set,
+			mipid_kcda914_lcd_power_get
 		}
 	},
 #endif
 	{
 		"", {
 			NULL, NULL,
+			NULL,
 			NULL
 		}
 	}
