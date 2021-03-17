@@ -254,6 +254,10 @@ int mipid_otm1287a_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state)
 		if (mipi_dsi->lcd_power_gpio){
 			gpio_set_value_cansleep(mipi_dsi->lcd_power_gpio, 0);
 		}
+		if (mipi_dsi->lcd_mipi_sel_gpio){
+		  gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 0);
+		}
+
 	}
 	return 0;
 }
