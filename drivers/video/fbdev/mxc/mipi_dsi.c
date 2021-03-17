@@ -125,7 +125,39 @@ static const struct _mipi_dsi_phy_pll_clk mipi_dsi_phy_pll_clk_table[] = {
 static ssize_t power_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-        return sprintf(buf, "off primary* secondary\n");
+	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
+	char tmpbuf[100];
+	int tmpbufi=0;
+	int primary,secondary;
+	primary=mipi_dsi->primary_cb->mipi_lcd_power_get(mipi_dsi);
+	secondary=mipi_dsi->secondary_cb->mipi_lcd_power_get(mipi_dsi);
+
+	if (primary==0 && secondary==0) {
+		strcpy(&tmpbuf[tmpbufi], "off*");
+		tmpbufi+=strlen("off*");
+	} else {
+		strcpy(&tmpbuf[tmpbufi], "off");
+		tmpbufi+=strlen("off");
+	}		
+
+	if (primary==1) {
+		strcpy(&tmpbuf[tmpbufi], " primary*");
+		tmpbufi+=strlen(" primary*");
+	} else {
+		strcpy(&tmpbuf[tmpbufi], " primary");
+		tmpbufi+=strlen(" primary");
+	}
+
+	if (secondary==1) {
+		strcpy(&tmpbuf[tmpbufi], " secondary*");
+		tmpbufi+=strlen(" secondary*");
+	} else {
+		strcpy(&tmpbuf[tmpbufi], " secondary");
+		tmpbufi+=strlen(" secondary");
+	}
+
+	dev_err(dev, "primary %u secondary %u\n", primary,secondary);
+	return sprintf(buf, "%s\n", tmpbuf);
 }
 static ssize_t power_store(struct device *dev, struct device_attribute *attr,
 				     const char *buf, size_t count)
