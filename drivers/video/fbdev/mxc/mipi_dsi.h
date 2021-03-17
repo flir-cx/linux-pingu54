@@ -148,6 +148,7 @@ struct mipi_dsi_info {
 		       bool cmd_mode);
 };
 
+int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi, int panel);
 static void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
 		       bool cmd_mode);
 static int mipi_dsi_power_on(struct mxc_dispdrv_handle *disp);

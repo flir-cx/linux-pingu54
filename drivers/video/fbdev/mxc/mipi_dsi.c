@@ -165,32 +165,11 @@ static ssize_t power_store(struct device *dev, struct device_attribute *attr,
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
 
         if (strncmp(buf, "off", strlen("off")) == 0) {
-                dev_err(dev, "Shut off all displays\n");
-                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		mipi_dsi_select_panel(mipi_dsi, 0);
         } else if (strncmp(buf, "primary", strlen("primary")) == 0) {
-                dev_err(dev, "Power on primary display\n");
-                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
-
-                mipi_dsi_set_mode(mipi_dsi, 1);
-                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-                mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
-                mipi_dsi_set_mode(mipi_dsi, 0);
-                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-
+		mipi_dsi_select_panel(mipi_dsi, 1);
         } else if (strncmp(buf, "secondary", strlen("secondary")) == 0) {
-                dev_err(dev, "Power on secondary display\n");
-                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
-
-                mipi_dsi_set_mode(mipi_dsi, 1);
-                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-                mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
-                mipi_dsi_set_mode(mipi_dsi, 0);
-                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+		mipi_dsi_select_panel(mipi_dsi, 2);
         } else {
                 dev_err(dev, "Unknown command\n");
         }
@@ -577,6 +556,43 @@ static irqreturn_t mipi_dsi_irq_handler(int irq, void *data)
 	}
 
 	return IRQ_HANDLED;
+}
+
+int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi,
+				 int panel)
+{
+	if (panel == 0) {
+                dev_err(&mipi_dsi->pdev->dev, "Shut off all displays\n");
+                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+	} else  if (panel == 1) {
+                dev_err(&mipi_dsi->pdev->dev, "Power on primary display\n");
+                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
+
+                mipi_dsi_set_mode(mipi_dsi, 1);
+                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+                mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
+                mipi_dsi_set_mode(mipi_dsi, 0);
+                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+
+	} else  if (panel == 2) {
+                dev_err(&mipi_dsi->pdev->dev, "Power on secondary display\n");
+                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
+
+                mipi_dsi_set_mode(mipi_dsi, 1);
+                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+                mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
+                mipi_dsi_set_mode(mipi_dsi, 0);
+                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+	} else {
+		dev_err(&mipi_dsi->pdev->dev, "Unknown panel selected\n");
+		return -EIO;
+	}
+	return 0;
 }
 
 static void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
