@@ -262,3 +262,21 @@ int mipid_otm1287a_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state)
 	return 0;
 }
 
+int mipid_otm1287a_lcd_power_get(struct mipi_dsi_info *mipi_dsi)
+{
+	struct device *dev = &mipi_dsi->pdev->dev;
+	int power = 0;
+	int lcd_mipi_sel, lcd_power;
+	if (mipi_dsi->lcd_mipi_sel_gpio)
+		lcd_mipi_sel=gpio_get_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio);
+	if (mipi_dsi->lcd_power_gpio){
+		lcd_power=gpio_get_value_cansleep(mipi_dsi->lcd_power_gpio);
+		}
+
+	if (lcd_mipi_sel < 0 ||
+	    lcd_power < 0)
+		dev_err(dev, "failed to get gpio in %s\n", __func__);
+
+	power = lcd_mipi_sel && lcd_power;
+	return power;
+}

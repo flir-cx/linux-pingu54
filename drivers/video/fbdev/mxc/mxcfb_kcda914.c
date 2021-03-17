@@ -482,9 +482,9 @@ static int mipid_init_backlight(struct mipi_dsi_info *mipi_dsi)
 
 int mipid_kcda914_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state)
 {
-	mipid_kcda914_lcd_setup(mipi_dsi);
 
 	if(state) {
+		mipid_kcda914_lcd_setup(mipi_dsi);
 		dsi=mipi_dsi;
 		if (!wq)
 			wq = create_freezable_workqueue("brightness_kcda914");
@@ -504,4 +504,33 @@ int mipid_kcda914_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state)
 			gpio_set_value_cansleep(mipi_dsi->vf_1v8_en_gpio, 0);
 	}
 	return 0;
+}
+
+int mipid_kcda914_lcd_power_get(struct mipi_dsi_info *mipi_dsi)
+{
+	struct device *dev = &mipi_dsi->pdev->dev;
+	int power = 0;
+	int vf_rst_n, vf_4v5_en, vf_1v8_en;
+	if (mipi_dsi->vf_rst_gpio)
+		vf_rst_n = gpio_get_value_cansleep(mipi_dsi->vf_rst_gpio);
+
+	if (mipi_dsi->vf_4v5_en_gpio)
+		vf_4v5_en = gpio_get_value_cansleep(mipi_dsi->vf_4v5_en_gpio);
+
+	if (mipi_dsi->vf_1v8_en_gpio)
+		vf_1v8_en = gpio_get_value_cansleep(mipi_dsi->vf_1v8_en_gpio);
+	
+	if (vf_rst_n < 0 ||
+	    vf_4v5_en < 0 ||
+	    vf_1v8_en < 0) {
+		dev_err(dev, "Failed to get gpio in %s\n", __func__);
+		power = -EIO;
+	}
+
+	if (vf_rst_n == 1 &&
+	    vf_4v5_en == 1 &&
+	    vf_1v8_en == 1)
+		power = 1;
+
+	return power;
 }

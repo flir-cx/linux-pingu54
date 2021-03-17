@@ -73,6 +73,7 @@ struct mipi_dsi_cb {
 			struct mipi_lcd_config **);
 	int (*mipi_lcd_setup)(struct mipi_dsi_info *mipi_dsi);
 	int (*mipi_lcd_power_set)(struct mipi_dsi_info *mipi_dsi, int state);
+	int (*mipi_lcd_power_get)(struct mipi_dsi_info *mipi_dsi);
 };
 
 struct mipi_dsi_match_lcd {
@@ -181,11 +182,13 @@ void mipid_otm1287a_get_lcd_videomode(struct fb_videomode **mode, int *size,
 		struct mipi_lcd_config **data);
 int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *mipi_dsi);
 int mipid_otm1287a_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state);
+int mipid_otm1287a_lcd_power_get(struct mipi_dsi_info *mipi_dsi);
 #endif
 #ifdef CONFIG_FB_MXC_KOPIN_KCDA914
 void mipid_kcda914_get_lcd_videomode(struct fb_videomode **mode, int *size,
 		struct mipi_lcd_config **data);
 int mipid_kcda914_lcd_setup(struct mipi_dsi_info *mipi_dsi);
 int mipid_kcda914_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state);
+int mipid_kcda914_lcd_power_get(struct mipi_dsi_info *mipi_dsi);
 #endif
 #endif
