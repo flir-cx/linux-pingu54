@@ -355,6 +355,7 @@ static int imx_rpmsg_vidioc_s_fmt_vid_cap(struct file *filp, void *fh,
 	const struct imx_rpmsg_fmt *rpmsg_fmt;
 
 	dev_info(rpmsg_dev->dev, "%s width %d  height %d\n", __func__, f->fmt.pix.width, f->fmt.pix.height);
+	dev_info(rpmsg_dev->dev, "%s pixformat %s\n", __func__, v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_YUYV?"YUYV":"Y16");
 	dev_info(rpmsg_dev->dev, "%s field %d  bytesperline: %d sizeimage: %d\n", __func__, f->fmt.pix.field, f->fmt.pix.bytesperline, f->fmt.pix.sizeimage);
 	
 	ret = imx_rpmsg_vidioc_try_fmt_vid_cap(filp, rpmsg_dev, f);
@@ -372,15 +373,25 @@ static int imx_rpmsg_vidioc_s_fmt_vid_cap(struct file *filp, void *fh,
 	rpmsg_dev->v4l2_pix_fmt.field	= V4L2_FIELD_NONE;
 	rpmsg_dev->buf_type		= f->type;
 
-	if(v4l2_pix_fmt->width == IR_RESOLUTION_FULL_WIDTH)
-		rpmsg_set_resolution(ovRpmsg_mode_QQVGA_160_120);
-	else if(v4l2_pix_fmt->width == IR_RESOLUTION_REDUCED_WIDTH)
-		rpmsg_set_resolution(ovRpmsg_mode_QQVGA_128_96);
-
 	if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_YUYV)
 		rpmsg_set_pixelformat(ovRpmsg_format_YUYV);
 	else if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
 		rpmsg_set_pixelformat(ovRpmsg_format_Y16);
+
+	if(v4l2_pix_fmt->width == IR_RESOLUTION_FULL_WIDTH)
+	{
+		if(v4l2_pix_fmt->height == IR_RESOLUTION_FULL_HEIGHT)
+			rpmsg_set_resolution(ovRpmsg_mode_QQVGA_160_120);
+		else if (v4l2_pix_fmt->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT)
+		{
+			if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
+				rpmsg_set_resolution(ovRpmsg_mode_QQVGA_160_122);
+			else
+				dev_err(rpmsg_dev->dev, "160x122 resolution only available in Y16 pixel format");
+		}
+	}
+	else if(v4l2_pix_fmt->width == IR_RESOLUTION_REDUCED_WIDTH)
+		rpmsg_set_resolution(ovRpmsg_mode_QQVGA_128_96);
 
 	return 0;
 }
