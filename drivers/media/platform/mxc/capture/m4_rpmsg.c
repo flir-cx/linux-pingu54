@@ -363,7 +363,8 @@ static int rpmsg_enum_frameintervals(struct v4l2_subdev *sd,
 
 	fie->interval.numerator = 1;
 
-	if ((fie->width == IR_RESOLUTION_REDUCED_WIDTH && fie->height == IR_RESOLUTION_REDUCED_HEIGHT) || (fie->width == IR_RESOLUTION_FULL_WIDTH && fie->height == IR_RESOLUTION_FULL_HEIGHT)) {
+	if ((fie->width == IR_RESOLUTION_REDUCED_WIDTH && fie->height == IR_RESOLUTION_REDUCED_HEIGHT) || 
+		(fie->width == IR_RESOLUTION_FULL_WIDTH && (fie->height == IR_RESOLUTION_FULL_HEIGHT || fie->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT))) {
 		fie->interval.denominator = 9;
 		return 0;
 	}
