@@ -1,0 +1,32 @@
+/*
+ * Copyright 2017-2018 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/*This file should include the latest hw combination*/
+
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6dl-ec501.dtsi"
+#include "imx6dl-halt.dtsi"
+#include "imx6dl-haka.dtsi"
+#include "imx6dl-evro.dtsi"
+
+/ {
+        model = "FLIR i.MX6 Solo HAWK Board";
+        compatible = "fsl,imx6dl-hawk", "fsl,imx6dl-ec501", "fsl,imx6dl-flir", "fsl,imx6dl";
+        chosen {
+                bootargs = "console=ttymxc0,115200 earlyprintk";
+        };
+};
+
+&rangefinder {
+	status = "disabled";
+};

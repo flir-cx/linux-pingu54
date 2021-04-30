@@ -502,7 +502,10 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-ninjago.dtb \
 	imx6dl-detcal.dtb \
 	imx6dl-ec501.dtb \
-	imx6dl-wandboard-revb1.dtb \
+	imx6dl-beco.dtb \
+        imx6dl-blco.dts \
+        imx6dl-hawk.dts \
+        imx6dl-wandboard-revb1.dtb \
 	imx6dl-wandboard-revd1.dtb \
 	imx6dl-yapp4-draco.dtb \
 	imx6dl-yapp4-hydra.dtb \

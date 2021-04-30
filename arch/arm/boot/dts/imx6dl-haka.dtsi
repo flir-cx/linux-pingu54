@@ -1,0 +1,66 @@
+/*
+ * Copyright 2018 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/input/input.h>
+/* This file represents haka-a */
+
+/ {
+	/* LEDS */
+	dig-out {
+		compatible = "gpio-leds";
+
+		kaka_led1 {
+			label = "KAKA_LED1";
+			gpios = <&haka_pca9534_0x42 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		kaka_led2 {
+			label = "KAKA_LED2";
+			gpios = <&haka_pca9534_0x42 2 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		ledr_on {
+			label = "LEDR_ON";
+			gpios = <&haka_pca9534_0x42 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		ledb_on {
+			label = "LEDB_ON";
+			gpios = <&haka_pca9534_0x42 4 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&i2c3 {
+	/* I/O Expander */
+	haka_pca9534_0x42: haka_pca9534_0x42@21 {
+		compatible = "nxp,pca9534";
+		reg = <0x21>;
+		gpio-controller;
+		interrupt-parent = <&gpio4>; //I2C3_ALERT_n
+		interrupts = <5 0x2>;
+		interrupt-controller;
+		interrupts-shared;
+		#interrupt-cells = <2>;
+		#gpio-cells = <2>;
+		//B1 KAKA_LED1 output
+		//B2 KAKA_LED2 output
+		//B3 LEDR_ON output
+		//B4 LEDB_ON output
+	};
+};
+
+
