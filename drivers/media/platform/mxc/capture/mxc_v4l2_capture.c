@@ -1322,20 +1322,14 @@ static int mxc_v4l2_s_param(cam_data *cam, struct v4l2_streamparm *parm)
 	/* Get new values. */
 	vidioc_int_g_ifparm(cam->sensor, &ifparm);
 
-	csi_param.data_width = 0;
-	csi_param.clk_mode = 0;
-	csi_param.ext_vsync = 0;
-	csi_param.Vsync_pol = 0;
-	csi_param.Hsync_pol = 0;
-	csi_param.pixclk_pol = 0;
-	csi_param.data_pol = 0;
-	csi_param.sens_clksrc = 0;
-	csi_param.pack_tight = 0;
-	csi_param.force_eof = 0;
-	csi_param.data_en_pol = 0;
-	csi_param.data_fmt = 0;
+	memset(&csi_param, 0, sizeof(csi_param));
+
 	csi_param.csi = cam->csi;
-	csi_param.mclk = 0;
+
+#if defined(CONFIG_MXC_CAMERA_FLIR)
+	csi_param.data_en_pol = 1;
+	csi_param.ext_vsync = 1;
+#endif
 
 	pr_debug("   clock_curr=mclk=%d\n", ifparm.u.bt656.clock_curr);
 	if (ifparm.u.bt656.clock_curr == 0)
@@ -1616,15 +1610,12 @@ static int mxc_v4l_open(struct file *file)
 
 		vidioc_int_g_ifparm(cam->sensor, &ifparm);
 
-		csi_param.sens_clksrc = 0;
+		memset(&csi_param, 0, sizeof(csi_param));
 
-		csi_param.clk_mode = 0;
-		csi_param.data_pol = 0;
-		csi_param.ext_vsync = 0;
-
-		csi_param.pack_tight = 0;
-		csi_param.force_eof = 0;
-		csi_param.data_en_pol = 0;
+#if defined(CONFIG_MXC_CAMERA_FLIR)
+		csi_param.data_en_pol = 1;
+		csi_param.ext_vsync = 1;
+#endif
 
 		csi_param.mclk = ifparm.u.bt656.clock_curr;
 
