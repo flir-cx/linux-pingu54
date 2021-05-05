@@ -9,8 +9,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/*This file represents ec501-PA9 and later */
-#include <dt-bindings/gpio/gpio.h>
+/*This file represents ec501-c */
+
 #include <dt-bindings/net/ti-dp83867.h>
 
 / {
@@ -60,6 +60,9 @@
 
 	fad {
 		compatible = "flir,fad";
+		HasDigitalIO = <1>;
+		digin0-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;
+		digin1-gpios = <&gpio4 6 GPIO_ACTIVE_HIGH>;
 	};
 
 	boards{
@@ -176,8 +179,32 @@
 			};
 		};
 	};
+	
+	imx-thermal-values {
+		/* All values in mC */
+		temp-passive = <83000>;
+		temp-critical = <100000>;
+		hysteresis = <3000>;
+	};
 };
 
+&hdmi_core {
+	ipu_id = <0>;
+	disp_id = <0>;
+	status = "okay";
+};
+
+&hdmi_video {
+	/* drivers/video/mxc/mxc_hdmi.c:
+	 * HDMI PHY register vlev and cksymtx preperty is optional.
+	 * It is for specific board to pass HCT electrical part.
+	 * Default value will been setting in HDMI PHY config function
+	 * if it is not define in device tree.
+	 */
+//?	fsl,phy_reg_vlev = <0x0294>;
+//?	fsl,phy_reg_cksymtx = <0x800d>;
+	status = "okay";
+};
 
 &fec {
 	pinctrl-names = "default";
@@ -210,8 +237,8 @@
 /* Serial flash SPI */
 &ecspi1 {
 	status = "okay";
-	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio5 28 0>, <&gpio5 29 0>;
+	fsl,spi-num-chipselects = <3>;
+	cs-gpios = <&gpio5 28 0>, <&gpio5 29 0 >, <&gpio1 3 0>;
 
 	/* FPGA program flash */
 	flash: m25p80@0 {
@@ -222,10 +249,18 @@
 
 	/* Detector flash */
 	bie64flash: bie64flash@1 {
-		compatible = "micron,n25q256a";
+		compatible = "micron,n25q128a13", "micron,n25q256a";
 		spi-max-frequency = <20000000>;
 		reg = <1>;
 	};
+	/* Adc on i3 detector board, dummy chip select*/
+	spidev: spidev@2 {
+		status = "okay";
+		compatible = "linux,spidev";
+		spi-max-frequency = <1000000>;
+		reg = <2>;
+	};	
+
 };
 
 /* IO board SPI */
@@ -313,10 +348,11 @@
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1280000>;
 
-				regulator-initial-mode = "normal";
+				regulator-initial-mode = "fast";
 				regulator-initial-state = "suspend-mem";
 				regulator-valid-modes-mask {
 					normal-mode;
+					fast-mode;
 				};
 				regulator-state-mem {
 					regulator-state-mode = "normal";
@@ -333,10 +369,11 @@
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1280000>;
 
-				regulator-initial-mode = "normal";
+				regulator-initial-mode = "fast";
 				regulator-initial-state = "suspend-mem";
 				regulator-valid-modes-mask {
 					normal-mode;
+					fast-mode;
 				};
 				regulator-state-mem {
 					regulator-state-mode = "normal";
@@ -349,12 +386,28 @@
 			DA9063_BPRO:bpro  {
 				regulator-name = "DA9063_BPRO";
 				regulator-boot-on;
+				regulator-initial-mode = "fast";
+				regulator-valid-modes-mask {
+					normal-mode;
+					fast-mode;
+				};
+				regulator-state-mem {
+					regulator-state-mode = "normal";
+				};
 			};
 
-			/* 1V1D_FPGA */
+			/* 1V2D_FPGA */
 			DA9063_BMEM:bmem  {
 				regulator-name = "DA9063_BMEM";
 				regulator-boot-on;
+				regulator-initial-mode = "fast";
+				regulator-valid-modes-mask {
+					normal-mode;
+					fast-mode;
+				};
+				regulator-state-mem {
+					regulator-state-mode = "normal";
+				};
 			};
 
 			/* 1V8D */
@@ -362,6 +415,14 @@
 				regulator-name = "DA9063_BIO";
 				regulator-boot-on;
 				regulator-always-on;
+				regulator-initial-mode = "fast";
+				regulator-valid-modes-mask {
+					normal-mode;
+					fast-mode;
+				};
+				regulator-state-mem {
+					regulator-state-mode = "normal";
+				};
 			};
 
 			/* 1V2D */
@@ -369,6 +430,14 @@
 				regulator-name = "DA9063_BPERI";
 				regulator-boot-on;
 				regulator-always-on;
+				regulator-initial-mode = "fast";
+				regulator-valid-modes-mask {
+					normal-mode;
+					fast-mode;
+				};
+				regulator-state-mem {
+					regulator-state-mode = "normal"; 
+				};
 			};
 
 			/* 2V5A_ETH */
@@ -421,10 +490,7 @@
 		};
 	};
 };
-&hdmi {
-	ddc-i2c-bus = <&i2c2>;
-	status = "okay";
-};
+
 /* HDMI I2C */
 &i2c2 {
 	clock-frequency = <100000>;
@@ -432,7 +498,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 	
-	hdmi_edid: edid@50 {
+	hdmi: edid@50 {
 		compatible = "fsl,imx6-hdmi-i2c";
 		reg = <0x50>;
 	};
@@ -496,6 +562,8 @@
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
 
 	imx6dl-ec {
 
@@ -661,14 +729,16 @@
 				>;
 		};
 
-		pinctrl_digio: digiogrp {
+		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX6QDL_PAD_KEY_COL0__GPIO4_IO06	0x13000  //in
-				MX6QDL_PAD_KEY_COL1__GPIO4_IO08	0x13000
-				MX6QDL_PAD_EIM_DA14__GPIO3_IO14	0x10010  //out
-				MX6QDL_PAD_EIM_DA15__GPIO3_IO15	0x10010
+				/* DIG_IN_x */
+				MX6QDL_PAD_KEY_COL0__GPIO4_IO06		0x13000
+				MX6QDL_PAD_KEY_COL1__GPIO4_IO08		0x13000
+				/* DIG_OUT_CPU_x */
+				MX6QDL_PAD_EIM_DA14__GPIO3_IO14		0x40000010
+				MX6QDL_PAD_EIM_DA15__GPIO3_IO15		0x40000010
 			>;
-                };
+		};
 
 		pinctrl_fvd: fvdgrp {
 			fsl,pins = <
@@ -698,7 +768,7 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	status = "okay";
+	status = "disabled";
 };
 
 
@@ -732,14 +802,14 @@
 	operating-points = <
 		/* kHz	 uV */
 		996000 1280000
-		768000 1180000
-		420000 1150000
+		792000 1180000
+		396000 1150000
 	>;
 	fsl,soc-operating-points = <
 		/* ARM kHz SOC-PU uV */
 		996000 1200000
-		768000 1200000
-		420000 1200000
+		792000 1200000
+		396000 1200000
 	>;
 };
 
