@@ -25,6 +25,13 @@ static u32 out_format;
 static struct ipu_soc *disp_ipu;
 static u32 offset;
 
+#if defined(CONFIG_MXC_CAMERA_FLIR)
+#define IPU_DEF_FORMAT IPU_PIX_FMT_RGB32
+#else
+#define IPU_DEF_FORMAT IPU_PIX_FMT_UYVY
+#endif
+
+
 static void csi_buf_work_func(struct work_struct *work)
 {
 	int err = 0;
@@ -40,7 +47,7 @@ static void csi_buf_work_func(struct work_struct *work)
 		task.input.paddr = cam->vf_bufs[1];
 	task.input.width = cam->crop_current.width;
 	task.input.height = cam->crop_current.height;
-	task.input.format = IPU_PIX_FMT_UYVY;
+	task.input.format = IPU_DEF_FORMAT;
 
 	task.output.paddr = offset;
 	task.output.width = cam->overlay_fb->var.xres;
@@ -233,7 +240,7 @@ static int csi_enc_setup(cam_data *cam)
 		goto out_1;
 	}
 
-	pixel_fmt = IPU_PIX_FMT_UYVY;
+	pixel_fmt = IPU_DEF_FORMAT;
 	err = ipu_init_channel_buffer(
 		cam->ipu, chan, IPU_OUTPUT_BUFFER, pixel_fmt,
 		cam->crop_current.width, cam->crop_current.height,
