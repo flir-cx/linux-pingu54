@@ -106,6 +106,14 @@ config MXC_IPU_PRP_VF_SDC
 		MEM -> IC (ROT) -> MEM
 		MEM -> SDC (FG/BG)
 
+config FLIR_EVCO_MXC_IPU_PRP_VF_SDC
+	bool "Pre-Processor VF SDC library FLIR videoflow EVCO"
+	depends on VIDEO_MXC_IPU_CAMERA
+	help
+	  Use case PRP_VF_SDC:
+		Preprocessing image from smart sensor for viewfinder and
+		displaying it on synchronous display with SDC use case.
+
 endchoice
 
 config MXC_IPU_PRP_ENC
