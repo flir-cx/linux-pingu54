@@ -24,6 +24,11 @@ int prp_vf_sdc_select(void *private);
 int prp_vf_sdc_deselect(void *private);
 int prp_vf_sdc_select_bg(void *private);
 int prp_vf_sdc_deselect_bg(void *private);
+#elif CONFIG_FLIR_EVCO_MXC_IPU_PRP_VF_SDC
+int flir_evco_prp_vf_sdc_select(void *private);
+int flir_evco_prp_vf_sdc_deselect(void *private);
+int flir_evco_prp_vf_sdc_select_bg(void *private);
+int flir_evco_prp_vf_sdc_deselect_bg(void *private);
 #else
 int foreground_sdc_select(void *private);
 int foreground_sdc_deselect(void *private);
