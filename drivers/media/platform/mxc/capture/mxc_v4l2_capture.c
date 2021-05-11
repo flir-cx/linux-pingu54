@@ -1149,7 +1149,7 @@ static int mxc_v4l2_s_ctrl(cam_data *cam, struct v4l2_control *c)
 		default:
 			ret = -EINVAL;
 		}
-		#ifdef CONFIG_MXC_IPU_PRP_VF_SDC || CONFIG_FLIR_EVCO_MXC_IPU_PRP_VF_SDC
+		#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
 		if (c->id == V4L2_CID_MXC_VF_ROT)
 			cam->vf_rotation = tmp_rotation;
 		else
