@@ -45,26 +45,6 @@ static void get_disp_ipu(cam_data *cam)
  */
 
 /*!
- * SDC V-Sync callback function.
- *
- * @param irq       int irq line
- * @param dev_id    void * device id
- *
- * @return status   IRQ_HANDLED for handled
- */
-static irqreturn_t flir_evco_prpvf_sdc_vsync_callback(int irq, void *dev_id)
-{
-	cam_data *cam = dev_id;
-	if (buffer_ready > 0) {
-		ipu_select_buffer(cam->ipu, MEM_ROT_VF_MEM,
-				  IPU_OUTPUT_BUFFER, 0);
-		buffer_ready--;
-	}
-
-	return IRQ_HANDLED;
-}
-
-/*!
  * VF EOF callback function.
  *
  * @param irq       int irq line
@@ -77,11 +57,8 @@ static irqreturn_t flir_evco_prpvf_vf_eof_callback(int irq, void *dev_id)
 	cam_data *cam = dev_id;
 	pr_debug("buffer_ready %d buffer_num %d\n", buffer_ready, buffer_num);
 
-	ipu_select_buffer(cam->ipu, MEM_ROT_VF_MEM,
-			  IPU_INPUT_BUFFER, buffer_num);
-	buffer_num = (buffer_num == 0) ? 1 : 0;
 	ipu_select_buffer(cam->ipu, CSI_PRP_VF_MEM,
-			  IPU_OUTPUT_BUFFER, buffer_num);
+			  IPU_OUTPUT_BUFFER, 0);
 	buffer_ready++;
 	return IRQ_HANDLED;
 }
@@ -149,10 +126,6 @@ static int flir_evco_prpvf_start(void *private)
 	vf.csi_prp_vf_mem.out_width = cam->win.w.width;
 	vf.csi_prp_vf_mem.out_height = cam->win.w.height;
 	vf.csi_prp_vf_mem.csi = cam->csi;
-	if (cam->vf_rotation >= IPU_ROTATE_90_RIGHT) {
-		vf.csi_prp_vf_mem.out_width = cam->win.w.height;
-		vf.csi_prp_vf_mem.out_height = cam->win.w.width;
-	}
 	vf.csi_prp_vf_mem.out_pixel_fmt = format;
 	size = cam->win.w.width * cam->win.w.height * size;
 
@@ -227,60 +200,13 @@ static int flir_evco_prpvf_start(void *private)
 				      vf.csi_prp_vf_mem.out_height,
 				      vf.csi_prp_vf_mem.out_width,
 				      IPU_ROTATE_NONE,
-				      cam->vf_bufs[0],
-				      cam->vf_bufs[1],
+				      /* cam->vf_bufs[0], */
+				      /* cam->vf_bufs[1], */
+                                      offset, 0,
 				      0, 0, 0);
 	if (err != 0) {
 		printk(KERN_ERR "Error initializing CSI_PRP_VF_MEM\n");
 		goto out_3;
-	}
-	err = ipu_init_channel(cam->ipu, MEM_ROT_VF_MEM, NULL);
-	if (err != 0) {
-		printk(KERN_ERR "Error MEM_ROT_VF_MEM channel\n");
-		goto out_3;
-	}
-
-	err = ipu_init_channel_buffer(cam->ipu, MEM_ROT_VF_MEM,
-				      IPU_INPUT_BUFFER,
-				      format, vf.csi_prp_vf_mem.out_width,
-				      vf.csi_prp_vf_mem.out_height,
-				      vf.csi_prp_vf_mem.out_width,
-				      cam->vf_rotation,
-				      cam->vf_bufs[0],
-				      cam->vf_bufs[1],
-				      0, 0, 0);
-	if (err != 0) {
-		printk(KERN_ERR "Error MEM_ROT_VF_MEM input buffer\n");
-		goto out_2;
-	}
-
-	if (cam->vf_rotation >= IPU_ROTATE_90_RIGHT) {
-		err = ipu_init_channel_buffer(cam->ipu, MEM_ROT_VF_MEM,
-					      IPU_OUTPUT_BUFFER,
-					      format,
-					      vf.csi_prp_vf_mem.out_height,
-					      vf.csi_prp_vf_mem.out_width,
-					      cam->overlay_fb->var.xres * bpp,
-					      IPU_ROTATE_NONE,
-					      offset, 0, 0, 0, 0);
-
-		if (err != 0) {
-			printk(KERN_ERR "Error MEM_ROT_VF_MEM output buffer\n");
-			goto out_2;
-		}
-	} else {
-		err = ipu_init_channel_buffer(cam->ipu, MEM_ROT_VF_MEM,
-					      IPU_OUTPUT_BUFFER,
-					      format,
-					      vf.csi_prp_vf_mem.out_width,
-					      vf.csi_prp_vf_mem.out_height,
-					      cam->overlay_fb->var.xres * bpp,
-					      IPU_ROTATE_NONE,
-					      offset, 0, 0, 0, 0);
-		if (err != 0) {
-			printk(KERN_ERR "Error MEM_ROT_VF_MEM output buffer\n");
-			goto out_2;
-		}
 	}
 
 	ipu_clear_irq(cam->ipu, IPU_IRQ_PRP_VF_OUT_EOF);
@@ -293,17 +219,7 @@ static int flir_evco_prpvf_start(void *private)
 		goto out_2;
 	}
 
-	ipu_clear_irq(disp_ipu, IPU_IRQ_BG_SF_END);
-	err = ipu_request_irq(disp_ipu, IPU_IRQ_BG_SF_END,
-			      flir_evco_prpvf_sdc_vsync_callback,
-			      0, "Mxc Camera", cam);
-	if (err != 0) {
-		printk(KERN_ERR "Error registering IPU_IRQ_BG_SF_END irq.\n");
-		goto out_1;
-	}
-
 	ipu_enable_channel(cam->ipu, CSI_PRP_VF_MEM);
-	ipu_enable_channel(cam->ipu, MEM_ROT_VF_MEM);
 
 	buffer_num = 0;
 	buffer_ready = 0;
@@ -315,7 +231,6 @@ static int flir_evco_prpvf_start(void *private)
 out_1:
 	ipu_free_irq(cam->ipu, IPU_IRQ_PRP_VF_OUT_EOF, NULL);
 out_2:
-	ipu_uninit_channel(cam->ipu, MEM_ROT_VF_MEM);
 out_3:
 	ipu_uninit_channel(cam->ipu, CSI_PRP_VF_MEM);
 out_4:
@@ -366,12 +281,8 @@ static int flir_evco_prpvf_stop(void *private)
 	if (cam->overlay_active == false)
 		return 0;
 
-	ipu_free_irq(disp_ipu, IPU_IRQ_BG_SF_END, cam);
-
 	ipu_disable_channel(cam->ipu, CSI_PRP_VF_MEM, true);
-	ipu_disable_channel(cam->ipu, MEM_ROT_VF_MEM, true);
 	ipu_uninit_channel(cam->ipu, CSI_PRP_VF_MEM);
-	ipu_uninit_channel(cam->ipu, MEM_ROT_VF_MEM);
 
 #ifdef CONFIG_MXC_MIPI_CSI2
 	mipi_csi2_info = mipi_csi2_get_info();
