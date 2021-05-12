@@ -56,9 +56,11 @@ static irqreturn_t flir_evco_prpvf_vf_eof_callback(int irq, void *dev_id)
 {
 	cam_data *cam = dev_id;
 	pr_debug("buffer_ready %d buffer_num %d\n", buffer_ready, buffer_num);
+	pr_err("buffer_ready %d buffer_num %d\n", buffer_ready, buffer_num);
 
 	ipu_select_buffer(cam->ipu, CSI_PRP_VF_MEM,
-			  IPU_OUTPUT_BUFFER, 0);
+			  IPU_OUTPUT_BUFFER, buffer_num); 
+	/* buffer_num = (buffer_num == 0) ? 1 : 0; */
 	buffer_ready++;
 	return IRQ_HANDLED;
 }
@@ -127,6 +129,11 @@ static int flir_evco_prpvf_start(void *private)
 	vf.csi_prp_vf_mem.out_height = cam->win.w.height;
 	vf.csi_prp_vf_mem.csi = cam->csi;
 	vf.csi_prp_vf_mem.out_pixel_fmt = format;
+	vf.csi_prp_vf_mem.graphics_combine_en = 1;
+	vf.csi_prp_vf_mem.global_alpha_en = 0;
+	vf.csi_prp_vf_mem.key_color_en = 0;
+	vf.csi_prp_vf_mem.in_g_pixel_fmt = IPU_PIX_FMT_BGRA32;
+	vf.csi_prp_vf_mem.alpha_chan_en = 0;
 	size = cam->win.w.width * cam->win.w.height * size;
 
 #ifdef CONFIG_MXC_MIPI_CSI2
@@ -195,14 +202,30 @@ static int flir_evco_prpvf_start(void *private)
 	}
 
 	err = ipu_init_channel_buffer(cam->ipu, CSI_PRP_VF_MEM,
+				      IPU_GRAPH_IN_BUFFER,
+				      format,
+				      vf.csi_prp_vf_mem.out_width,
+				      vf.csi_prp_vf_mem.out_height,
+				      vf.csi_prp_vf_mem.out_width,
+				      IPU_ROTATE_NONE,
+				      /* cam->vf_bufs[1], */
+				      offset,
+				      0,
+				      0, 0, 0);
+	if (err != 0) {
+          printk(KERN_ERR "Error initializing CSI_PRP_VF_MEM GRAPH IN BUFFER %i\n", err);
+		goto out_3;
+	}
+
+	err = ipu_init_channel_buffer(cam->ipu, CSI_PRP_VF_MEM,
 				      IPU_OUTPUT_BUFFER,
 				      format, vf.csi_prp_vf_mem.out_width,
 				      vf.csi_prp_vf_mem.out_height,
 				      vf.csi_prp_vf_mem.out_width,
 				      IPU_ROTATE_NONE,
-				      /* cam->vf_bufs[0], */
-				      /* cam->vf_bufs[1], */
-                                      offset, 0,
+				      cam->vf_bufs[0],
+				      0, //cam->vf_bufs[1],
+				      /* offset, 0, */
 				      0, 0, 0);
 	if (err != 0) {
 		printk(KERN_ERR "Error initializing CSI_PRP_VF_MEM\n");
@@ -218,6 +241,12 @@ static int flir_evco_prpvf_start(void *private)
 		       "Error registering IPU_IRQ_PRP_VF_OUT_EOF irq.\n");
 		goto out_2;
 	}
+
+	//TODO (20210512) We do want a possibility to restore the channel buffer on prpvf_close
+	// or at least.. when memory is deallocated
+	// could be recovered with blank/unblank cycle..
+	ipu_update_channel_buffer(disp_ipu, MEM_BG_SYNC, IPU_INPUT_BUFFER, 0, cam->vf_bufs[0]);
+	/* ipu_update_channel_buffer(disp_ipu, MEM_BG_SYNC, IPU_INPUT_BUFFER, 1, cam->vf_bufs[1]); */
 
 	ipu_enable_channel(cam->ipu, CSI_PRP_VF_MEM);
 
