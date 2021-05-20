@@ -9,8 +9,19 @@
  * A description of the following modes is in the manufacturers datasheet.
  */
 
-#define DA9063_BUCK_MODE_SLEEP		1
-#define DA9063_BUCK_MODE_SYNC		2
-#define DA9063_BUCK_MODE_AUTO		3
+/* Define these only if they are no already defined. Copy definitions from
+ * include/linux/mfd/da9063/registers.h
+ */
+#ifndef DA9063_BUCK_MODE_SLEEP
+#define	DA9063_BUCK_MODE_SLEEP		0x40
+#endif
+
+#ifndef DA9063_BUCK_MODE_SYNC
+#define	DA9063_BUCK_MODE_SYNC		0x80
+#endif
+
+#ifndef DA9063_BUCK_MODE_AUTO
+#define	DA9063_BUCK_MODE_AUTO		0xC0
+#endif
 
 #endif

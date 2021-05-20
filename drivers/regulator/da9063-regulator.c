@@ -20,6 +20,7 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/mfd/da9063/core.h>
 #include <linux/mfd/da9063/registers.h>
+#include <dt-bindings/regulator/dlg,da9063-regulator.h>
 
 
 /* Definition for registering regmap bit fields using a mask */
@@ -60,6 +61,20 @@ enum {
         DA9063_ID_CORE_SW,
         DA9063_ID_PERI_SW,
 };
+
+static unsigned int da9063_map_buck_mode(unsigned int mode)
+{
+	switch (mode) {
+	case DA9063_BUCK_MODE_SLEEP:
+		return REGULATOR_MODE_STANDBY;
+	case DA9063_BUCK_MODE_SYNC:
+		return REGULATOR_MODE_FAST;
+	case DA9063_BUCK_MODE_AUTO:
+		return REGULATOR_MODE_NORMAL;
+	default:
+		return REGULATOR_MODE_INVALID;
+	}
+}
 
 /* Old regulator platform data */
 struct da9063_regulator_data {
@@ -128,6 +143,7 @@ struct da9063_regulator_info {
 	.desc.vsel_reg = DA9063_REG_V##regl_name##_A, \
 	.desc.vsel_mask = DA9063_VBUCK_MASK, \
 	.desc.linear_min_sel = DA9063_VBUCK_BIAS, \
+	.desc.of_map_mode = da9063_map_buck_mode, \
 	.sleep = BFIELD(DA9063_REG_V##regl_name##_A, DA9063_BUCK_SL), \
 	.suspend = BFIELD(DA9063_REG_##regl_name##_CONT, DA9063_BUCK_CONF), \
 	.suspend_sleep = BFIELD(DA9063_REG_V##regl_name##_B, DA9063_BUCK_SL), \
@@ -640,28 +656,49 @@ static const struct regulator_init_data *da9063_get_regulator_initdata(
 }
 
 static struct of_regulator_match da9063_matches[] = {
-	[DA9063_ID_BCORE1]           = { .name = "bcore1"           },
-	[DA9063_ID_BCORE2]           = { .name = "bcore2"           },
-	[DA9063_ID_BPRO]             = { .name = "bpro",            },
-	[DA9063_ID_BMEM]             = { .name = "bmem",            },
-	[DA9063_ID_BIO]              = { .name = "bio",             },
-	[DA9063_ID_BPERI]            = { .name = "bperi",           },
-	[DA9063_ID_BCORES_MERGED]    = { .name = "bcores-merged"    },
-	[DA9063_ID_BMEM_BIO_MERGED]  = { .name = "bmem-bio-merged", },
-	[DA9063_ID_LDO3]             = { .name = "ldo3",            },
-	[DA9063_ID_LDO7]             = { .name = "ldo7",            },
-	[DA9063_ID_LDO8]             = { .name = "ldo8",            },
-	[DA9063_ID_LDO9]             = { .name = "ldo9",            },
-	[DA9063_ID_LDO11]            = { .name = "ldo11",           },
+	[DA9063_ID_BCORE1]           = { .name = "bcore1",
+									.desc = &da9063_regulator_info[DA9063_ID_BCORE1].desc },
+	[DA9063_ID_BCORE2]           = { .name = "bcore2",
+									.desc = &da9063_regulator_info[DA9063_ID_BCORE2].desc },
+	[DA9063_ID_BPRO]             = { .name = "bpro", 
+									.desc = &da9063_regulator_info[DA9063_ID_BPRO].desc },
+	[DA9063_ID_BMEM]             = { .name = "bmem", 
+									.desc = &da9063_regulator_info[DA9063_ID_BMEM].desc },
+	[DA9063_ID_BIO]              = { .name = "bio",  
+									.desc = &da9063_regulator_info[DA9063_ID_BIO].desc },
+	[DA9063_ID_BPERI]            = { .name = "bperi",
+									.desc = &da9063_regulator_info[DA9063_ID_BPERI].desc },
+	[DA9063_ID_BCORES_MERGED]    = { .name = "bcores-merged",
+									.desc = &da9063_regulator_info[DA9063_ID_BCORES_MERGED].desc },
+	[DA9063_ID_BMEM_BIO_MERGED]  = { .name = "bmem-bio-merged",
+									.desc = &da9063_regulator_info[DA9063_ID_BMEM_BIO_MERGED].desc },
+	[DA9063_ID_LDO3]             = { .name = "ldo3", 
+									.desc = &da9063_regulator_info[DA9063_ID_LDO3].desc },
+	[DA9063_ID_LDO7]             = { .name = "ldo7", 
+									.desc = &da9063_regulator_info[DA9063_ID_LDO7].desc },
+	[DA9063_ID_LDO8]             = { .name = "ldo8", 
+									.desc = &da9063_regulator_info[DA9063_ID_LDO8].desc },
+	[DA9063_ID_LDO9]             = { .name = "ldo9", 
+									.desc = &da9063_regulator_info[DA9063_ID_LDO9].desc },
+	[DA9063_ID_LDO11]            = { .name = "ldo11",
+									.desc = &da9063_regulator_info[DA9063_ID_LDO11].desc },
 	/* The following LDOs are present only on DA9063, not on DA9063L */
-	[DA9063_ID_LDO1]             = { .name = "ldo1",            },
-	[DA9063_ID_LDO2]             = { .name = "ldo2",            },
-	[DA9063_ID_LDO4]             = { .name = "ldo4",            },
-	[DA9063_ID_LDO5]             = { .name = "ldo5",            },
-	[DA9063_ID_LDO6]             = { .name = "ldo6",            },
-	[DA9063_ID_LDO10]            = { .name = "ldo10",           },
-	[DA9063_ID_CORE_SW]          = { .name = "core-sw",         },
-	[DA9063_ID_PERI_SW]          = { .name = "peri-sw",         },
+	[DA9063_ID_LDO1]             = { .name = "ldo1", 
+									.desc = &da9063_regulator_info[DA9063_ID_LDO1].desc },
+	[DA9063_ID_LDO2]             = { .name = "ldo2", 
+									.desc = &da9063_regulator_info[DA9063_ID_LDO2].desc },
+	[DA9063_ID_LDO4]             = { .name = "ldo4", 
+									.desc = &da9063_regulator_info[DA9063_ID_LDO4].desc },
+	[DA9063_ID_LDO5]             = { .name = "ldo5", 
+									.desc = &da9063_regulator_info[DA9063_ID_LDO5].desc },
+	[DA9063_ID_LDO6]             = { .name = "ldo6", 
+									.desc = &da9063_regulator_info[DA9063_ID_LDO6].desc },
+	[DA9063_ID_LDO10]            = { .name = "ldo10",
+									.desc = &da9063_regulator_info[DA9063_ID_LDO10].desc },
+	[DA9063_ID_CORE_SW]          = { .name = "core-sw",
+									.desc = &da9063_regulator_info[DA9063_ID_CORE_SW].desc },
+	[DA9063_ID_PERI_SW]          = { .name = "peri-sw",
+									.desc = &da9063_regulator_info[DA9063_ID_PERI_SW].desc },
 };
 
 static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
