@@ -951,6 +951,7 @@
 #define DA9063_BUCK_FB_MASK			0x07
 #define DA9063_BUCK_PD_DIS_MASK		0x20
 #define DA9063_BUCK_MODE_MASK			0xC0
+/* Comment out these since they collide with those ni dlg,da9063-regulator.h */
 #define		DA9063_BUCK_MODE_MANUAL		0x00
 #define		DA9063_BUCK_MODE_SLEEP		0x40
 #define		DA9063_BUCK_MODE_SYNC		0x80

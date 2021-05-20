@@ -10,6 +10,7 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/regulator/dlg,da9063-regulator.h>
 /*This file represents ec101-d and later*/
 
 / {
@@ -379,7 +380,7 @@
 
 		/* For DA9063 revision AD */
 		regulators {
-			compatible = "dlg,da9063-regulator";
+			compatible = "dlg,da9063-regulators";
 			/*dlg,bcores_merged;*/
 			/*dlg,bmem_bio_merged;*/
 			interrupts = <8>;
@@ -394,16 +395,15 @@
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1280000>;
 
-				regulator-initial-mode = "fast";
-				regulator-initial-state = "suspend-mem";
-				regulator-valid-modes-mask {
-					standby-mode;
-					fast-mode;
-				};
+				/*regulator-initial-mode = <1>;*/
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				/* regulator-initial-state = "suspend-mem"; */
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "standby";
-					regulator-state-uv= <950000>;
-					regulator-state-disabled;
+					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
+					regulator-suspend-uv= <950000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -415,73 +415,63 @@
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1280000>;
 
-				regulator-initial-mode = "fast";
-				regulator-initial-state = "suspend-mem";
-				regulator-valid-modes-mask {
-					standby-mode;
-					fast-mode;
-				};
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				/* regulator-initial-state = "suspend-mem"; */
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "standby";
-					regulator-state-uv= <950000>;
-					regulator-state-disabled;
+					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
+					regulator-suspend-uv= <950000>;
+					regulator-off-in-suspend;
 				};
 			};
 
 			/* 1V0_FPGA */
 			DA9063_BPRO:bpro  {
-				regulator-initial-mode = "fast";
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BPRO";
 				regulator-boot-on;
-				regulator-valid-modes-mask {
-					standby-mode;
-					fast-mode;
-				};
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "standby";
+					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 				};
 			};
 
 			/* 1V1D_FPGA2 */
 			DA9063_BMEM:bmem  {
-				regulator-initial-mode = "fast";
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BMEM";
-				regulator-valid-modes-mask {
-					standby-mode;
-					fast-mode;
-				};
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "standby";
+					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 				};
 			};
 
 			/* 1V8D */
 			DA9063_BIO:bio  {
-				regulator-initial-mode = "fast";
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BIO";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-valid-modes-mask {
-					standby-mode;
-					fast-mode;
-				};
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "standby";
+					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 				};
 			};
 
 			/* 1V2D */
 			DA9063_BPERI:bperi  {
-				regulator-initial-mode = "fast";
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BPERI";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-valid-modes-mask {
-					standby-mode;
-					fast-mode;
-				};
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "standby";
+					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 				};
 			};
 

@@ -21,7 +21,6 @@
 #include <linux/regmap.h>
 
 #include <linux/mfd/da9063/core.h>
-#include <linux/mfd/da9063/pdata.h>
 #include <linux/mfd/da9063/registers.h>
 
 static int da9063_spi_probe(struct spi_device *spi)

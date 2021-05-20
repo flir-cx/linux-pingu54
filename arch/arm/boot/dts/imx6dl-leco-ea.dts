@@ -20,7 +20,6 @@
 #include "imx6dl-evbw.dtsi"
 #include "imx6dl-evbw-leco.dtsi"
 #include "imx6dl-evro.dtsi"
-#include "imx6dl-leif.dtsi"
 #include "imx6dl-lesl.dtsi"
 //#include "imx6dl-evlc2.dtsi"  //Lennox has EVLC2, but are not to use the Compass inside
 #include "imx6dl-legp.dtsi"
@@ -32,4 +31,12 @@
         chosen {
                 bootargs = "console=ttymxc0,115200 earlyprintk";
         };
+};
+
+&reg_arm {
+	vin-supply = <&DA9063_BCORE1>;
+};
+
+&reg_soc {
+	vin-supply = <&DA9063_BCORE2>;
 };
