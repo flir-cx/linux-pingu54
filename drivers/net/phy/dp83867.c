@@ -443,14 +443,6 @@ static int dp83867_config_port_mirroring(struct phy_device *phydev)
 				   DP83867_CFG4_PORT_MIRROR_EN);
 	return 0;
 }
-static int dp83867_config_clk(struct phy_device *phydev)
-{
-	u16 val;
-	//Configure MDIO register 0x170, enable 125MHz clock
-	val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG);
-	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG, val & ~0x1f00);
-	return 0;
-}
 
 static int dp83867_verify_rgmii_cfg(struct phy_device *phydev)
 {
@@ -622,6 +614,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 			 DP83867_DOWNSHIFT_EN);
 	if (ret)
 		return ret;
+
 	ret = dp83867_verify_rgmii_cfg(phydev);
 	if (ret)
 		return ret;
