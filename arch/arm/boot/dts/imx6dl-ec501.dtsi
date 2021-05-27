@@ -212,7 +212,7 @@
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii-id";
 	phy-reset-gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
-//	phy-supply = <&DA9063_LDO6>;
+	phy-supply = <&DA9063_LDO6>;
 	phy-handle = <&ethphy0>;
 	status = "okay";
 
