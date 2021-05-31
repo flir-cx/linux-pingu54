@@ -350,16 +350,13 @@
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1280000>;
 
-				regulator-initial-mode = "fast";
-				regulator-initial-state = "suspend-mem";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_AUTO>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "normal";
-					regulator-state-uv= <950000>;
-					regulator-state-disabled;
+					regulator-mode = <DA9063_BUCK_MODE_AUTO>;
+					regulator-suspend-uv= <950000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -371,16 +368,13 @@
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1280000>;
 
-				regulator-initial-mode = "fast";
-				regulator-initial-state = "suspend-mem";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_AUTO>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "normal";
-					regulator-state-uv= <950000>;
-					regulator-state-disabled;
+					regulator-mode = <DA9063_BUCK_MODE_AUTO>;
+					regulator-suspend-uv= <950000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -388,13 +382,11 @@
 			DA9063_BPRO:bpro  {
 				regulator-name = "DA9063_BPRO";
 				regulator-boot-on;
-				regulator-initial-mode = "fast";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_AUTO>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "normal";
+					regulator-mode = <DA9063_BUCK_MODE_AUTO>;
 				};
 			};
 
@@ -402,13 +394,11 @@
 			DA9063_BMEM:bmem  {
 				regulator-name = "DA9063_BMEM";
 				regulator-boot-on;
-				regulator-initial-mode = "fast";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_AUTO>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "normal";
+					regulator-mode = <DA9063_BUCK_MODE_AUTO>;
 				};
 			};
 
@@ -417,13 +407,11 @@
 				regulator-name = "DA9063_BIO";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-initial-mode = "fast";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_AUTO>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "normal";
+					regulator-mode = <DA9063_BUCK_MODE_AUTO>;
 				};
 			};
 
@@ -432,13 +420,11 @@
 				regulator-name = "DA9063_BPERI";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-initial-mode = "fast";
-				regulator-valid-modes-mask {
-					normal-mode;
-					fast-mode;
-				};
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_AUTO>, 
+										  <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-state-mode = "normal"; 
+					regulator-mode = <DA9063_BUCK_MODE_AUTO>;
 				};
 			};
 
@@ -837,4 +823,12 @@
 	bypass_reset = <1>;
 	// IOMUX_GPR6: ID0 = F (real time), ID1 = 4 (high prio), ID2 = 2 (normal prio) 
 	axi-id = <&gpr 0x18 0x024F024F>;	
+};
+
+&reg_arm {
+	vin-supply = <&DA9063_BCORE1>;
+};
+
+&reg_soc {
+	vin-supply = <&DA9063_BCORE2>;
 };

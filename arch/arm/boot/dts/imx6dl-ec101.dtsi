@@ -925,3 +925,11 @@
 	// IOMUX_GPR6: ID0 = F (real time), ID1 = 4 (high prio), ID2 = 2 (normal prio) 
 	axi-id = <&gpr 0x18 0x024F024F>;	
 };
+
+&reg_arm {
+	vin-supply = <&DA9063_BCORE1>;
+};
+
+&reg_soc {
+	vin-supply = <&DA9063_BCORE2>;
+};

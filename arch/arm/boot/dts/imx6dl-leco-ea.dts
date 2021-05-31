@@ -32,11 +32,3 @@
                 bootargs = "console=ttymxc0,115200 earlyprintk";
         };
 };
-
-&reg_arm {
-	vin-supply = <&DA9063_BCORE1>;
-};
-
-&reg_soc {
-	vin-supply = <&DA9063_BCORE2>;
-};
