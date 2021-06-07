@@ -255,7 +255,7 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
-	cd-gpios = <&gpio6 14 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&evio_pca9534_0x46 3 GPIO_ACTIVE_HIGH>;
 	vqmmc-supply = <&DA9063_LDO4>;
 	max-frequency = <100000000>;
