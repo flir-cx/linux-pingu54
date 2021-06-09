@@ -16,13 +16,17 @@
 enum crtc {
 	CRTC_IPU_DI0,
 	CRTC_IPU_DI1,
+	CRTC_IPU_DI2,
 	CRTC_IPU1_DI0,
 	CRTC_IPU1_DI1,
+	CRTC_IPU1_DI2,
 	CRTC_IPU2_DI0,
 	CRTC_IPU2_DI1,
+	CRTC_IPU2_DI2,
 	CRTC_LCDIF,
 	CRTC_LCDIF1,
 	CRTC_LCDIF2,
+	CRTC_LCDIF3,
 	CRTC_MAX,
 };
 
@@ -33,8 +37,8 @@ struct ipu_di_crtc_map {
 };
 
 static const struct ipu_di_crtc_map ipu_di_crtc_maps[] = {
-	{CRTC_IPU1_DI0, 0, 0}, {CRTC_IPU1_DI1, 0, 1},
-	{CRTC_IPU2_DI0, 1, 0}, {CRTC_IPU2_DI1, 1, 1},
+	{CRTC_IPU1_DI0, 0, 0}, {CRTC_IPU1_DI1, 0, 1}, {CRTC_IPU1_DI2, 0, 2},
+	{CRTC_IPU2_DI0, 1, 0}, {CRTC_IPU2_DI1, 1, 1}, {CRTC_IPU2_DI2, 1, 2},
 };
 
 static inline int ipu_di_to_crtc(struct device *dev, int ipu_id,
