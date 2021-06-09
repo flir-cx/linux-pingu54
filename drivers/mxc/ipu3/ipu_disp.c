@@ -1945,6 +1945,8 @@ int32_t _ipu_disp_get_window_pos(struct ipu_soc *ipu, ipu_channel_t channel,
 		flow = DP_ASYNC0;
 	else if (channel == MEM_FG_ASYNC1)
 		flow = DP_ASYNC1;
+	else if (channel == MEM_FG_FAKE)
+		flow = DP_SYNC;
 	else
 		return -EINVAL;
 
