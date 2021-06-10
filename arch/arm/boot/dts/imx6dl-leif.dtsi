@@ -317,7 +317,7 @@
 	};
 
 	touchscreen:edt_ft5336@38 {
-		compatible = "edt,ft5x06";
+		compatible = "edt,ft5336";
 		reg = <0x38>;
 		num-buttons = <5>;
 		// Button 1 Select workfolders
