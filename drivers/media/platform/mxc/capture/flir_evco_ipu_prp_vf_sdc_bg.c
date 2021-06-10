@@ -79,12 +79,23 @@ static int flir_evco_prpvf_start(void *private)
 	u32 offset;
 	u32 bpp, size = 3;
 	int err = 0;
+	struct fb_info *fbi_overlay = NULL;
+	int i;
 #ifdef CONFIG_MXC_MIPI_CSI2
 	void *mipi_csi2_info;
 	int ipu_id;
 	int csi_id;
 #endif
 
+	for (i = 0; i < num_registered_fb; i++) {
+		if ((strcmp(registered_fb[i]->fix.id, "DISP3 XX") == 0)){
+			fbi_overlay = registered_fb[i];
+			printk(KERN_ERR "FBI OVERLAY SET\n");
+//			break;
+		}
+	}
+		
+	
 	if (!cam) {
 		printk(KERN_ERR "private is NULL\n");
 		return -EIO;
@@ -208,8 +219,7 @@ static int flir_evco_prpvf_start(void *private)
 				      vf.csi_prp_vf_mem.out_height,
 				      vf.csi_prp_vf_mem.out_width,
 				      IPU_ROTATE_NONE,
-				      /* cam->vf_bufs[1], */
-				      offset,
+				      fbi_overlay ? fbi_overlay->fix.smem_start : fbi_overlay->fix.smem_start,  //INPUT from new buffer...
 				      0,
 				      0, 0, 0);
 	if (err != 0) {
@@ -223,9 +233,8 @@ static int flir_evco_prpvf_start(void *private)
 				      vf.csi_prp_vf_mem.out_height,
 				      vf.csi_prp_vf_mem.out_width,
 				      IPU_ROTATE_NONE,
-				      cam->vf_bufs[0],
-				      0, //cam->vf_bufs[1],
-				      /* offset, 0, */
+				      offset,  //output to FB0
+				      0,
 				      0, 0, 0);
 	if (err != 0) {
 		printk(KERN_ERR "Error initializing CSI_PRP_VF_MEM\n");
@@ -241,12 +250,6 @@ static int flir_evco_prpvf_start(void *private)
 		       "Error registering IPU_IRQ_PRP_VF_OUT_EOF irq.\n");
 		goto out_2;
 	}
-
-	//TODO (20210512) We do want a possibility to restore the channel buffer on prpvf_close
-	// or at least.. when memory is deallocated
-	// could be recovered with blank/unblank cycle..
-	ipu_update_channel_buffer(disp_ipu, MEM_BG_SYNC, IPU_INPUT_BUFFER, 0, cam->vf_bufs[0]);
-	/* ipu_update_channel_buffer(disp_ipu, MEM_BG_SYNC, IPU_INPUT_BUFFER, 1, cam->vf_bufs[1]); */
 
 	ipu_enable_channel(cam->ipu, CSI_PRP_VF_MEM);
 
