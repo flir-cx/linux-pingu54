@@ -122,6 +122,7 @@
 		compatible = "nxp,pca9534";
 		reg = <0x21>;
 		gpio-controller;
+		vcc-supply = <&DA9063_LDO11>;
 		interrupt-parent = <&gpio4>; //I2C3_ALERT_n
 		interrupts = <5 0x2>;
 		interrupt-controller;
