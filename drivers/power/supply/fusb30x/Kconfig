@@ -1,0 +1,51 @@
+if POWER_SUPPLY
+
+config POWER_SUPPLY_FUSB30X
+       tristate "Fairchild FUSB30x Driver"
+	help
+	  Say Y here to enable FUSB30x USB type C PD negotiator
+	  and drivers.
+
+if POWER_SUPPLY_FUSB30X
+
+   config POWER_SUPPLY_FUSB30X_DEBUG
+   bool "Debug"
+   help
+	  Say Y here to enable Debugging of FUSB30x USB type C PD negotiator
+
+   config POWER_SUPPLY_FUSB30X_TRIGGERED_INTERRUPT
+   bool "Triggered Interrupt"
+   help
+	  Say Y here to enable Debugging of FUSB30x USB type C PD negotiator
+
+   config POWER_SUPPLY_FUSB30X_SRC
+   bool "Source"
+   help
+	  Say Y here to enable Debugging of FUSB30x USB type C PD negotiator
+   config POWER_SUPPLY_FUSB30X_SNK
+   bool "Sink"
+   help
+	  Say Y here to enable Debugging of FUSB30x USB type C PD negotiator
+   config POWER_SUPPLY_FUSB30X_DRP
+   bool "Dual role protocol"
+   help
+	  Say Y here to enable Debugging of FUSB30x USB type C PD negotiator
+   config POWER_SUPPLY_FUSB30X_ACCMODE
+   bool "Accessory mode"
+   help
+	  Say Y here to enable Debugging of FUSB30x USB type C PD negotiator
+   config POWER_SUPPLY_FUSB30X_VDM
+   bool "VDM"
+   help
+	  Say Y here to enable Debugging of FUSB30x USB type C PD negotiator
+   config POWER_SUPPLY_FUSB30X_DP
+   bool "Displayport"
+   help
+	  Say Y here to enable Debugging of FUSB30x USB type C PD negotiator
+
+
+
+endif
+
+endif # POWER_SUPPLY
+
