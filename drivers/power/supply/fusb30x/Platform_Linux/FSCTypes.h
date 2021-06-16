@@ -15,7 +15,6 @@
 #define FSC_HOSTCOMM_BUFFER_SIZE    64  // Length of the hostcomm buffer, needed in both core and platform
 
 #if defined(FSC_PLATFORM_LINUX)
-
 /* Specify an extension for GCC based compilers */
 #if defined(__GNUC__)
 #define __EXTENSION __extension__
@@ -36,7 +35,11 @@
 
 #if !defined(BOOL) && !defined(FALSE) && !defined(TRUE)
 typedef enum _BOOL { FALSE = 0, TRUE } FSC_BOOL;    /* Undefined size */
-#endif // !BOOL && !FALSE && !TRUE
+#elif defined(BOOL) // !BOOL && !FALSE && !TRUE
+typedef BOOL FSC_BOOL;
+#else 
+typedef enum { FSC_FALSE = 0, FSC_TRUE } FSC_BOOL;
+#endif
 
 #ifndef FSC_S8
 typedef __s8                FSC_S8;                                            // 8-bit signed
@@ -70,5 +73,6 @@ typedef __u32               FSC_U32;                                           /
 
 #endif // FSC_PLATFORM_LINUX
  
+
 #endif /* _FUSB30X_FSCTYPES_H_ */
 
