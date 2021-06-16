@@ -143,7 +143,7 @@ FSC_S32 fusb_InitializeGPIO(void)
     if (!gpio_is_valid(chip->gpio_VBusOther))
     {
         // Soft fail - provide a warning, but don't quit because we don't really need this VBus if only using VBus5v
-        pr_warning("%s - Warning: Could not get GPIO for VBusOther! Error code: %d\n", __func__, chip->gpio_VBusOther);
+        pr_warn("%s - Warning: Could not get GPIO for VBusOther! Error code: %d\n", __func__, chip->gpio_VBusOther);
     }
     else
     {
@@ -471,7 +471,7 @@ void fusb_GPIO_Cleanup(void)
     wake_lock_destroy(&chip->fusb302_wakelock);
 #endif // FSC_INTERRUPT_TRIGGERED
 
-    if (gpio_is_valid(chip->gpio_IntN) >= 0)
+    if (gpio_is_valid(chip->gpio_IntN))
     {
 #ifdef FSC_DEBUG
         gpio_unexport(chip->gpio_IntN);
@@ -480,7 +480,7 @@ void fusb_GPIO_Cleanup(void)
         gpio_free(chip->gpio_IntN);
     }
 
-    if (gpio_is_valid(chip->gpio_VBus5V) >= 0)
+    if (gpio_is_valid(chip->gpio_VBus5V))
     {
 #ifdef FSC_DEBUG
         gpio_unexport(chip->gpio_VBus5V);
@@ -489,13 +489,13 @@ void fusb_GPIO_Cleanup(void)
         gpio_free(chip->gpio_VBus5V);
     }
 
-    if (gpio_is_valid(chip->gpio_VBusOther) >= 0)
+    if (gpio_is_valid(chip->gpio_VBusOther))
     {
         gpio_free(chip->gpio_VBusOther);
     }
 
 #ifdef FSC_DEBUG
-    if (gpio_is_valid(chip->dbg_gpio_StateMachine) >= 0)
+    if (gpio_is_valid(chip->dbg_gpio_StateMachine))
     {
         gpio_unexport(chip->dbg_gpio_StateMachine);
         gpio_free(chip->dbg_gpio_StateMachine);

@@ -14,7 +14,7 @@
 #include <linux/gpio.h>
 #include "../core/vdm/DisplayPort/interface_dp.h"
 #include <linux/power/bq24298_charger.h>
-#include <linux/video/mxc/tc358767_lcd2dp.h>
+// #include <linux/video/mxc/tc358767_lcd2dp.h>
 
 
 /* Number of VCONN re-starts made by TypeC state machine */
@@ -33,7 +33,7 @@ static enum {
 } platform_dp_state;
 
 static unsigned dp_pinassign;
-static void *lcd2dp_handle;
+// static void *lcd2dp_handle;
 
 static void platform_set_dp_usbmux_enable(FSC_BOOL enable)
 {
@@ -51,14 +51,18 @@ static void platform_set_dp_usbmux_enable(FSC_BOOL enable)
 
 static inline void platform_set_dp_hotplug_enable(FSC_BOOL enable)
 {
-    pr_info("DP: Hotplug %s\n", enable ? "ENABLE" : "DISABLE");
-    lcd2dp_set_hotplug(lcd2dp_handle, enable);
+/*    pr_info("DP: Hotplug %s\n", enable ? "ENABLE" : "DISABLE");
+*    lcd2dp_set_hotplug(lcd2dp_handle, enable);
+*/
+    pr_info("DP: Hotplug temporarily DISABLED\n");
 }
 
 static inline void platform_signal_dp_hotplug_irq(void)
 {
-    pr_info("DP: Hotplug IRQ\n");
-    lcd2dp_signal_hotplug_irq(lcd2dp_handle);
+/*    pr_info("DP: Hotplug IRQ\n");
+*    lcd2dp_signal_hotplug_irq(lcd2dp_handle);
+*/
+    pr_info("DP: Hotplug IRQ temporarily DISABLED\n");
 }
 
 static inline void platform_request_dp_config(void)
@@ -88,9 +92,10 @@ static void platform_dp_statemachine_update(void)
     switch (platform_dp_state) {
 
         case DPST_INIT:
-            lcd2dp_handle = lcd2dp_get_handle("lcd2dp");
-            if (!lcd2dp_handle)
-                break;
+            /* lcd2dp_handle = lcd2dp_get_handle("lcd2dp");
+            *if (!lcd2dp_handle)
+            *    break;
+			*/
             platform_dp_state = DPST_IDLE;
             /*fallthrough*/
 
