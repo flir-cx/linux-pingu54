@@ -160,8 +160,8 @@
 struct bq24298_dev_info {
 	struct i2c_client		*client;
 	struct device			*dev;
-	struct power_supply		charger;
-	struct power_supply		battery;
+	struct power_supply		*charger;
+	struct power_supply		*battery;
 	struct power_supply             *notify_psy;
 	struct power_supply             *notify_psy2;
 	struct notifier_block           nb;
@@ -437,8 +437,7 @@ static ssize_t bq24298_sysfs_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct bq24298_dev_info *bdi =
-			container_of(psy, struct bq24298_dev_info, charger);
+	struct bq24298_dev_info *bdi = power_supply_get_drvdata(psy);
 	struct bq24298_sysfs_field_info *info;
 	int ret;
 	u8 v;
@@ -458,8 +457,7 @@ static ssize_t bq24298_sysfs_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct bq24298_dev_info *bdi =
-			container_of(psy, struct bq24298_dev_info, charger);
+	struct bq24298_dev_info *bdi = power_supply_get_drvdata(psy);
 	struct bq24298_sysfs_field_info *info;
 	int ret;
 	u8 v;
@@ -483,13 +481,13 @@ static int bq24298_sysfs_create_group(struct bq24298_dev_info *bdi)
 {
 	bq24298_sysfs_init_attrs();
 
-	return sysfs_create_group(&bdi->charger.dev->kobj,
+	return sysfs_create_group(&bdi->charger->dev.kobj,
 			&bq24298_sysfs_attr_group);
 }
 
 static void bq24298_sysfs_remove_group(struct bq24298_dev_info *bdi)
 {
-	sysfs_remove_group(&bdi->charger.dev->kobj, &bq24298_sysfs_attr_group);
+	sysfs_remove_group(&bdi->charger->dev.kobj, &bq24298_sysfs_attr_group);
 }
 #else
 static int bq24298_sysfs_create_group(struct bq24298_dev_info *bdi)
@@ -821,8 +819,7 @@ static int bq24298_charger_set_voltage(struct bq24298_dev_info *bdi,
 static int bq24298_charger_get_property(struct power_supply *psy,
 		enum power_supply_property psp, union power_supply_propval *val)
 {
-	struct bq24298_dev_info *bdi =
-			container_of(psy, struct bq24298_dev_info, charger);
+	struct bq24298_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
@@ -875,8 +872,7 @@ static int bq24298_charger_set_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		const union power_supply_propval *val)
 {
-	struct bq24298_dev_info *bdi =
-			container_of(psy, struct bq24298_dev_info, charger);
+	struct bq24298_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
@@ -936,18 +932,15 @@ static char *bq24298_charger_supplied_to[] = {
 	"main-battery",
 };
 
-static void bq24298_charger_init(struct power_supply *charger)
-{
-	charger->name = "bq24298-charger";
-	charger->type = POWER_SUPPLY_TYPE_USB;
-	charger->properties = bq24298_charger_properties;
-	charger->num_properties = ARRAY_SIZE(bq24298_charger_properties);
-	charger->supplied_to = bq24298_charger_supplied_to;
-	charger->num_supplies = ARRAY_SIZE(bq24298_charger_supplied_to);
-	charger->get_property = bq24298_charger_get_property;
-	charger->set_property = bq24298_charger_set_property;
-	charger->property_is_writeable = bq24298_charger_property_is_writeable;
-}
+static const struct power_supply_desc bq24298_charger_desc = {
+	.name = "bq24298-charger",
+	.type = POWER_SUPPLY_TYPE_USB,
+	.properties = bq24298_charger_properties,
+	.num_properties = ARRAY_SIZE(bq24298_charger_properties),
+	.get_property = bq24298_charger_get_property,
+	.set_property = bq24298_charger_set_property,
+	.property_is_writeable = bq24298_charger_property_is_writeable,
+};
 
 /* Battery power supply property routines */
 
@@ -1066,10 +1059,8 @@ static int bq24298_notifier_call(struct notifier_block *nb,
 	struct power_supply *npsy = bq->notify_psy;
 	union power_supply_propval prop;
 
-
-
-	dev_dbg(bq->dev, "%s: notifier was called from %s\n", __func__,npsy->name);
-	npsy->get_property(npsy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
+	dev_dbg(bq->dev, "%s: notifier was called from %s\n", __func__,npsy->desc->name);
+	npsy->desc->get_property(npsy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
 	bq24298_set_iinlim_helper(prop.intval,1);
 	return NOTIFY_OK;
 }
@@ -1081,7 +1072,7 @@ static int bq24298_secondary_notifier_call(struct notifier_block *nb,
 		container_of(nb, struct bq24298_dev_info, nb2);
 	struct power_supply *npsy = bq->notify_psy2;
 	union power_supply_propval prop;
-	npsy->get_property(npsy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
+	npsy->desc->get_property(npsy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
 	bq24298_set_iinlim_helper(prop.intval,2);
 	return NOTIFY_OK;
 }
@@ -1140,8 +1131,7 @@ static int bq24298_battery_set_temp_alert_max(struct bq24298_dev_info *bdi,
 static int bq24298_battery_get_property(struct power_supply *psy,
 		enum power_supply_property psp, union power_supply_propval *val)
 {
-	struct bq24298_dev_info *bdi =
-			container_of(psy, struct bq24298_dev_info, battery);
+	struct bq24298_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
@@ -1182,8 +1172,7 @@ static int bq24298_battery_set_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		const union power_supply_propval *val)
 {
-	struct bq24298_dev_info *bdi =
-			container_of(psy, struct bq24298_dev_info, battery);
+	struct bq24298_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
@@ -1231,16 +1220,15 @@ static enum power_supply_property bq24298_battery_properties[] = {
 	POWER_SUPPLY_PROP_SCOPE,
 };
 
-static void bq24298_battery_init(struct power_supply *battery)
-{
-	battery->name = "bq24298-battery";
-	battery->type = POWER_SUPPLY_TYPE_BATTERY;
-	battery->properties = bq24298_battery_properties;
-	battery->num_properties = ARRAY_SIZE(bq24298_battery_properties);
-	battery->get_property = bq24298_battery_get_property;
-	battery->set_property = bq24298_battery_set_property;
-	battery->property_is_writeable = bq24298_battery_property_is_writeable;
-}
+static const struct power_supply_desc bq24298_battery_desc = {
+	.name = "bq24298-battery",
+	.type = POWER_SUPPLY_TYPE_BATTERY,
+	.properties = bq24298_battery_properties,
+	.num_properties = ARRAY_SIZE(bq24298_battery_properties),
+	.get_property = bq24298_battery_get_property,
+	.set_property = bq24298_battery_set_property,
+	.property_is_writeable = bq24298_battery_property_is_writeable,
+};
 
 static irqreturn_t bq24298_irq_handler_thread(int irq, void *data)
 {
@@ -1316,8 +1304,8 @@ static irqreturn_t bq24298_irq_handler_thread(int irq, void *data)
 	 * interrupt received).
 	 */
 	if (alert_userspace && !bdi->first_time) {
-		power_supply_changed(&bdi->charger);
-		power_supply_changed(&bdi->battery);
+		power_supply_changed(bdi->charger);
+		power_supply_changed(bdi->battery);
 		bdi->first_time = false;
 	}
 
@@ -1383,16 +1371,16 @@ static int bq24298_setup_dt(struct bq24298_dev_info *bdi)
 	{
 		union power_supply_propval prop;
 		dev_info(bdi->dev, "%s: found usb charger...\n", __func__);
-		bdi->notify_psy->get_property(bdi->notify_psy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
+		bdi->notify_psy->desc->get_property(bdi->notify_psy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
 		dev_dbg(bdi->dev, "%s: Current limit from %s is %i\n", __func__,
-			bdi->notify_psy->name, prop.intval);
+			bdi->notify_psy->desc->name, prop.intval);
 
 		bq24298_set_iinlim_helper(prop.intval, 1);
 
 		dev_info(bdi->dev, "%s: found secondary usb charger...\n", __func__);
-		bdi->notify_psy2->get_property(bdi->notify_psy2, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
+		bdi->notify_psy2->desc->get_property(bdi->notify_psy2, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
 		dev_err(bdi->dev, "%s: Current limit from %s is %i\n", __func__,
-			bdi->notify_psy2->name, prop.intval);
+			bdi->notify_psy2->desc->name, prop.intval);
 		bq24298_set_iinlim_helper(prop.intval, 2);
 	}
 
@@ -1445,6 +1433,7 @@ static int bq24298_probe(struct i2c_client *client,
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct device *dev = &client->dev;
 	struct bq24298_platform_data *pdata = client->dev.platform_data;
+	struct power_supply_config charger_cfg = {}, battery_cfg = {};
 //	struct bq24298_dev_info *bdi;
 	int ret;
 
@@ -1501,19 +1490,23 @@ static int bq24298_probe(struct i2c_client *client,
 		goto out2;
 	}
 
-	bq24298_charger_init(&bdi->charger);
-
-	ret = power_supply_register(dev, &bdi->charger);
-	if (ret) {
+	charger_cfg.drv_data = bdi;
+	charger_cfg.supplied_to = bq24298_charger_supplied_to;
+	charger_cfg.num_supplicants = ARRAY_SIZE(bq24298_charger_supplied_to),
+	bdi->charger = power_supply_register(dev, &bq24298_charger_desc,
+						&charger_cfg);
+	if (IS_ERR(bdi->charger)) {	
 		dev_err(dev, "Can't register charger\n");
+		ret = PTR_ERR(bdi->charger);
 		goto out2;
 	}
 
-	bq24298_battery_init(&bdi->battery);
-
-	ret = power_supply_register(dev, &bdi->battery);
-	if (ret) {
+	battery_cfg.drv_data = bdi;
+	bdi->battery = power_supply_register(dev, &bq24298_battery_desc,
+						&battery_cfg);
+	if (IS_ERR(bdi->battery)) {	
 		dev_err(dev, "Can't register battery\n");
+		ret = PTR_ERR(bdi->battery);
 		goto out3;
 	}
 
@@ -1543,9 +1536,9 @@ static int bq24298_probe(struct i2c_client *client,
 	return 0;
 out5:
 out4:
-	power_supply_unregister(&bdi->battery);
+	power_supply_unregister(bdi->battery);
 out3:
-	power_supply_unregister(&bdi->charger);
+	power_supply_unregister(bdi->charger);
 out2:
 	pm_runtime_disable(dev);
 out1:
@@ -1736,8 +1729,8 @@ static int bq24298_remove(struct i2c_client *client)
 		power_supply_unreg_notifier(&bdi->nb2);
 	}
 
-	power_supply_unregister(&bdi->battery);
-	power_supply_unregister(&bdi->charger);
+	power_supply_unregister(bdi->battery);
+	power_supply_unregister(bdi->charger);
 	pm_runtime_disable(bdi->dev);
 
 	if (bdi->gpio_int)
@@ -1773,8 +1766,8 @@ static int bq24298_pm_resume(struct device *dev)
 	pm_runtime_put_sync(bdi->dev);
 
 	/* Things may have changed while suspended so alert upper layer */
-	power_supply_changed(&bdi->charger);
-	power_supply_changed(&bdi->battery);
+	power_supply_changed(bdi->charger);
+	power_supply_changed(bdi->battery);
 
 	return 0;
 }
