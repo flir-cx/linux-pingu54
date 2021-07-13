@@ -164,9 +164,7 @@ struct bq24298_dev_info {
 	struct power_supply		*charger;
 	struct power_supply		*battery;
 	struct power_supply             *notify_psy;
-	struct power_supply             *notify_psy2;
 	struct notifier_block           nb;
-	struct notifier_block           nb2;
 	char				model_name[I2C_NAME_SIZE];
 	kernel_ulong_t			model;
 	unsigned int			gpio_int;
@@ -1066,21 +1064,10 @@ static int bq24298_notifier_call(struct notifier_block *nb,
 	struct power_supply *npsy = bq->notify_psy;
 	union power_supply_propval prop;
 
+
 	dev_dbg(bq->dev, "%s: notifier was called from %s\n", __func__,npsy->desc->name);
 	npsy->desc->get_property(npsy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
 	bq24298_set_iinlim_helper(prop.intval,1);
-	return NOTIFY_OK;
-}
-
-static int bq24298_secondary_notifier_call(struct notifier_block *nb,
-		unsigned long val, void *v)
-{
-	struct bq24298_dev_info *bq =
-		container_of(nb, struct bq24298_dev_info, nb2);
-	struct power_supply *npsy = bq->notify_psy2;
-	union power_supply_propval prop;
-	npsy->desc->get_property(npsy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
-	bq24298_set_iinlim_helper(prop.intval,2);
 	return NOTIFY_OK;
 }
 
@@ -1359,18 +1346,10 @@ static int bq24298_setup_dt(struct bq24298_dev_info *bdi)
 {
 	int ret;
 	bdi->notify_psy = power_supply_get_by_phandle(bdi->dev->of_node, "ti,usb-charger-detection");
-	bdi->notify_psy2 = power_supply_get_by_phandle(bdi->dev->of_node, "second-usb-charger-detection");
 	if(IS_ERR(bdi->notify_psy)){
 		dev_err(bdi->dev, "%s: no 'ti,usb-charger-detection' property (err=%ld)\n", __func__, PTR_ERR(bdi->notify_psy));
 		bdi->notify_psy=NULL;
 	} else if (!bdi->notify_psy) {
-		dev_err(bdi->dev, "%s: EPROBE_DEFER\n", __func__);
-		ret = -EPROBE_DEFER;
-		goto error_2;
-	} else 	if(IS_ERR(bdi->notify_psy2)){
-		dev_info(bdi->dev, "%s: no 'second-usb-charger-detection' property (err=%ld)\n", __func__, PTR_ERR(bdi->notify_psy2));
-		bdi->notify_psy2=NULL;
-	} else if (!bdi->notify_psy2) {
 		dev_err(bdi->dev, "%s: EPROBE_DEFER\n", __func__);
 		ret = -EPROBE_DEFER;
 		goto error_2;
@@ -1383,12 +1362,6 @@ static int bq24298_setup_dt(struct bq24298_dev_info *bdi)
 			bdi->notify_psy->desc->name, prop.intval);
 
 		bq24298_set_iinlim_helper(prop.intval, 1);
-
-		dev_info(bdi->dev, "%s: found secondary usb charger...\n", __func__);
-		bdi->notify_psy2->desc->get_property(bdi->notify_psy2, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
-		dev_err(bdi->dev, "%s: Current limit from %s is %i\n", __func__,
-			bdi->notify_psy2->desc->name, prop.intval);
-		bq24298_set_iinlim_helper(prop.intval, 2);
 	}
 
 	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
@@ -1531,15 +1504,6 @@ static int bq24298_probe(struct i2c_client *client,
 			goto out5;
 		}
 	}
-	if(bdi->notify_psy2){
-		bdi->nb2.notifier_call = bq24298_secondary_notifier_call;
-		ret = power_supply_reg_notifier(&bdi->nb2);
-		if(ret){
-			dev_err(bdi->dev, "%s: failed to register notifier: %d\n", __func__, ret);
-			goto out5;
-		}
-	}
-
 	return 0;
 out5:
 out4:
@@ -1729,9 +1693,6 @@ static int bq24298_remove(struct i2c_client *client)
 	bq24298_sysfs_remove_group(bdi);
 	if(bdi->notify_psy){
 		power_supply_unreg_notifier(&bdi->nb);
-	}
-	if(bdi->notify_psy2){
-		power_supply_unreg_notifier(&bdi->nb2);
 	}
 
 	power_supply_unregister(bdi->battery);
