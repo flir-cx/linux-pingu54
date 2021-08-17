@@ -52,6 +52,10 @@
 #define LC709203F_BATTERY_LOW		15
 #define LC709203F_BATTERY_FULL		100
 
+#define LC709203F 0x1
+#define LC709204F 0x2
+
+
 enum battery_charger_status {
 	BATTERY_DISCHARGING,
 	BATTERY_CHARGING,
@@ -460,6 +464,9 @@ static int lc709203f_probe(struct i2c_client *client,
 {
 	struct lc709203f_chip *chip;
 	int ret;
+	u32 type;
+	u32 param;
+	u32 param_val;
 
 	/* Required PEC functionality */
 	client->flags = client->flags | I2C_CLIENT_PEC;    
@@ -558,18 +565,23 @@ static int lc709203f_probe(struct i2c_client *client,
 		return ret;
 	}
 
-    if (chip->pdata->battery_param) {
-		u32 param = lc709203f_read_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM);
+	type = lc709203f_read_word(chip->client, LC709203F_NUM_OF_THE_PARAM) == 0x0301? LC709203F:LC709204F;
+	dev_err(&client->dev, "Fuelguage %s detected\n", type==LC709203F?"LC709203f":"LC709204f");
 
-		if(param != chip->pdata->battery_param)
-		{
-			ret = lc709203f_write_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM, chip->pdata->battery_param);
-			if (ret < 0) {
-				dev_err(&client->dev, "STATUS_BIT write failed: %d\n", ret);
-				return ret;
-			}
+	param = lc709203f_read_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM);
+
+	// Battery param should be 1 for lc709203f and 0 for lc709204f (FLIR ec201 settings)
+	param_val = type==LC709203F?1:0;
+
+	if(param != param_val)
+	{
+		ret = lc709203f_write_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM, param_val);
+		if (ret < 0) {
+			dev_err(&client->dev, "STATUS_BIT write failed: %d\n", ret);
+			return ret;
 		}
-    }
+	}
+
 
 skip_thermistor_config:
 	lc709203f_update_soc_voltage(chip);
@@ -700,6 +712,7 @@ MODULE_DEVICE_TABLE(i2c, lc709203f_id);
 
 static const struct of_device_id lc709203f_of_match [] = {
     { .compatible = "onsemi,lc709203f" },
+    { .compatible = "onsemi,lc709204f" },
     { }
 };
 MODULE_DEVICE_TABLE(of, lc709203f_of_match);
