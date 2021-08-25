@@ -933,3 +933,8 @@
 &reg_soc {
 	vin-supply = <&DA9063_BCORE2>;
 };
+
+&fec {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-rates;
+};
