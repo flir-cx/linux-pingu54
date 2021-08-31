@@ -1562,8 +1562,8 @@ int bq24298_enable_otg()
 //	struct power_supply *psy = dev_get_drvdata(dev);
 //	struct bq24298_dev_info *bdi = bdi;
 //	pr_err("%s: Enable OTG\n", __func__);
-    if(!bdi)
-        return -ENODEV;
+	if(!bdi)
+		return -ENODEV;
 
 	bq24298_write_mask(bdi, BQ24298_REG_POC,
 			   BQ24298_REG_POC_OTG_CONFIG_MASK,
@@ -1577,8 +1577,8 @@ EXPORT_SYMBOL(bq24298_enable_otg);
 int bq24298_disable_otg(void)
 {
 //	pr_err("%s: disable OTG\n", __func__);
-    if(!bdi)
-        return -ENODEV;
+	if(!bdi)
+    	return -ENODEV;
 
 	bq24298_write_mask(bdi, BQ24298_REG_POC,
 			   BQ24298_REG_POC_OTG_CONFIG_MASK,
@@ -1593,8 +1593,8 @@ int bq24298_get_otg(void)
 {
 	u8 data=0;
 //	pr_err("%s: get OTG\n", __func__);
-    if(!bdi)
-        return -ENODEV;
+	if(!bdi)
+		return -ENODEV;
 
 	bq24298_read_mask(bdi, BQ24298_REG_POC,
 			   BQ24298_REG_POC_OTG_CONFIG_MASK,
@@ -1607,8 +1607,8 @@ int bq24298_set_iinlim(s16 currentlim)
 {
 	unsigned ix;
 
-    if(!bdi)
-        return -ENODEV;
+	if(!bdi)
+    	return -ENODEV;
 
 	/* Round requested current down to closest available limit */
 	ix = ARRAY_SIZE(bq24298_current_limits) - 1;
