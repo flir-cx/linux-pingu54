@@ -1344,15 +1344,13 @@ out:
 #ifdef CONFIG_OF
 static int bq24298_setup_dt(struct bq24298_dev_info *bdi)
 {
-	int ret;
 	bdi->notify_psy = power_supply_get_by_phandle(bdi->dev->of_node, "ti,usb-charger-detection");
 	if(IS_ERR(bdi->notify_psy)){
 		dev_err(bdi->dev, "%s: no 'ti,usb-charger-detection' property (err=%ld)\n", __func__, PTR_ERR(bdi->notify_psy));
 		bdi->notify_psy=NULL;
 	} else if (!bdi->notify_psy) {
 		dev_err(bdi->dev, "%s: EPROBE_DEFER\n", __func__);
-		ret = -EPROBE_DEFER;
-		goto error_2;
+		return -EPROBE_DEFER;
 	} else
 	{
 		union power_supply_propval prop;
@@ -1366,11 +1364,9 @@ static int bq24298_setup_dt(struct bq24298_dev_info *bdi)
 
 	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
 	if (bdi->irq <= 0)
-		return -1;
+		return -EPERM;
 
 	return 0;
-error_2:
-	return ret;
 }
 #else
 static int bq24298_setup_dt(struct bq24298_dev_info *bdi)
@@ -1448,7 +1444,7 @@ static int bq24298_probe(struct i2c_client *client,
 
 	if (ret) {
 		dev_err(dev, "Can't get irq info\n");
-		ret = -EINVAL;
+		//ret = -EINVAL;
 		goto out0;
 	}
 
