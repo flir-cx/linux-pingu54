@@ -3068,7 +3068,7 @@ static ssize_t _fusb_Sysfs_Reinitialize_fusb302(struct device* dev, struct devic
 }
 
 // Define our device attributes to export them to sysfs
-static DEVICE_ATTR(fusb30x_hostcomm, S_IRWXU | S_IRWXG | S_IROTH, _fusb_Sysfs_Hostcomm_show, _fusb_Sysfs_Hostcomm_store);
+static DEVICE_ATTR(fusb30x_hostcomm, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH, _fusb_Sysfs_Hostcomm_show, _fusb_Sysfs_Hostcomm_store);
 static DEVICE_ATTR(pd_state_log, S_IRUSR | S_IRGRP | S_IROTH, _fusb_Sysfs_PDStateLog_show, NULL);
 static DEVICE_ATTR(typec_state_log, S_IRUSR | S_IRGRP | S_IROTH, _fusb_Sysfs_TypeCStateLog_show, NULL);
 static DEVICE_ATTR(reinitialize, S_IRUSR | S_IRGRP | S_IROTH, _fusb_Sysfs_Reinitialize_fusb302, NULL);
