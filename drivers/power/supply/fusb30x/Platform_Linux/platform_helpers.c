@@ -3374,9 +3374,12 @@ void fusb_platform_suspend(void)
     disable_irq(chip->gpio_IntN_irq);
 
     // Switch data lanes to Safe mode
-    gpio_set_value_cansleep(chip->gpio_usbmux_en, 0);
-    gpio_set_value_cansleep(chip->gpio_usbmux_pol, 0);
-    gpio_set_value_cansleep(chip->gpio_usbmux_amsel, 0);
+    pr_info("FUSB: fusb_platform_suspend: gpio mgmt commented out\n");
+    /*
+    * gpio_set_value_cansleep(chip->gpio_usbmux_en, 0);
+    * gpio_set_value_cansleep(chip->gpio_usbmux_pol, 0);
+    * gpio_set_value_cansleep(chip->gpio_usbmux_amsel, 0);
+    */
 
     // Stop any VBUS output voltage and OTG stimuli
     fusb_GPIO_Set_OTG(FALSE);

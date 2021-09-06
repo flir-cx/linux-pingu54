@@ -140,9 +140,11 @@ static int fusb30x_probe (struct i2c_client* client,
         return ret;
     }
     pr_debug("FUSB  %s - GPIO initialized!\n", __func__);
-
-    fusb_InitializeUSBMux();
-    pr_debug("FUSB  %s - USBMUX GPIO initialized!\n", __func__);
+/*
+*    fusb_InitializeUSBMux();
+*    pr_debug("FUSB  %s - USBMUX GPIO initialized!\n", __func__);
+*/
+    pr_warn("FUSB  %s - USBMUX GPIO initialization temporarily commented out!\n", __func__);
 
 //#ifdef FSC_DEBUG
     /* Initialize debug sysfs file accessors */
