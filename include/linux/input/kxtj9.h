@@ -29,6 +29,9 @@ struct kxtj9_platform_data {
 	bool negate_y;
 	bool negate_z;
 
+	/* Distinguish between sensor and LCD accelerometers in FLIR cameras*/
+	bool is_sensor_accel;
+
 	/* CTRL_REG1: set resolution, g-range, data ready enable */
 	/* Output resolution: 8-bit valid or 12-bit valid */
 	#define RES_8BIT		0

@@ -12,6 +12,25 @@
 
 #include <dt-bindings/input/input.h>
 
+// This file also supports evlc4 with magnetometer bm1422 and accelerometer kxtj3
+
+/ {
+	regulators {
+			compatible = "simple-bus";
+
+			/* pull up gpio to pca9534 to enable kxtj3 and bm1422 on evlc4 */
+			reg_acc_mag_en: reg_acc_mag_en {
+				compatible = "regulator-fixed";
+				regulator-name = "reg_acc_mag_enable";
+				gpio = <&evlc4_pca9534_0x48 7 GPIO_ACTIVE_HIGH>;
+				enable-active-high;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+	};
+};
+
+
 &i2c4 {
       evlc2_24c02: evlc2_24c02@56 {
 		compatible = "atmel,24c02";
@@ -25,4 +44,34 @@
 		position = <8>; ////X = -Z, Y=-Y, Z=-X  -->Appcore config 1,1,1  XYZ (EVLC2)
 		};
 
-	};
+	  evlc4_pca9534_0x48: evlc4_pca9534_0x48@24 {
+		// I/O expander
+		compatible = "nxp,pca9534";
+		reg = <0x24>;
+		gpio-controller;
+                #gpio-cells = <2>;
+	  };
+
+	  evlc4_acc_kxtj3: evlc4_acc_kxtj3@0E {
+		compatible = "kionix,kxtj3";
+		reg = <0x0E>;
+		// Remap axes for appcore
+		axis-map-x = <2>;
+		axis-map-y = <1>;
+		axis-map-z = <0>;
+		negate-x;
+		is-sensor-accel;
+	  };
+
+	  evlc4_mag_bm1422: evlc4_mag_bm1422@0F {
+		compatible = "rohm,bm1422";
+		reg = <0x0F>;
+		// Remap axes for appcore
+		axis-map-x = <2>; // X = -Z
+		negate-x;
+		axis-map-y = <0>; // Y = X
+		axis-map-z = <1>; // Z = -Y
+		negate-z;
+
+	  };
+};
