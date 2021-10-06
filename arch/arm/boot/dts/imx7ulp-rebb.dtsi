@@ -169,11 +169,16 @@
 			<&gpio_pte 0 GPIO_ACTIVE_LOW>,
 			<&gpio_pte 1 GPIO_ACTIVE_LOW>;
 
-		mapcomm_gpio: spidev@0 {
+		mapcomm_gpio: okeanos@0 {
 			reg = <0>;
-			/* just use a device available in spidev.c to get rid of warning in kernel log */
-			compatible = "rohm,dh2228fv";
-			spi-max-frequency = <1000000>;
+			compatible = "flir,okeanos";
+			status = "okay";
+			// pinctrl-names = "default";
+			// pinctrl-0 = <&okeanos_interrupt>;
+			spi-max-frequency = <2000000>;
+			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gpio_pte>;
+			interrupt-name = "okeanos";
 		};
 
 		/* Detector flash */
