@@ -193,7 +193,7 @@
 		gpio-controller;
                 #gpio-cells = <2>;
 	};
-
+	
 	tlv320aic31xx: tlv320aic31xx@18 {
 		compatible = "ti,tlv320aic3100";
 		reg = <0x18>;
