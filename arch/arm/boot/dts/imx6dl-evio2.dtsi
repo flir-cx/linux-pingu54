@@ -1,0 +1,28 @@
+
+/*
+ * Copyright 2015 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/input/input.h>
+/*This file represents changes in evio2-a to evio-b and later*/
+
+&i2c3 {
+	evio2_acc_kxtj3: evio2_acc_kxtj3@0E {
+		compatible = "kionix,kxtj3";
+		reg = <0x0E>;
+		min-interval = <100>;
+		axis-map-x = <2>;
+		negate-x;
+		axis-map-y = <1>;
+		negate-y;
+		axis-map-z = <0>;
+		negate-z;
+	};
+};
