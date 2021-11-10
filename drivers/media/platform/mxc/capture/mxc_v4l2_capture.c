@@ -2014,6 +2014,55 @@ static long mxc_v4l_do_ioctl(struct file *file,
 		int index = buf->index;
 		pr_debug("   case VIDIOC_QBUF\n");
 
+		if (index >= FRAME_NUM) {
+			pr_err("Frame index %d !!!!!\n", index);
+			index = 0;
+		}
+
+		if (cam->frame[index].buffer.flags & (V4L2_BUF_FLAG_QUEUED | V4L2_BUF_FLAG_DONE)) {
+			struct list_head *p;
+			struct mxc_v4l_frame *frame;
+
+			spin_lock_irqsave(&cam->queue_int_lock, lock_flags);
+			spin_lock_irqsave(&cam->dqueue_int_lock, lock_flags);
+
+			pr_err("Out of sync %d\n", index);
+
+			list_for_each(p, &cam->ready_q) {
+				frame = list_entry(p, struct mxc_v4l_frame, queue);
+				if (index == frame->index) {
+					frame->buffer.flags &= ~V4L2_BUF_FLAG_QUEUED;
+					list_del(p);
+					pr_err("Index %d from ready\n", index);
+					break;
+				}
+			}
+
+			list_for_each(p, &cam->working_q) {
+				frame = list_entry(p, struct mxc_v4l_frame, queue);
+				if (index == frame->index) {
+					frame->buffer.flags &= ~V4L2_BUF_FLAG_QUEUED;
+					list_del(p);
+					pr_err("Index %d from working\n", index);
+					break;
+				}
+			}
+
+			list_for_each(p, &cam->done_q) {
+				frame = list_entry(p, struct mxc_v4l_frame, queue);
+				if (index == frame->index) {
+					frame->buffer.flags &= ~V4L2_BUF_FLAG_DONE;
+					list_del(p);
+					cam->enc_counter--;
+					pr_err("Index %d from done\n", index);
+					break;
+				}
+			}
+
+			spin_unlock_irqrestore(&cam->dqueue_int_lock, lock_flags);
+			spin_unlock_irqrestore(&cam->queue_int_lock, lock_flags);
+		}
+
 		spin_lock_irqsave(&cam->queue_int_lock, lock_flags);
 		if ((cam->frame[index].buffer.flags & 0x7) ==
 		    V4L2_BUF_FLAG_MAPPED) {
