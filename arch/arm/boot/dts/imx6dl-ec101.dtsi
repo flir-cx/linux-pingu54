@@ -140,7 +140,7 @@
 		compatible = "fsl,imx6q-v4l2-capture";
 		ipu_id = <0>;
 		csi_id = <0>;
-		videoflow_method = <2>;
+		videoflow_method = <1>;
 		mclk_source = <0>;
 		status = "okay";
 	};
@@ -149,7 +149,7 @@
 		compatible = "fsl,imx6q-v4l2-capture";
 		ipu_id = <0>;
 		csi_id = <1>;
-		videoflow_method = <2>;
+		videoflow_method = <1>;
 		mclk_source = <0>;
 		status = "okay";
 	};
