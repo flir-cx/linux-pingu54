@@ -147,6 +147,7 @@ struct ipu_soc {
 	bool bypass_reset;
 
 	unsigned int ch0123_axi;
+	unsigned int csiovl_axi;
 	unsigned int ch23_axi;
 	unsigned int ch27_axi;
 	unsigned int ch28_axi;
@@ -305,6 +306,7 @@ void ipu_dump_registers(struct ipu_soc *ipu);
 uint32_t _ipu_channel_status(struct ipu_soc *ipu, ipu_channel_t channel);
 
 void ipu_disp_init(struct ipu_soc *ipu);
+void ipu_disp_reinit(struct ipu_soc *ipu);
 void _ipu_init_dc_mappings(struct ipu_soc *ipu);
 int _ipu_dp_init(struct ipu_soc *ipu, ipu_channel_t channel, uint32_t in_pixel_fmt,
 		 uint32_t out_pixel_fmt);

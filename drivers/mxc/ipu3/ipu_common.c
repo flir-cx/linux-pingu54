@@ -37,6 +37,8 @@
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #include <asm/cacheflush.h>
 
@@ -93,6 +95,14 @@ static inline int _ipu_is_trb_chan(struct ipu_soc *ipu, uint32_t dma_chan)
 		 (dma_chan == 21) || (dma_chan == 23) ||
 		 (dma_chan == 27) || (dma_chan == 28)) &&
 		(ipu->devtype >= IPUv3EX));
+}
+
+static inline void _ipu_prio_output(struct ipu_soc *ipu, ipu_channel_t channel, ipu_buffer_t type)
+{
+	u32 value;
+	value = ipu_idmac_read(ipu, IDMAC_CHA_PRI(0));
+	value |= 1 << (channel_2_dma(channel, type));
+	ipu_idmac_write(ipu, value, IDMAC_CHA_PRI(0));
 }
 
 /*
@@ -293,6 +303,7 @@ struct ipu_devtype {
 struct ipu_platform_type {
 	struct ipu_devtype devtype;
 	unsigned int ch0123_axi;
+	unsigned int csiovl_axi;
 	unsigned int ch23_axi;
 	unsigned int ch27_axi;
 	unsigned int ch28_axi;
@@ -330,6 +341,7 @@ static struct ipu_platform_type ipu_type_imx51 = {
 	.ch23_axi = 1,
 	.ch27_axi = 1,
 	.ch28_axi = 1,
+	.csiovl_axi = 0,
 	.normal_axi = 0,
 	.smfc_idmac_12bit_3planar_bs_fixup = false,
 };
@@ -359,6 +371,7 @@ static struct ipu_platform_type ipu_type_imx53 = {
 	.ch23_axi = 1,
 	.ch27_axi = 1,
 	.ch28_axi = 1,
+	.csiovl_axi = 0,
 	.normal_axi = 0,
 	.idmac_used_bufs_en_r = false,
 	.idmac_used_bufs_en_w = false,
@@ -386,13 +399,16 @@ static struct ipu_platform_type ipu_type_imx6q = {
 		.type =		IPUv3H,
 		.idmac_used_bufs_present = true,
 	},
-	.ch0123_axi = 0,
+	.ch0123_axi = 1,
 	.ch23_axi = 0,
 	.ch27_axi = 0,
 	.ch28_axi = 0,
-	.normal_axi = 1,
-	.idmac_used_bufs_en_r = false,
-	.idmac_used_bufs_en_w = false,
+	.csiovl_axi = 0,
+	.normal_axi = 2,
+	.idmac_used_bufs_en_r = true,
+	.idmac_used_bufs_en_w = true,
+	.idmac_used_bufs_max_r = 0x3,
+	.idmac_used_bufs_max_w = 0x3,
 	.smfc_idmac_12bit_3planar_bs_fixup = false,
 };
 
@@ -421,6 +437,7 @@ static struct ipu_platform_type ipu_type_imx6qp = {
 	.ch23_axi = 0,
 	.ch27_axi = 2,
 	.ch28_axi = 3,
+	.csiovl_axi = 1,
 	.normal_axi = 1,
 	.idmac_used_bufs_en_r = true,
 	.idmac_used_bufs_en_w = true,
@@ -458,6 +475,9 @@ static int ipu_probe(struct platform_device *pdev)
 	const struct ipu_devtype *devtype = &iputype->devtype;
 	int ret = 0, id;
 	u32 bypass_reset, reg;
+    u32 out_val[3];
+	struct regmap *rm;
+	struct device_node *node;
 
 	dev_dbg(&pdev->dev, "<%s>\n", __func__);
 
@@ -481,6 +501,7 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu->id = id;
 	ipu->devtype = devtype->type;
 	ipu->ch0123_axi = iputype->ch0123_axi;
+	ipu->csiovl_axi = iputype->csiovl_axi;
 	ipu->ch23_axi = iputype->ch23_axi;
 	ipu->ch27_axi = iputype->ch27_axi;
 	ipu->ch28_axi = iputype->ch28_axi;
@@ -616,6 +637,8 @@ static int ipu_probe(struct platform_device *pdev)
 		/* Set MCU_T to divide MCU access window into 2 */
 		ipu_cm_write(ipu, 0x00400000L | (IPU_MCU_T_DEFAULT << 18),
 			     IPU_DISP_GEN);
+	} else {
+		ipu_disp_reinit(ipu);
 	}
 
 	/* setup ipu clk tree after ipu reset  */
@@ -654,6 +677,25 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu_cm_write(ipu, 0xFFFFFFFF, IPU_INT_CTRL(6));
 	ipu_cm_write(ipu, 0xFFFFFFFF, IPU_INT_CTRL(9));
 	ipu_cm_write(ipu, 0xFFFFFFFF, IPU_INT_CTRL(10));
+
+	// Setup IOMUXC_GPR6/7 to set proper IDMAC/AXI ID DDR priority
+	ret = of_property_read_u32_array(pdev->dev.of_node, "axi-id", out_val, 3);
+	if (ret) {
+		dev_info(&pdev->dev, "no axi-id property\n");
+	} else {
+		node = of_find_node_by_phandle(out_val[0]);
+		if (!node) {
+			dev_err(&pdev->dev, "could not find gpr node for axi-id\n");
+		} else {
+			rm = syscon_node_to_regmap(node);
+			if (!rm) {
+				dev_err(&pdev->dev, "could not find gpr regmap for axi-id\n");
+			} else {
+				dev_info(&pdev->dev, "Set axi-id QoS to %08X\n", out_val[2]);
+				regmap_update_bits(rm, out_val[1], 0xFFFFFFFF, out_val[2]);
+			}
+		}
+	}
 
 	if (!bypass_reset)
 		clk_disable(ipu->ipu_clk);
@@ -907,6 +949,9 @@ int32_t ipu_init_channel(struct ipu_soc *ipu, ipu_channel_t channel, ipu_channel
 				ipu->thrd_chan_en[IPU_CHAN_ID(channel)] = true;
 			}
 			ipu->sec_chan_en[IPU_CHAN_ID(channel)] = true;
+
+			/*Set ch 14 as high prio*/
+			_ipu_prio_output(ipu, channel, IPU_GRAPH_IN_BUFFER);
 		}
                 /**/
 
@@ -924,6 +969,8 @@ int32_t ipu_init_channel(struct ipu_soc *ipu, ipu_channel_t channel, ipu_channel
 		/*CSI data (include compander) dest*/
 		_ipu_csi_init(ipu, channel, params->csi_prp_vf_mem.csi);
 		_ipu_ic_init_prpvf(ipu, params, true);
+		/*Set ch 21 as high prio*/
+		_ipu_prio_output(ipu, channel, IPU_OUTPUT_BUFFER);
 		break;
 	case MEM_PRP_VF_MEM:
 		if (params->mem_prp_vf_mem.graphics_combine_en) {
@@ -1459,6 +1506,13 @@ void ipu_uninit_channel(struct ipu_soc *ipu, ipu_channel_t channel)
 }
 EXPORT_SYMBOL(ipu_uninit_channel);
 
+int32_t ipu_is_channel_active(struct ipu_soc *ipu, ipu_channel_t channel)
+{
+	return ((ipu->channel_init_mask & (1L << IPU_CHAN_ID(channel))) &&
+		(ipu->channel_enable_mask & (1L << IPU_CHAN_ID(channel))));
+}
+EXPORT_SYMBOL(ipu_is_channel_active);
+
 /*!
  * This function is called to initialize buffer(s) for logical IPU channel.
  *
@@ -1521,7 +1575,7 @@ int32_t ipu_init_channel_buffer(struct ipu_soc *ipu, ipu_channel_t channel,
 		return 0;
 
 	dma_chan = channel_2_dma(channel, type);
-        dev_err(ipu->dev, "** DMA CHANNEL 0x%02x\n", dma_chan);
+        //dev_err(ipu->dev, "** DMA CHANNEL 0x%02x\n", dma_chan);
 	if (!idma_is_valid(dma_chan))
 		return -EINVAL;
 
@@ -1629,6 +1683,11 @@ int32_t ipu_init_channel_buffer(struct ipu_soc *ipu, ipu_channel_t channel,
 	case 2:
 	case 3:
 		_ipu_ch_param_set_axi_id(ipu, dma_chan, ipu->ch0123_axi);
+		break;
+	case 14:
+	case 20:
+	case 21:
+		_ipu_ch_param_set_axi_id(ipu, dma_chan, ipu->csiovl_axi);
 		break;
 	case 23:
 		_ipu_ch_param_set_axi_id(ipu, dma_chan, ipu->ch23_axi);
@@ -3023,25 +3082,62 @@ static irqreturn_t ipu_err_irq_handler(int irq, void *desc)
 {
 	struct ipu_soc *ipu = desc;
 	int i;
-	uint32_t int_stat;
-	const int err_reg[] = { 5, 6, 9, 10, 0 };
+	uint32_t int_stat, loop_stat, line;
+	static const int err_reg[] = { 5, 6, 9, 10, 0 };
+	static const int main_irq[] = {
+			IPU_IRQ_CSI0_OUT_EOF,
+			IPU_IRQ_CSI1_OUT_EOF,
+			IPU_IRQ_CSI2_OUT_EOF,
+			IPU_IRQ_CSI3_OUT_EOF,
+			-1,-1,-1,-1,
+			-1,-1,-1,-1, -1,-1,-1,-1,
+			-1,-1,-1,-1, -1,-1,-1,-1,
+			IPU_IRQ_PRP_VF_OUT_EOF,
+			IPU_IRQ_PRP_ENC_OUT_EOF,
+			-1,-1, -1,-1,-1,-1,
+	};
+	static int err_ctr;
+	static int err_level = 1;
+	int id = ipu->id;
 
 	spin_lock(&ipu->int_reg_spin_lock);
 
 	for (i = 0; err_reg[i] != 0; i++) {
+		int handled = 0;
 		int_stat = ipu_cm_read(ipu,
 				IPU_INT_STAT(ipu->devtype, err_reg[i]));
 		int_stat &= ipu_cm_read(ipu, IPU_INT_CTRL(err_reg[i]));
 		if (int_stat) {
 			ipu_cm_write(ipu, int_stat,
 				IPU_INT_STAT(ipu->devtype, err_reg[i]));
-			dev_warn(ipu->dev,
-				"IPU Warning - IPU_INT_STAT_%d = 0x%08X\n",
-				err_reg[i], int_stat);
-			/* Disable interrupts so we only get error once */
-			int_stat = ipu_cm_read(ipu, IPU_INT_CTRL(err_reg[i])) &
-					~int_stat;
-			ipu_cm_write(ipu, int_stat, IPU_INT_CTRL(err_reg[i]));
+			if (err_reg[i] == 10) {
+				loop_stat = int_stat;
+				while ((line = ffs(loop_stat)) != 0) {
+					line--;
+					loop_stat &= ~(1UL << line);
+
+					if ((ipu->irq_list[main_irq[line]][0].handler) && (main_irq[line] >= 0)) {
+						ipu->irq_list[main_irq[line]][0].handler(
+								-1, ipu->irq_list[main_irq[line]][0].dev_id);
+						handled = 1;
+						pr_debug("IPU_ERR_IRQ %d - %d handled\n", id, main_irq[line]);
+						err_ctr++;
+					}
+				}
+			}
+			if (! handled) {
+				/* Disable interrupts so we only get error once */
+				int_stat = ipu_cm_read(ipu, IPU_INT_CTRL(err_reg[i])) &
+						~int_stat;
+				ipu_cm_write(ipu, int_stat, IPU_INT_CTRL(err_reg[i]));
+				pr_debug("IPU %d - IPU_INT_STAT_%d = 0x%08X\n",
+						id, err_reg[i], int_stat);
+				err_ctr++;
+			}
+			if (err_ctr & err_level) {
+				pr_warn("IPU %d - IPU_INT_STAT_X %d errors\n", id, err_ctr);
+				err_level <<= 1;
+			}
 		}
 	}
 

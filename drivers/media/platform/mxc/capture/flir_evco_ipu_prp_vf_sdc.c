@@ -24,7 +24,7 @@ static int buffer_num;
 static struct ipu_soc *disp_ipu;
 
 #if defined(CONFIG_MXC_CAMERA_FLIR)
-#define IPU_DEF_FORMAT	IPU_PIX_FMT_RGB32
+#define IPU_DEF_FORMAT	IPU_PIX_FMT_BGR32
 #define IPU_PIX_SIZE 	4
 #define HEIGHTFACTOR    3
 #else

@@ -638,6 +638,7 @@ int32_t ipu_link_channels(struct ipu_soc *ipu, ipu_channel_t src_ch, ipu_channel
 int32_t ipu_unlink_channels(struct ipu_soc *ipu, ipu_channel_t src_ch, ipu_channel_t dest_ch);
 
 int32_t ipu_is_channel_busy(struct ipu_soc *ipu, ipu_channel_t channel);
+int32_t ipu_is_channel_active(struct ipu_soc *ipu, ipu_channel_t channel);
 int32_t ipu_check_buffer_ready(struct ipu_soc *ipu, ipu_channel_t channel, ipu_buffer_t type,
 		uint32_t bufNum);
 void ipu_clear_buffer_ready(struct ipu_soc *ipu, ipu_channel_t channel, ipu_buffer_t type,
@@ -747,6 +748,8 @@ bool ipu_pixel_format_is_gpu_tile(uint32_t fmt);
 bool ipu_pixel_format_is_split_gpu_tile(uint32_t fmt);
 bool ipu_pixel_format_is_pre_yuv(uint32_t fmt);
 bool ipu_pixel_format_is_multiplanar_yuv(uint32_t fmt);
+void ipu_store_overlay_address(int addr);
+void ipu_store_alt_overlay_address(int addr);
 
 struct ipuv3_fb_platform_data {
 	char				disp_dev[32];
