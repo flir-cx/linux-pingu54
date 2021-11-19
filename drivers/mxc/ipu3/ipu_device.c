@@ -372,6 +372,12 @@ static struct timespec64 ts_frame_max;
 static u32 ts_frame_avg;
 static atomic_t frame_cnt;
 #endif
+static int stored_overlay_address;
+static int stored_alt_overlay_address;
+static DECLARE_COMPLETION(overlay_wait_complete);
+static int setCompletion;
+static int csiActive;
+static struct ipu_soc *csiIpu;
 
 static bool deinterlace_3_field(struct ipu_task_entry *t)
 {
@@ -411,6 +417,52 @@ static bool need_split(struct ipu_task_entry *t)
 {
 	return ((t->set.split_mode != NO_SPLIT) || (t->task_no & SPLIT_MASK));
 }
+
+// Syncronizing facet / fake fb update with CSI overlay addon
+// V4L2 indicating if CSI flow is active
+void ipu_csi_status (int enable, struct ipu_soc *ipu)
+{
+	csiActive = enable;
+	csiIpu = ipu;
+}
+EXPORT_SYMBOL_GPL(ipu_csi_status);
+
+// fb_pan setting new fake frame buffer (facet)
+void ipu_store_overlay_address (int addr)
+{
+	int gcur;
+
+	if (csiIpu) {
+		// Update overlay (/dev/fb2) input buffer
+		gcur = ipu_get_cur_buffer_idx(csiIpu, CSI_PRP_VF_MEM, IPU_GRAPH_IN_BUFFER);
+		gcur = !gcur;
+		ipu_update_channel_buffer(csiIpu, CSI_PRP_VF_MEM, IPU_GRAPH_IN_BUFFER, gcur, addr);
+		ipu_select_buffer(csiIpu, CSI_PRP_VF_MEM, IPU_GRAPH_IN_BUFFER, gcur);
+	}
+
+	stored_overlay_address = addr;
+	if (csiActive) {
+		setCompletion = 1;
+		wait_for_completion_timeout(&overlay_wait_complete, HZ/10);
+	}
+}
+EXPORT_SYMBOL_GPL(ipu_store_overlay_address);
+
+void ipu_store_alt_overlay_address (int addr)
+{
+	stored_alt_overlay_address = addr;
+}
+EXPORT_SYMBOL_GPL(ipu_store_alt_overlay_address);
+
+// CSI irq received for IPU VF IC channel
+void ipu_indicate_new_buffer (void)
+{
+	if (setCompletion) {
+		complete(&overlay_wait_complete);
+		setCompletion = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(ipu_indicate_new_buffer);
 
 unsigned int fmt_to_bpp(unsigned int pixelformat)
 {
@@ -1254,7 +1306,7 @@ static uint32_t ic_vf_pp_is_busy(struct ipu_soc *ipu, bool is_vf)
 	uint32_t	status_vf;
 	uint32_t	status_rot;
 
-#if defined (CONFIG_MXC_IPU_PRP_VF_SDC) || defined(CONFIG_FLIR_EVCO_MXC_IPU_PRP_VF_SDC)
+#if defined (CONFIG_MXC_IPU_PRP_VF_SDC)
 	if ((ipu->id == 1) && is_vf)
 		return 1;
 #endif
@@ -2035,6 +2087,12 @@ static int init_ic(struct ipu_soc *ipu, struct ipu_task_entry *t)
 		if (t->overlay.colorkey.enable) {
 			params.mem_prp_vf_mem.key_color_en = 1;
 			params.mem_prp_vf_mem.key_color = t->overlay.colorkey.value;
+		}
+		if (t->overlay.paddr == IPU_LATEST_SAVED_ADDRESS) {
+			if (stored_overlay_address)
+				t->overlay.paddr = stored_overlay_address;
+			else
+				t->overlay.paddr = stored_alt_overlay_address;
 		}
 	}
 

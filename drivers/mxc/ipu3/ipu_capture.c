@@ -114,6 +114,14 @@ ipu_csi_init_interface(struct ipu_soc *ipu, uint16_t width, uint16_t height,
 		return -EINVAL;
 	}
 
+	//Use external vsync...
+	cfg_param.ext_vsync=1;
+
+	_ipu_get(ipu);
+
+	//Do not destroy current flow
+	data = ipu_csi_read(ipu, csi, CSI_SENS_CONF) & CSI_SENS_CONF_DATA_DEST_MASK;
+
 	/* Set the CSI_SENS_CONF register remaining fields */
 	data |= cfg_param.data_width << CSI_SENS_CONF_DATA_WIDTH_SHIFT |
 		cfg_param.data_fmt << CSI_SENS_CONF_DATA_FMT_SHIFT |
@@ -126,8 +134,6 @@ ipu_csi_init_interface(struct ipu_soc *ipu, uint16_t width, uint16_t height,
 		cfg_param.pack_tight << CSI_SENS_CONF_PACK_TIGHT_SHIFT |
 		cfg_param.force_eof << CSI_SENS_CONF_FORCE_EOF_SHIFT |
 		cfg_param.data_en_pol << CSI_SENS_CONF_DATA_EN_POL_SHIFT;
-
-	_ipu_get(ipu);
 
 	mutex_lock(&ipu->mutex_lock);
 

@@ -123,6 +123,11 @@ struct mxcfb_info {
 	uint32_t cur_ipu_pfmt;
 	uint32_t cur_fb_pfmt;
 	bool cur_prefetch;
+
+	unsigned long copy_paddr[MAX_FB_NO];
+	bool do_copy[MAX_FB_NO];
+	struct ipu_crop copy_crop[MAX_FB_NO];
+
 	spinlock_t spin_lock;	/* for PRE small yres cases */
 	struct ipu_pre_context *pre_config;
 	struct backlight_device * bd;
@@ -608,7 +613,7 @@ static int _setup_disp_channel2(struct fb_info *fbi)
 		pre.handshake_en = true;
 		pre.hsk_abort_en = true;
 		pre.hsk_line_num = 0;
-		pre.sdw_update = true;
+		pre.sdw_update = false;
 		pre.cur_buf = base;
 		pre.next_buf = pre.cur_buf;
 		if (fbi->var.vmode & FB_VMODE_INTERLACED) {
@@ -1856,6 +1861,100 @@ static int mxcfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 }
 
 /*
+ * Function to copy/scale GUI to another frame buffer
+ */
+static void do_copy_gui (struct fb_info *info, unsigned long base, int fb)
+{
+	struct mxcfb_info *mxc_fbi = (struct mxcfb_info *)info->par;
+	struct ipu_task task;
+	struct mxcfb_info * mxc_dest_fbi = NULL;
+	struct fb_info * dest_fbi = NULL;
+	char name[16];
+	int i;
+	int ret;
+
+	memset(&task, 0, sizeof(task));
+
+	if (fb > 3) {
+		/* VPU output (RTP or AVI) */
+		strcpy (name, "DISP3 XX");
+		task.output.format  = v4l2_fourcc('Y', 'U', 'Y', 'V');
+	} else {
+		/* HDMI output */
+		strcpy (name, "DISP4 BG");
+		task.output.format  = v4l2_fourcc('R', 'G', 'B', 'P');
+	}
+
+	// Source screen task (RGB copy)
+	task.input.width  = info->var.xres;
+	task.input.height = info->var.yres;
+	task.input.format = v4l2_fourcc('B', 'G', 'R', '4');
+	task.input.paddr  = base;
+
+	// Find destination FB
+	mxc_dest_fbi = NULL;
+	for (i = 0; i < num_registered_fb; i++) {
+		if (strcmp(registered_fb[i]->fix.id, name) == 0) {
+			dest_fbi = registered_fb[i];
+			mxc_dest_fbi = (struct mxcfb_info *) (registered_fb[i]->par);
+			break;
+		}
+	}
+	if (!mxc_dest_fbi) {
+		pr_err("Dest not found\n");
+		return;
+	}
+
+	// Target screen task (RGB copy)
+	task.output.width   = mxc_dest_fbi->cur_var.xres;
+	task.output.height  = mxc_dest_fbi->cur_var.yres;
+	task.output.paddr = mxc_fbi->copy_paddr[fb];
+	if (mxc_dest_fbi->cur_var.yoffset)
+		mxc_dest_fbi->cur_var.yoffset = 0;
+	else {
+		mxc_dest_fbi->cur_var.yoffset = mxc_dest_fbi->cur_var.yres;
+		task.output.paddr += mxc_dest_fbi->cur_var.yres * mxc_dest_fbi->cur_var.xres * 2;
+	}
+	if (mxc_fbi->copy_crop[fb].w) {
+		memcpy(&task.output.crop, &mxc_fbi->copy_crop[fb], sizeof(task.output.crop));
+		task.input.crop.w = (task.output.crop.w * task.input.height) / task.output.height;
+		task.input.crop.h = (task.output.crop.h * task.input.height) / task.output.height;
+		task.input.crop.pos.x = (task.output.crop.pos.x * task.input.height) / task.output.height;
+		task.input.crop.pos.y = (task.output.crop.pos.y * task.input.height) / task.output.height;
+		pr_debug("CROP: %d %d %d %d\n", task.input.crop.w, task.input.crop.h,
+				task.input.crop.pos.x, task.input.crop.pos.y);
+	}
+
+	pr_debug("Copy %d %d %s %dx%d %X\n", fb, i, registered_fb[i]->fix.id,
+			mxc_dest_fbi->cur_var.xres, mxc_dest_fbi->cur_var.yres,
+			task.output.paddr);
+
+	// Perform the scaling of RGB
+	ret = ipu_queue_task(&task);
+	if (ret)
+		printk(KERN_ERR "queue ipu task error\n");
+
+	// Source screen task (Alpha copy)
+	task.input.format   = v4l2_fourcc('A', 'B', 'G', 'R');
+
+	// Target screen task (2)
+	task.output.format  = v4l2_fourcc('A', 'X', 'X', 'X');
+	task.output.paddr = mxc_dest_fbi->cur_ipu_alpha_buf ?
+			mxc_dest_fbi->alpha_phy_addr1 :
+			mxc_dest_fbi->alpha_phy_addr0 ;
+
+	// Perform the scaling of alpha
+	ret = ipu_queue_task(&task);
+	if (ret)
+		printk(KERN_ERR "queue ipu task error\n");
+
+	// Show new image
+	lock_fb_info(dest_fbi);
+	ret = fb_pan_display(dest_fbi, &mxc_dest_fbi->cur_var);
+	unlock_fb_info(dest_fbi);
+}
+
+/*
  * Function to handle custom ioctls for MXC framebuffer.
  *
  * @param       inode   inode struct
@@ -1929,14 +2028,18 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 					ipu_ch = MEM_BG_SYNC;
 				else if (mxc_fbi->ipu_ch == MEM_BG_SYNC)
 					ipu_ch = MEM_FG_SYNC;
+				else if (mxc_fbi->ipu_ch == MEM_BG_FAKE)
+					ipu_ch = 0;
 				else {
 					retval = -EINVAL;
 					break;
 				}
 
-				fbi_tmp = found_registered_fb(ipu_ch, mxc_fbi->ipu_id);
-				if (fbi_tmp)
-					((struct mxcfb_info *)(fbi_tmp->par))->alpha_chan_en = false;
+                if (ipu_ch) {
+				    fbi_tmp = found_registered_fb(ipu_ch, mxc_fbi->ipu_id);
+				    if (fbi_tmp)
+					  ((struct mxcfb_info *)(fbi_tmp->par))->alpha_chan_en = false;
+                }
 			} else
 				mxc_fbi->alpha_chan_en = false;
 
@@ -2026,6 +2129,16 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			}
 			break;
 		}
+	case MXCFB_GET_LOC_ALP_BUF:
+		{
+			uint32_t buf;
+			buf = mxc_fbi->cur_ipu_alpha_buf ?
+					mxc_fbi->alpha_phy_addr0 :
+					mxc_fbi->alpha_phy_addr1;
+			if (put_user(buf, argp))
+				return -EFAULT;
+			break;
+		}
 	case MXCFB_SET_CLR_KEY:
 		{
 			struct mxcfb_color_key key;
@@ -2075,7 +2188,9 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			fmt.var.activate = (fbi->var.activate & ~FB_ACTIVATE_MASK) |
 						FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
 			console_lock();
+            //fbi->flags |= FBINFO_MISC_USEREVENT;
 			retval = fb_set_var(fbi, &fmt.var);
+            //fbi->flags &= ~FBINFO_MISC_USEREVENT;
 			if (!retval)
 				fbcon_update_vcs(fbi, fmt.var.activate & FB_ACTIVATE_ALL);
 			console_unlock();
@@ -2371,7 +2486,85 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			mxcfb_blank(FB_BLANK_UNBLANK, fbi);
 			break;
 		}
+	case MXCFB_SET_OVL_COPY:
+		{
+			if (mxc_fbi->ipu_ch != MEM_BG_SYNC) {
+				dev_err(fbi->device, "Should use the overlay FB\n");
+				retval = -EINVAL;
+				break;
+			}
 
+			if (!arg)
+				retval = -EINVAL;
+			else {
+				struct mxcfb_ovl_copy indata;
+				if (copy_from_user(&indata, (void *) arg, sizeof(indata))) {
+					pr_err("Failed to copy indata\n");
+					retval = -EFAULT;
+					break;
+				}
+				if (indata.fbnum >= MAX_FB_NO) {
+					pr_err("Erroneous fb %d\n", indata.fbnum);
+					retval = -EINVAL;
+					break;
+				}
+				if (indata.paddr) {
+					unsigned long base;
+					mxc_fbi->copy_paddr[indata.fbnum] = indata.paddr;
+					mxc_fbi->do_copy[indata.fbnum] = true;
+					memset(&mxc_fbi->copy_crop[indata.fbnum], 0, sizeof(struct ipu_crop));
+
+					base = fbi->fix.smem_start;
+					base += fbi->var.yoffset * fbi->fix.line_length;
+
+					do_copy_gui (fbi, base, indata.fbnum);
+				} else
+					mxc_fbi->do_copy[indata.fbnum] = false;
+				retval = 0;
+			}
+			break;
+		}
+	    case MXCFB_SET_OVL_COPY_EX:
+		{
+			if (mxc_fbi->ipu_ch != MEM_BG_SYNC) {
+				dev_err(fbi->device, "Should use the overlay FB\n");
+				retval = -EINVAL;
+				break;
+			}
+
+			if (!arg)
+				retval = -EINVAL;
+			else {
+				struct mxcfb_ovl_copy_ex indata;
+				if (copy_from_user(&indata, (void *) arg, sizeof(indata))) {
+					pr_err("Failed to copy indata\n");
+					retval = -EFAULT;
+					break;
+				}
+				if (indata.fbnum >= MAX_FB_NO) {
+					pr_err("Erroneous fb %d\n", indata.fbnum);
+					retval = -EINVAL;
+					break;
+				}
+				if (indata.paddr) {
+					unsigned long base;
+					mxc_fbi->copy_paddr[indata.fbnum] = indata.paddr;
+					mxc_fbi->do_copy[indata.fbnum] = true;
+					mxc_fbi->copy_crop[indata.fbnum].w = indata.crop_width;
+					mxc_fbi->copy_crop[indata.fbnum].h = indata.crop_height;
+					mxc_fbi->copy_crop[indata.fbnum].pos.x = indata.crop_x;
+					mxc_fbi->copy_crop[indata.fbnum].pos.y = indata.crop_y;
+
+					base = fbi->fix.smem_start;
+					base += fbi->var.yoffset * fbi->fix.line_length;
+
+					do_copy_gui (fbi, base, indata.fbnum);
+				} else
+					mxc_fbi->do_copy[indata.fbnum] = false;
+				retval = 0;
+			}
+			break;
+		}
 	default:
 		retval = -EINVAL;
 	}
@@ -2440,6 +2633,8 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	int bw = 0, bh = 0;
 	int i;
 	int ret;
+	int fb;
+	int is_channel_active;
 
 	/* no pan display during fb blank */
 	if (mxc_fbi->ipu_ch == MEM_FG_SYNC) {
@@ -2556,6 +2751,34 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		ipu_base = base;
 	}
 
+	/*
+	 * Bugfix to be able to update the overlay address even if the
+	 * MEM_BG_SYNC channel is disabled. This is a kind of
+	 * workaround of a prior bugfix that disabled the MEM_BG_SYNC
+	 * channel to avoid flickering of the stream content.
+	 *
+	 * If the channel is not active the channel IRQ will never
+	 * execute and the wait for flip_complete will reach timeout
+	 * and the function will return. This prevents the overlay
+	 * address to be updated.
+	 *
+	 * When updating an IPU channel's buffer the buffer is set as
+	 * ready for processing by the CPU. The buffer is then not
+	 * updateable until it is processed by the IPU and the buffer
+	 * ready control bit in IPUx_CH_BUFx_RDYx register is
+	 * cleared. If the channel is not active the buffer will never
+	 * be set as cleared and any further updates will fail.
+	 *
+	 * Jump to complete_pan after updating the overlay address to
+	 * prevent from timeing out or fail when updating the physical
+	 * address for an IPU buffer.
+	 */
+	is_channel_active = ipu_is_channel_active(mxc_fbi->ipu, mxc_fbi->ipu_ch);
+	if(mxc_fbi->ipu_ch == MEM_BG_SYNC && !is_channel_active){
+	  		ipu_store_alt_overlay_address(ipu_base);
+			goto complete_pan;
+	}
+
 	/* Check if DP local alpha is enabled and find the graphic fb */
 	if (mxc_fbi->ipu_ch == MEM_BG_SYNC || mxc_fbi->ipu_ch == MEM_FG_SYNC ||
 			mxc_fbi->ipu_ch == MEM_BG_FAKE) {
@@ -2588,13 +2811,33 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		}
 	}
 
-	if (mxc_fbi->ipu_ch != MEM_BG_FAKE) {
+	/* Wait for channel IRQ before continueing. */
+	if (mxc_fbi->ipu_ch == MEM_BG_FAKE) {
+#ifdef CONFIG_MXC_EPIT_BOOTTIME
+		extern u32 board_get_time(void);
+		static int init;
+
+		if (++init == 5) {
+			pr_info("overlay boottime %d\n", board_get_time());
+		}
+#endif
+		info->var.yoffset = var->yoffset;
+		ipu_update_channel_buffer(mxc_fbi->ipu, CSI_PRP_VF_MEM, IPU_GRAPH_IN_BUFFER,
+				mxc_fbi->cur_ipu_buf, ipu_base);
+		ipu_store_overlay_address(ipu_base);
+		return 0;
+	} else if (mxc_fbi->ipu_ch == MEM_BG_SYNC) {
+		ipu_store_alt_overlay_address(ipu_base);
+	}
+	else {
 		ret = wait_for_completion_timeout(&mxc_fbi->flip_complete, HZ/2);
 		if (ret == 0) {
-			dev_err(info->device, "timeout when waiting for flip irq %X\n", mxc_fbi->ipu_ch);
+			dev_err(info->device, "Timeout when waiting for IPU channel %X, irq %X\n",
+				mxc_fbi->ipu_ch,
+				mxc_fbi->ipu_ch_irq);
 			ipu_clear_irq(mxc_fbi->ipu, mxc_fbi->ipu_ch_irq);
 			ipu_enable_irq(mxc_fbi->ipu, mxc_fbi->ipu_ch_irq);
- 			return -ETIMEDOUT;
+			return -ETIMEDOUT;
 		}
 	}
 
@@ -2612,13 +2855,6 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	if (mxc_fbi->cur_prefetch)
 		goto next;
-
-	if (mxc_fbi->ipu_ch == MEM_BG_FAKE) {
-		info->var.yoffset = var->yoffset;
-		ipu_update_channel_buffer(mxc_fbi->ipu, CSI_PRP_VF_MEM, IPU_GRAPH_IN_BUFFER,
-				mxc_fbi->cur_ipu_buf, ipu_base);
-		return 0;
-	}
 
 	if (ipu_update_channel_buffer(mxc_fbi->ipu, mxc_fbi->ipu_ch, IPU_INPUT_BUFFER,
 				      mxc_fbi->cur_ipu_buf, ipu_base) == 0) {
@@ -2696,6 +2932,16 @@ next:
 		}
 	}
 
+	// Copy overlay graphics from IPU0 to IPU1
+	for (fb = 2; fb < MAX_FB_NO; fb++)
+	{
+		if ((mxc_fbi->do_copy[fb]) && (mxc_fbi->ipu_ch == MEM_BG_SYNC))
+		{
+			do_copy_gui(info, base, fb);
+		}
+	}
+
+complete_pan:
 	dev_dbg(info->device, "Update complete\n");
 
 	info->var.yoffset = var->yoffset;

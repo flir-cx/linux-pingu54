@@ -166,6 +166,23 @@ struct mxcfb_csc_matrix {
 	int param[5][3];
 };
 
+/*
+ * Structure used to define overlay copying
+ */
+struct mxcfb_ovl_copy {
+	u_int32_t paddr;	// smem_start of destination fb (set to 0 to stop copy)
+	int fbnum;		// number of destination fb
+};
+
+struct mxcfb_ovl_copy_ex {
+	u_int32_t paddr;	// smem_start of destination fb (set to 0 to stop copy)
+	int fbnum;		// number of destination fb
+	int crop_width;		// output width (input will be scaled)
+	int crop_height;	// output height
+	int crop_x;		// output column offset
+	int crop_y;		// output row offset
+};
+
 #define MXCFB_WAIT_FOR_VSYNC	_IOW('F', 0x20, u_int32_t)
 #define MXCFB_SET_GBL_ALPHA     _IOW('F', 0x21, struct mxcfb_gbl_alpha)
 #define MXCFB_SET_CLR_KEY       _IOW('F', 0x22, struct mxcfb_color_key)
@@ -182,6 +199,9 @@ struct mxcfb_csc_matrix {
 #define MXCFB_SET_GPU_SPLIT_FMT	_IOW('F', 0x2F, struct mxcfb_gpu_split_fmt)
 #define MXCFB_SET_PREFETCH	_IOW('F', 0x30, int)
 #define MXCFB_GET_PREFETCH	_IOR('F', 0x31, int)
+#define MXCFB_GET_LOC_ALP_BUF	_IOR('F', 0x35, u_int32_t)
+#define MXCFB_SET_OVL_COPY	_IOW('F', 0x37, struct mxcfb_ovl_copy)
+#define MXCFB_SET_OVL_COPY_EX	_IOW('F', 0x38, struct mxcfb_ovl_copy_ex)
 #define MXCFB_SWAP_PANEL		_IOW('F', 0x100, u_int32_t)
 
 /* IOCTLs for E-ink panel updates */

@@ -1993,3 +1993,8 @@ void ipu_disp_init(struct ipu_soc *ipu)
 	_ipu_init_dc_mappings(ipu);
 	_ipu_dmfc_init(ipu, DMFC_NORMAL, 1);
 }
+
+void ipu_disp_reinit(struct ipu_soc *ipu)
+{
+	_ipu_init_dc_mappings(ipu);
+}

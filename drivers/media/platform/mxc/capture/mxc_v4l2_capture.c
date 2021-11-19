@@ -218,6 +218,8 @@ static struct v4l2_int_master mxc_v4l2_master = {
 	.detach = mxc_v4l2_master_detach,
 };
 
+extern void ipu_csi_status (int enable, struct ipu_soc *ipu);
+
 /***************************************************************************
  * Functions for handling Frame buffers.
  **************************************************************************/
@@ -704,6 +706,9 @@ int start_preview(cam_data *cam)
 		 __func__,
 		 cam->crop_current.width, cam->crop_current.height);
 
+	// Indicate to fb handling that CSI is active
+	ipu_csi_status (1, cam->ipu);
+
 	return err;
 }
 
@@ -717,6 +722,9 @@ int start_preview(cam_data *cam)
 static int stop_preview(cam_data *cam)
 {
 	int err = 0;
+
+	// Indicate to fb handling that CSI is inactive
+	ipu_csi_status (0, cam->ipu);
 
 	if (cam->vf_disable_csi) {
 		err = cam->vf_disable_csi(cam);

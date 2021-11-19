@@ -290,4 +290,7 @@ enum {
 #define IPU_ALLOC		_IOWR('I', 0x3, int)
 #define IPU_FREE		_IOW('I', 0x4, int)
 
+/* Key to fake physical addresses */
+#define IPU_LATEST_SAVED_ADDRESS	0x55AA33CC
+
 #endif
