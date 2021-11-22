@@ -33,4 +33,24 @@
                 vin-supply = <&reg_gps_en>;
 	};
 
+	legp3_acc_kxtj3: legp3_acc_kxtj3@0E {
+		compatible = "kionix,kxtj3";
+		reg = <0x0E>;
+		// Remap axes for appcore
+		axis-map-x = <1>;
+		axis-map-y = <0>;
+		axis-map-z = <2>;
+		negate-z;
+		is-sensor-accel;
+	};
+
+	legp3_mag_bm1422: legp3_mag_bm1422@0F {
+		compatible = "rohm,bm1422";
+		reg = <0x0F>;
+		// Remap axes for appcore
+		axis-map-x = <1>;
+		axis-map-y = <0>;
+		axis-map-z = <2>;
+		negate-z;
+	};
 };
