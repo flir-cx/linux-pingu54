@@ -136,3 +136,8 @@ config FB_MXC_DCIC
 	depends on FB_MXC_SYNC_PANEL
 	depends on MXC_IPU_V3 || FB_MXS
 	select VIDEOMODE_HELPERS
+
+config MXC_LCD2DP_TC358767
+	bool "Enable LCD2DP TC358767 bridge."
+	help
+	  Say Y here to enable the LCD2DP TOSHIBA 358767 adapter.
