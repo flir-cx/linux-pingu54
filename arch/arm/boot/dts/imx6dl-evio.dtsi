@@ -214,6 +214,20 @@
 		reg = <0x55>;
 	};
 
+    touchscreen:tsc@70 {
+        status = "okay";
+        compatible = "cypress,cyttsp5";
+        reg = <0x70>;
+        vdd-supply = <&DA9063_LDO11>;
+
+        pinctrl_names = "default";
+        interrupt-parent = <&gpio7>;
+        interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&evio_pca9534_0x46 7 GPIO_ACTIVE_HIGH>;
+        touchscreen-size-x = <640>;
+        touchscreen-size-y = <480>;
+    };
+
 	touchscreen:edt_ft5336@38 {
 		compatible = "edt,ft5336";
 		reg = <0x38>;
