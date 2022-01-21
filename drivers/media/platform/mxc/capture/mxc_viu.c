@@ -926,6 +926,9 @@ static int imx_viu_dma_done_handle(struct imx_viu_device *viu_dev)
 		/* delete current buffer from queue */
 		list_del_init(&buf->internal.queue);
 		to_vb2_v4l2_buffer(vb)->sequence = viu_dev->frame_count;
+
+		/* set timestamp */
+		vb->timestamp = ktime_get_ns();
 		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 	}
 
