@@ -758,6 +758,9 @@ static int imx_rpmsg_dma_done_handle(struct imx_rpmsg_device *rpmsg_dev, dma_add
 			/* delete current buffer from queue  and make vb2 know buffer is done. */
 			list_del_init(&buf->internal.queue);
 			to_vb2_v4l2_buffer(vb)->sequence = rpmsg_dev->frame_count++;
+
+			/* set timestamp */
+			vb->timestamp = ktime_get_ns();
 			vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 			break;
 		}
