@@ -1069,8 +1069,6 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 	touchscreen_parse_properties(ts->input, true, &ts->prop);
 
 	__set_bit(EV_KEY, ts->input->evbit);
-	__set_bit(ABS_X, ts->input->absbit);
-	__set_bit(ABS_Y, ts->input->absbit);
 	__set_bit(BTN_TOUCH, ts->input->keybit);
 	for (i = 0; i < si->num_btns; i++)
 		__set_bit(si->key_code[i], ts->input->keybit);
