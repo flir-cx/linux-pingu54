@@ -107,7 +107,6 @@
 			compatible = "regulator-fixed";
 			regulator-name = "reg_audio_en";
 			gpio = <&evio_pca9534_0x46 6 GPIO_ACTIVE_HIGH>;
-			startup-delay-us = <4000>;
 			enable-active-high;
 		};
 		reg_gps_en: reg_gps_en {
