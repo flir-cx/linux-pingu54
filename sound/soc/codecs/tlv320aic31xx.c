@@ -1185,7 +1185,7 @@ static int aic31xx_regulator_event(struct notifier_block *nb,
 		 * supplies was disabled.
 		 */
 		if (aic31xx->gpio_reset)
-			gpiod_set_value(aic31xx->gpio_reset, 1);
+			gpiod_set_value_cansleep(aic31xx->gpio_reset, 1);
 
 		regcache_mark_dirty(aic31xx->regmap);
 		dev_dbg(aic31xx->dev, "## %s: DISABLE received\n", __func__);
@@ -1199,9 +1199,9 @@ static int aic31xx_reset(struct aic31xx_priv *aic31xx)
 	int ret = 0;
 
 	if (aic31xx->gpio_reset) {
-		gpiod_set_value(aic31xx->gpio_reset, 1);
+		gpiod_set_value_cansleep(aic31xx->gpio_reset, 1);
 		ndelay(10); /* At least 10ns */
-		gpiod_set_value(aic31xx->gpio_reset, 0);
+		gpiod_set_value_cansleep(aic31xx->gpio_reset, 0);
 	} else {
 		ret = regmap_write(aic31xx->regmap, AIC31XX_RESET, 1);
 	}
@@ -1247,6 +1247,9 @@ static int aic31xx_power_on(struct snd_soc_component *component)
 {
 	struct aic31xx_priv *aic31xx = snd_soc_component_get_drvdata(component);
 	int ret;
+	
+	/* Make sure reset is pulled before switching on power */
+	gpiod_set_value_cansleep(aic31xx->gpio_reset, 1);
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(aic31xx->supplies),
 				    aic31xx->supplies);
@@ -1254,6 +1257,9 @@ static int aic31xx_power_on(struct snd_soc_component *component)
 		return ret;
 
 	regcache_cache_only(aic31xx->regmap, false);
+	
+	/* Hold reset at least 4 ms after power on */
+	usleep_range(4000, 5000);
 
 	/* Reset device registers for a consistent power-on like state */
 	ret = aic31xx_reset(aic31xx);

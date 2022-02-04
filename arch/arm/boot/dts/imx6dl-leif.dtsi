@@ -107,7 +107,6 @@
 			compatible = "regulator-fixed";
 			regulator-name = "reg_audio_en";
 			gpio = <&leif_pca9534_0x46 0 GPIO_ACTIVE_HIGH>;
-			startup-delay-us = <4000>;
 			enable-active-high;
 		};
 		reg_gps_en: reg_gps_en {
@@ -125,6 +124,7 @@
 		cpu-dai = <&ssi1>;
 		audio-routing =
 			"Ext Spk", "SPK",
+			"Mic Jack", "MICBIAS",
 			"MIC1RP", "Mic Jack";
 		audio-codec = <&tlv320aic31xx>;
 		mux-int-port = <1>;
@@ -247,7 +247,7 @@
                 AVDD-supply = <&reg_audio_en>;
                 IOVDD-supply = <&reg_audio_en>;
                 DVDD-supply = <&reg_audio_en>;
-		gpio-reset = <&leif_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&leif_pca9534_0x46 2 GPIO_ACTIVE_LOW>;
 	};
 
 	lp5521first: lp5521first@32 {
