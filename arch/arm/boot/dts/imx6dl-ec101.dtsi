@@ -319,7 +319,7 @@
 	pinctrl-0 = <&pinctrl_ecspi4>;
 	status = "okay";
 	fsl,spi-num-chipselects = <1>;
-	cs-gpios = <&gpio3 20 0>;
+	cs-gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
 
 	da9063: da9063@0 {
 		compatible = "dlg,da9063";
