@@ -1339,6 +1339,7 @@ static int si1145_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id si1145_ids[] = {
+	{ "si114x", SI1141 },
 	{ "si1132", SI1132 },
 	{ "si1141", SI1141 },
 	{ "si1142", SI1142 },
@@ -1350,9 +1351,19 @@ static const struct i2c_device_id si1145_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, si1145_ids);
 
+static const struct of_device_id si114x_of_match[] = {
+	{ .compatible = "silabs,si114x", },
+	{ .compatible = "silabs,si1141", },
+	{ .compatible = "silabs,si1142", },
+	{ .compatible = "silabs,si1143", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, si114x_of_match);
+
 static struct i2c_driver si1145_driver = {
 	.driver = {
 		.name   = "si1145",
+		.of_match_table = si114x_of_match,
 	},
 	.probe  = si1145_probe,
 	.id_table = si1145_ids,

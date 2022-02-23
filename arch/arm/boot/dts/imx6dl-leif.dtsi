@@ -191,7 +191,7 @@
 		compatible = "nxp,pca9534";
 		reg = <0x20>;
 		gpio-controller;
-		vcc-supply = <&DA9063_LDO11>;
+		/*vcc-supply = <&DA9063_LDO11>;*/
 		interrupt-parent = <&gpio4>; //I2C3_Alert_n
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
@@ -204,7 +204,7 @@
 		compatible = "nxp,pca9534";
 		reg = <0x21>;
 		gpio-controller;
-		vcc-supply = <&DA9063_LDO11>;
+		/*vcc-supply = <&DA9063_LDO11>;*/
 		interrupt-parent = <&gpio4>; //I2C3_Alert_n
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
@@ -218,7 +218,7 @@
 		compatible = "nxp,pca9534";
 		reg = <0x23>;
 		gpio-controller;
-		vcc-supply = <&DA9063_LDO11>;
+		/*vcc-supply = <&DA9063_LDO11>;*/
 		/*leif-a missing interrupt pin*/
 		interrupt-parent = <&gpio4>; //I2C3_Alert_n
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
@@ -231,9 +231,9 @@
 	leif_pca9534_0x4a: leif_pca9534_0x4a@25 {
 		compatible = "nxp,pca9534";
 		reg = <0x25>;
-		vcc-supply = <&DA9063_LDO11>;
+		/*vcc-supply = <&DA9063_LDO11>;*/
 		gpio-controller;
-				#gpio-cells = <2>;
+		#gpio-cells = <2>;
 	};
 
 	tlv320aic31xx: tlv320aic31xx@18 {
