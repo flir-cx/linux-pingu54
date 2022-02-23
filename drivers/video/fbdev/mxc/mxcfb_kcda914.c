@@ -319,13 +319,13 @@ static struct reg_value vf_setup[] =
 {0xFF, 0x0}
 };
 
-static int kcda914bl_brightness;
+static int kcda914bl_brightness = KCDA914BL_DEF_BRIGHT;
 static int mipid_init_backlight(struct mipi_dsi_info *mipi_dsi);
 static void mipid_bl_set_brightness(struct mipi_dsi_info *mipi_dsi, int brightness);
 
 static void brightness_work_handler(struct work_struct *w)
 {
-	mipid_bl_set_brightness(dsi, kcda914bl_brightness);
+   	mipid_bl_set_brightness(dsi, kcda914bl_brightness);
 }
 
 
@@ -431,10 +431,14 @@ static int mipid_bl_update_status(struct backlight_device *bl)
 static void mipid_bl_set_brightness(struct mipi_dsi_info *mipi_dsi, int brightness)
 {
 	int temp;
-	temp = brightness << 4 ;
-	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_PWM1 ,temp & 0xff);
-	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_PWM2 ,0xc0 | ((temp >> 8) & 0xf)) ;
-	kcda914bl_brightness = brightness & KCDA914BL_MAX_BRIGHT;
+    int power = mipid_kcda914_lcd_power_get(mipi_dsi);
+    if (power)
+    {
+    	temp = brightness << 4 ;
+    	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_PWM1 ,temp & 0xff);
+    	kcda914_i2c_reg_write(mipi_dsi, KCDA914_REG_PWM2 ,0xc0 | ((temp >> 8) & 0xf)) ;
+    }
+   	kcda914bl_brightness = brightness & KCDA914BL_MAX_BRIGHT;
 }
 
 static int mipid_bl_get_brightness(struct backlight_device *bl)

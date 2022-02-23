@@ -130,8 +130,6 @@
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 500000>; //500us=2KHz
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pwm1>;
 		default-brightness-level = <7>;
 		options = <3>;	// Restore backlight after suspend
 	};
@@ -621,7 +619,7 @@
 
 	imx6dl-ec101 {
 
-		pinctrl_pwm1: pwm1 {
+		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_9__PWM1_OUT		0x80000000
 			>;
@@ -842,6 +840,13 @@
 &pcie {
 	status = "okay";
 	reset-gpio = <&gpio2 3 0>;
+};
+
+&pwm1 {
+	#pwm-cells = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
 };
 
 /*Active serial port*/

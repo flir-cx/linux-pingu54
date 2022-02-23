@@ -22,6 +22,8 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/module.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 #define BH1750_POWER_DOWN		0x00
 #define BH1750_ONE_TIME_H_RES_MODE	0x20 /* auto-mode for BH1721 */
@@ -234,6 +236,24 @@ static int bh1750_probe(struct i2c_client *client,
 	int ret, usec;
 	struct bh1750_data *data;
 	struct iio_dev *indio_dev;
+	struct device_node *np = client->dev.of_node;
+
+	//Toggle DVI pin to initiate bh1750 i2c device
+	int dvipin = of_get_named_gpio(np, "dvi-pin", 0);
+	if (gpio_is_valid(dvipin)) {
+		ret = devm_gpio_request_one(&client->dev, dvipin,
+					    GPIOF_DIR_OUT, "bh1750_enable");
+		if (ret < 0) {
+			dev_err(&client->dev, "could not acquire enable gpio (err=%d)\n",
+				ret);
+			return -EOPNOTSUPP;
+		}
+
+		gpio_set_value_cansleep(dvipin, 0);
+		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
+		gpio_set_value_cansleep(dvipin, 1);
+		usleep_range(1000, 2000); /* 500us abs min. */
+	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				I2C_FUNC_SMBUS_WRITE_BYTE))
