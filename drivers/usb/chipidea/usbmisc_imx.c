@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/regmap.h>
 #include <linux/usb/otg.h>
 
 #include "ci_hdrc_imx.h"
@@ -92,6 +93,10 @@
 #define MX6SX_USB_VBUS_WAKEUP_SOURCE_SESS_END	MX6SX_USB_VBUS_WAKEUP_SOURCE(3)
 
 #define VF610_OVER_CUR_DIS		BIT(7)
+
+#define ANADIG_ANA_MISC0		0x150
+#define ANADIG_ANA_MISC0_SET		0x154
+#define ANADIG_ANA_MISC0_CLK_DELAY(x)	((x >> 26) & 0x7)
 
 #define MX7D_USBNC_USB_CTRL2		0x4
 #define MX7D_USB_VBUS_WAKEUP_SOURCE_MASK	0x3
@@ -562,6 +567,31 @@ static int usbmisc_imx6sx_init(struct imx_usbmisc_data *data)
 		writel(val & ~MX6SX_BM_DPDM_WAKEUP_EN,
 			usbmisc->base + data->index * 4);
 		spin_unlock_irqrestore(&usbmisc->lock, flags);
+	}
+
+	/* For HSIC controller */
+	if (data->index == 2) {
+		spin_lock_irqsave(&usbmisc->lock, flags);
+		val = readl(usbmisc->base + data->index * 4);
+		writel(val | MX6_BM_UTMI_ON_CLOCK,
+			usbmisc->base + data->index * 4);
+		val = readl(usbmisc->base + MX6_USB_HSIC_CTRL_OFFSET
+						+ (data->index - 2) * 4);
+		val |= MX6_BM_HSIC_EN | MX6_BM_HSIC_CLK_ON |
+					MX6SX_BM_HSIC_AUTO_RESUME;
+		writel(val, usbmisc->base + MX6_USB_HSIC_CTRL_OFFSET
+						+ (data->index - 2) * 4);
+		spin_unlock_irqrestore(&usbmisc->lock, flags);
+
+		/*
+		 * Need to add delay to wait 24M OSC to be stable,
+		 * it's board specific.
+		 */
+		regmap_read(data->anatop, ANADIG_ANA_MISC0, &val);
+		/* 0 <= data->osc_clkgate_delay <= 7 */
+		if (data->osc_clkgate_delay > ANADIG_ANA_MISC0_CLK_DELAY(val))
+			regmap_write(data->anatop, ANADIG_ANA_MISC0_SET,
+					(data->osc_clkgate_delay) << 26);
 	}
 
 	/* For HSIC controller */

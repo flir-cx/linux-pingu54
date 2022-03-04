@@ -28,6 +28,12 @@ struct imx_usbmisc_data {
 	enum usb_dr_mode available_role; /* runtime usb dr mode */
 	int emp_curr_control;
 	int dc_vol_level_adjust;
+	/*
+	 * Specifies the delay between powering up the xtal 24MHz clock
+	 * and release the clock to the digital logic inside the analog block
+	 */
+	unsigned int osc_clkgate_delay;
+	struct regmap *anatop;
 };
 
 int imx_usbmisc_init(struct imx_usbmisc_data *data);

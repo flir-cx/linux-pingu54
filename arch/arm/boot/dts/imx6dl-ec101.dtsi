@@ -881,6 +881,7 @@
 	disable-over-current;
 	status = "okay";
 	imx6-usb-charger-detection;
+	fsl,anatop = <&anatop>;
 //	dr_mode = "host";
 //	dr_mode = "peripheral";
 	dr_mode = "otg";
