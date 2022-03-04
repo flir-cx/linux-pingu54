@@ -1640,6 +1640,36 @@ static const struct usb_ep_ops usb_ep_ops = {
 	.fifo_flush    = ep_fifo_flush,
 };
 
+int ci_usb_charger_connect(struct ci_hdrc *ci, int is_active)
+{
+	int ret = 0;
+
+	if (is_active)
+		pm_runtime_get_sync(ci->dev);
+
+	if (ci->platdata->notify_event) {
+		if (is_active)
+			hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
+
+		ret = ci->platdata->notify_event(ci,
+				CI_HDRC_CONTROLLER_VBUS_EVENT);
+		if (ret == CI_HDRC_NOTIFY_RET_DEFER_EVENT) {
+			hw_device_reset(ci);
+			/* Pull up dp */
+			hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
+			ci->platdata->notify_event(ci,
+				CI_HDRC_CONTROLLER_CHARGER_POST_EVENT);
+			/* Pull down dp */
+			hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
+		}
+	}
+
+	if (!is_active)
+		pm_runtime_put_sync(ci->dev);
+
+	return ret;
+}
+
 /******************************************************************************
  * GADGET block
  *****************************************************************************/
@@ -1700,6 +1730,9 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 		else
 			usb_phy_set_event(ci->usb_phy, USB_EVENT_NONE);
 	}
+
+	/* Charger Detection */
+	ci_usb_charger_connect(ci, is_active);
 
 	if (ci->driver)
 		ci_hdrc_gadget_connect(_gadget, is_active);

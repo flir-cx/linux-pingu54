@@ -14,6 +14,8 @@
 #include <linux/clk.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_qos.h>
+#include <linux/mfd/syscon.h>
+#include <linux/power/imx6_usb_charger.h>
 #include <linux/busfreq-imx.h>
 
 #include "ci.h"
@@ -92,6 +94,9 @@ struct ci_hdrc_imx_data {
 	struct imx_usbmisc_data *usbmisc_data;
 	bool supports_runtime_pm;
 	bool override_phy_control;
+	bool imx6_usb_charger_detection;
+	struct usb_charger charger;
+	struct regmap *anatop;
 	bool in_lpm;
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pinctrl_hsic_active;
@@ -302,12 +307,29 @@ static int ci_hdrc_imx_notify_event(struct ci_hdrc *ci, unsigned int event)
 				"hsic_set_connect failed, err=%d\n", ret);
 		break;
 	case CI_HDRC_CONTROLLER_VBUS_EVENT:
-		if (ci->vbus_active)
-			ret = imx_usbmisc_charger_detection(mdata, true);
-		else
-			ret = imx_usbmisc_charger_detection(mdata, false);
+		if (data->usbmisc_data && ci->vbus_active) {
+			if (data->imx6_usb_charger_detection) {
+				ret = imx6_usb_vbus_connect(&data->charger);
+				if (!ret && data->charger.type !=
+							POWER_SUPPLY_TYPE_USB)
+					ret = CI_HDRC_NOTIFY_RET_DEFER_EVENT;
+			}
+            else
+    			ret = imx_usbmisc_charger_detection(mdata, true);
+		} else if (data->usbmisc_data && !ci->vbus_active) {
+			if (data->imx6_usb_charger_detection)
+				ret = imx6_usb_vbus_disconnect(&data->charger);
+            else
+    			ret = imx_usbmisc_charger_detection(mdata, false);
+		}
+
 		if (ci->usb_phy)
 			schedule_work(&ci->usb_phy->chg_work);
+		break;
+	case CI_HDRC_CONTROLLER_CHARGER_POST_EVENT:
+		if (!data->imx6_usb_charger_detection)
+			return ret;
+		imx6_usb_charger_detect_post(&data->charger);
 		break;
 	default:
 		break;
@@ -460,6 +482,33 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
+	if (of_find_property(np, "imx6-usb-charger-detection", NULL))
+		data->imx6_usb_charger_detection = true;
+
+	if (of_find_property(np, "fsl,anatop", NULL)) {
+		data->anatop = syscon_regmap_lookup_by_phandle(np,
+							"fsl,anatop");
+		if (IS_ERR(data->anatop)) {
+			dev_err(&pdev->dev,
+				"failed to find regmap for anatop\n");
+			ret = PTR_ERR(data->anatop);
+			goto disable_hsic_regulator;
+		}
+		if (data->usbmisc_data)
+			data->usbmisc_data->anatop = data->anatop;
+		if (data->imx6_usb_charger_detection) {
+			data->charger.anatop = data->anatop;
+			data->charger.dev = &pdev->dev;
+			ret = imx6_usb_create_charger(&data->charger,
+						"imx6_usb_charger");
+			if (ret && ret != -ENODEV)
+				goto disable_hsic_regulator;
+			if (!ret)
+				dev_dbg(&pdev->dev,
+					"USB Charger is created\n");
+		}
+	}
+
 	data->ci_pdev = ci_hdrc_add_device(dev,
 				pdev->resource, pdev->num_resources,
 				&pdata);
@@ -468,7 +517,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "ci_hdrc_add_device failed, err=%d\n",
 					ret);
-		goto err_clk;
+		goto remove_charger;
 	}
 
 	if (data->usbmisc_data) {
@@ -502,6 +551,9 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 
 disable_device:
 	ci_hdrc_remove_device(data->ci_pdev);
+remove_charger:
+	if (data->imx6_usb_charger_detection)
+		imx6_usb_remove_charger(&data->charger);
 err_clk:
 	imx_disable_unprepare_clks(dev);
 disable_hsic_regulator:
@@ -531,6 +583,8 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 	if (data->ci_pdev) {
 		imx_disable_unprepare_clks(&pdev->dev);
 		release_bus_freq(BUS_FREQ_HIGH);
+    	if (data->imx6_usb_charger_detection)
+    		imx6_usb_remove_charger(&data->charger);
 		if (data->plat_data->flags & CI_HDRC_PMQOS)
 			cpu_latency_qos_remove_request(&data->pm_qos_req);
 		if (data->hsic_pad_regulator)

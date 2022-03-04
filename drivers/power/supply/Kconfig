@@ -790,5 +790,11 @@ config RN5T618_POWER
 	  This driver can also be built as a module. If so, the module will be
 	  called rn5t618_power.
 
+config IMX6_USB_CHARGER
+	bool "Freescale imx6 USB Charger"
+	depends on SOC_IMX6Q || SOC_IMX6SL || SOC_IMX6SX
+	help
+	  Say Y to enable Freescale imx6 USB Charger Detect.
+
 endif # POWER_SUPPLY
 source "drivers/power/supply/fusb30x/Kconfig"
