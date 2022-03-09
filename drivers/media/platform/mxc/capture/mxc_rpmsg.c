@@ -390,6 +390,16 @@ static int imx_rpmsg_vidioc_s_fmt_vid_cap(struct file *filp, void *fh,
 				dev_err(rpmsg_dev->dev, "160x122 resolution only available in Y16 pixel format");
 		}
 	}
+	else if(v4l2_pix_fmt->width == IR_RESOLUTION_FULL_WIDTH_VOSPI)
+	{
+		if(v4l2_pix_fmt->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT)
+		{
+			if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
+				rpmsg_set_resolution(ovRpmsg_mode_QQVGA_164_122);
+			else
+				dev_err(rpmsg_dev->dev, "164x122 resolution (raw vospi) only available in Y16 pixel format");
+		}
+	}
 	else if(v4l2_pix_fmt->width == IR_RESOLUTION_REDUCED_WIDTH)
 		rpmsg_set_resolution(ovRpmsg_mode_QQVGA_128_96);
 
