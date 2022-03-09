@@ -13,7 +13,8 @@ enum ovRpmsg_mode {
 	ovRpmsg_mode_QQVGA_160_120 = 0,
 	ovRpmsg_mode_QQVGA_128_96 = 1,
 	ovRpmsg_mode_QQVGA_160_122 = 2, //inc telemetry rows
-	ovRpmsg_mode_MAX = 2
+	ovRpmsg_mode_QQVGA_164_122 = 3, //raw vospi frame
+	ovRpmsg_mode_MAX = 3
 };
 
 enum ovRpmsg_format {
@@ -24,6 +25,7 @@ enum ovRpmsg_format {
 };
 
 #define IR_RESOLUTION_FULL_WIDTH  160
+#define IR_RESOLUTION_FULL_WIDTH_VOSPI  164
 #define IR_RESOLUTION_FULL_HEIGHT 120
 #define IR_RESOLUTION_FULL_TELEMETRY_HEIGHT 122
 #define IR_RESOLUTION_REDUCED_WIDTH  128
