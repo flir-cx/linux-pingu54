@@ -1407,22 +1407,6 @@ static s32 ov5640_read_reg(u16 reg, u8 *val)
 	return u8RdVal;
 }
 
-static s32 ov5640_mod_reg(u16 reg, u8 mask, u8 val)
-{
-	u8 readval;
-	s32 ret;
-
-	ret = ov5640_read_reg(reg, &readval);
-	if (ret)
-		return ret;
-
-	readval &= ~mask;
-	val &= mask;
-	val |= readval;
-
-	return ov5640_write_reg(reg, val);
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ov5640_get_register(struct v4l2_subdev *sd,
 					struct v4l2_dbg_register *reg)
@@ -1826,13 +1810,13 @@ static int ov5640_get_sensor_model(u8 *sensor_model, int n)
 		return -1;
 	}
 
-	retval = ov5640_mod_reg(OV5640_SYSTEM_RESET00, BIT(4), 0);
+	retval = ov5640_write_reg(OV5640_SYSTEM_RESET00, 0x20);
 	if (retval < 0) {
 		pr_err("ov5640: failed to enable OTP module\n");
 		return -1;
 	}
 
-	retval = ov5640_mod_reg(OV5640_CLOCK_ENABLE00, BIT(4), BIT(4));
+	retval = ov5640_write_reg(OV5640_CLOCK_ENABLE00, 0xDF);
 	if (retval < 0) {
 		pr_err("ov5640: failed to enable OTP clock\n");
 		return -1;
