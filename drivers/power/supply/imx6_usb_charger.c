@@ -42,15 +42,15 @@ static enum power_supply_property imx6_usb_charger_power_props[] = {
 };
 
 static int imx6_usb_charger_get_property(struct power_supply *psy,
-				enum power_supply_property psp,
-				union power_supply_propval *val)
+					enum power_supply_property psp,
+					union power_supply_propval *val)
 {
 	struct usb_charger *charger = power_supply_get_drvdata(psy);
 
-    if (!charger) {
-        pr_err("charger is NULL\n");
-        return 0;
-    }
+	if (!charger) {
+		pr_err("charger is NULL\n");
+		return 0;
+	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -82,10 +82,10 @@ static int imx6_usb_charger_detect(struct usb_charger *charger)
 	u32 val;
 	int i, data_pin_contact_count = 0;
 
-    if (!regmap) {
-    	dev_err(charger->dev, "regmap = NULL\n");
+	if (!regmap) {
+		dev_err(charger->dev, "regmap = NULL\n");
 		return -EINVAL;
-    }
+	}
 
 	/* check if vbus is valid */
 	regmap_read(regmap, HW_ANADIG_USB1_VBUS_DET_STAT, &val);
@@ -96,21 +96,21 @@ static int imx6_usb_charger_detect(struct usb_charger *charger)
 
 	/* Enable charger detector */
 	regmap_write(regmap, HW_ANADIG_USB1_CHRG_DETECT_CLR,
-			BM_ANADIG_USB1_CHRG_DETECT_EN_B);
+		BM_ANADIG_USB1_CHRG_DETECT_EN_B);
 	/*
 	 * - Do not check whether a charger is connected to the USB port
 	 * - Check whether the USB plug has been in contact with each other
 	 */
 	regmap_write(regmap, HW_ANADIG_USB1_CHRG_DETECT_SET,
-			BM_ANADIG_USB1_CHRG_DETECT_CHK_CONTACT |
-			BM_ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+		BM_ANADIG_USB1_CHRG_DETECT_CHK_CONTACT |
+		BM_ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
 
 	/* Check if plug is connected */
 	for (i = 0; i < 100; i = i + 1) {
 		regmap_read(regmap, HW_ANADIG_USB1_CHRG_DET_STAT, &val);
 		if (val & BM_ANADIG_USB1_CHRG_DET_STAT_PLUG_CONTACT) {
 			if (data_pin_contact_count++ > 5)
-			/* Data pin makes contact */
+				/* Data pin makes contact */
 				break;
 			else
 				usleep_range(5000, 10000);
@@ -133,8 +133,8 @@ static int imx6_usb_charger_detect(struct usb_charger *charger)
 	 * each other
 	 */
 	regmap_write(regmap, HW_ANADIG_USB1_CHRG_DETECT_CLR,
-			BM_ANADIG_USB1_CHRG_DETECT_CHK_CONTACT |
-			BM_ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+		BM_ANADIG_USB1_CHRG_DETECT_CHK_CONTACT |
+		BM_ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
 	msleep(50);
 
 	/* Check if it is a charger */
@@ -183,8 +183,8 @@ int imx6_usb_vbus_connect(struct usb_charger *charger)
 	ret = imx6_usb_charger_detect(charger);
 	if (ret) {
 		dev_dbg(charger->dev,
-				"Error occurs during detection: %d\n",
-				ret);
+			"Error occurs during detection: %d\n",
+			ret);
 	} else {
 		if (charger->type == POWER_SUPPLY_TYPE_USB)
 			usb_charger_is_present(charger, true);
@@ -247,11 +247,11 @@ int imx6_usb_vbus_disconnect(struct usb_charger *charger)
 EXPORT_SYMBOL(imx6_usb_vbus_disconnect);
 
 static const struct power_supply_desc imx6_charger_desc = {
-		.name = "imx6_usb_charger",
-        .type = POWER_SUPPLY_TYPE_MAINS,
-        .properties = imx6_usb_charger_power_props,
-        .num_properties	= ARRAY_SIZE(imx6_usb_charger_power_props),
-        .get_property = imx6_usb_charger_get_property,
+	.name = "imx6_usb_charger",
+	.type = POWER_SUPPLY_TYPE_MAINS,
+	.properties = imx6_usb_charger_power_props,
+	.num_properties	= ARRAY_SIZE(imx6_usb_charger_power_props),
+	.get_property = imx6_usb_charger_get_property,
 };
 
 /*
@@ -263,10 +263,10 @@ static const struct power_supply_desc imx6_charger_desc = {
  * driver will call this after filling struct usb_charger.
  */
 int imx6_usb_create_charger(struct usb_charger *charger,
-		const char *name)
+			const char *name)
 {
 	struct power_supply	*psy;
-    struct power_supply_config psy_cfg = {};
+	struct power_supply_config psy_cfg = {};
 
 	if (!charger->dev)
 		return -EINVAL;
@@ -276,18 +276,18 @@ int imx6_usb_create_charger(struct usb_charger *charger,
 
 	psy_cfg.supplied_to	= imx6_usb_charger_supplied_to;
 	psy_cfg.num_supplicants	= sizeof(imx6_usb_charger_supplied_to) / sizeof(char *);
-    psy_cfg.drv_data = charger;
+	psy_cfg.drv_data = charger;
 
 	psy = power_supply_register(charger->dev, &imx6_charger_desc, &psy_cfg);
-    if (IS_ERR(psy)) {
+	if (IS_ERR(psy)) {
 		dev_err(charger->dev, "Failed to register charger\n");
-        return PTR_ERR(psy);
-    }
+		return PTR_ERR(psy);
+	}
 
-    charger->type = POWER_SUPPLY_TYPE_MAINS;
+	charger->type = POWER_SUPPLY_TYPE_MAINS;
 	charger->max_current = 500;
-    charger->psy = psy;
-    return 0;
+	charger->psy = psy;
+	return 0;
 }
 EXPORT_SYMBOL(imx6_usb_create_charger);
 
