@@ -1903,13 +1903,14 @@ static int ov5640_init_mode(void)
 	pModeSetting = ov5640_init_setting_30fps_BT656;
 	ArySize = ARRAY_SIZE(ov5640_init_setting_30fps_BT656);
 #endif
-	retval = ov5640_download_firmware(pModeSetting, ArySize);
-	if (retval < 0)
-		goto err;
 
 	/* There are multiple sensor models and some of them needs
 	 * different settings. */
 	retval = ov5640_get_sensor_model((u8*)sensor_model, OV5640_SENSOR_MODEL_MAX_LEN);
+	if (retval < 0)
+		goto err;
+
+	retval = ov5640_download_firmware(pModeSetting, ArySize);
 	if (retval < 0)
 		goto err;
 
