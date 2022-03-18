@@ -1689,6 +1689,7 @@ static int bq24298_remove(struct i2c_client *client)
 	bq24298_sysfs_remove_group(bdi);
 	if(bdi->notify_psy){
 		power_supply_unreg_notifier(&bdi->nb);
+		power_supply_put(bdi->notify_psy);
 	}
 
 	power_supply_unregister(bdi->battery);
@@ -1699,6 +1700,11 @@ static int bq24298_remove(struct i2c_client *client)
 		gpio_free(bdi->gpio_int);
 
 	return 0;
+}
+
+static void bq24298_shutdown(struct i2c_client *client)
+{
+	bq24298_remove(client);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1749,6 +1755,7 @@ static const struct of_device_id bq24298_of_match[] = {
 static struct i2c_driver bq24298_driver = {
 	.probe		= bq24298_probe,
 	.remove		= bq24298_remove,
+	.shutdown	= bq24298_shutdown,
 	.id_table	= bq24298_i2c_ids,
 	.driver = {
 		.name		= "bq24298-charger",
