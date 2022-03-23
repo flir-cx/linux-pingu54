@@ -646,6 +646,7 @@ dtb-$(CONFIG_SOC_IMX7D) += \
 dtb-$(CONFIG_SOC_IMX7ULP) += \
 	imx7ulp-14x14-arm2.dtb \
 	imx7ulp-bblc.dtb \
+	imx7ulp-ec401w.dtb \
 	imx7ulp-sherlock.dtb \
 	imx7ulp-sherlock-a.dtb \
 	imx7ulp-evk.dtb \
