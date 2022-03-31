@@ -164,14 +164,16 @@
 		pinctrl-0 = <&pinctrl_fvd>;
 		pinctrl-1 = <&pinctrl_ecspi1>;
 		pinctrl-2 = <&pinctrl_ecspi1_idle>;
-		fpga-program-gpio	= <&gpio5 25 GPIO_ACTIVE_HIGH>;
-		fpga-init-gpio		= <&gpio5 26 GPIO_ACTIVE_HIGH>;
-		fpga-conf-done-gpio 	= <&gpio5 27 GPIO_ACTIVE_HIGH>;
-		fpga-ready-gpio		= <&gpio3 19 GPIO_ACTIVE_HIGH>;
-		spi-sclk-gpio		= <&gpio5 22 GPIO_ACTIVE_HIGH>;
-		spi-mosi-gpio		= <&gpio5 23 GPIO_ACTIVE_HIGH>;
-		spi-miso-gpio		= <&gpio5 24 GPIO_ACTIVE_HIGH>;
-		spi-cs-gpio		= <&gpio5 28 GPIO_ACTIVE_HIGH>;
+
+		fpga_ce_n = <&gpio5 25 GPIO_ACTIVE_LOW>;
+		fpga_conf_done = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+		fpga_config_n = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		fpga_status_n = <&gpio1 2 GPIO_ACTIVE_LOW>;
+
+		spi-sclk-gpio = <&gpio5 22 GPIO_ACTIVE_HIGH>;
+		spi-mosi-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>;
+		spi-miso-gpio = <&gpio5 24 GPIO_ACTIVE_HIGH>;
+		spi-cs-gpio = <&gpio5 28 GPIO_ACTIVE_HIGH>;
 	};
 
 	fake {
