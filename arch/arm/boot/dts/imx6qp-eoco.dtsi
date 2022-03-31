@@ -399,8 +399,7 @@
 				/*regulator-initial-mode = <1>;*/
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				/* regulator-initial-state = "suspend-mem"; */
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
-										  <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
 					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 					regulator-suspend-uv= <950000>;
@@ -418,8 +417,7 @@
 
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				/* regulator-initial-state = "suspend-mem"; */
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
-										  <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
 					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 					regulator-suspend-uv= <950000>;
@@ -432,8 +430,7 @@
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BPRO";
 				regulator-boot-on;
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
-										  <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
 					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 				};
@@ -442,9 +439,10 @@
 			/* 1V1D_FPGA2 */
 			DA9063_BMEM:bmem  {
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
-				regulator-name = "DA9063_BMEM";
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
-										  <DA9063_BUCK_MODE_SYNC>;
+				regulator-name = "1V1D_FPGA";
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
 					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 				};
@@ -456,8 +454,7 @@
 				regulator-name = "DA9063_BIO";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
-										  <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
 					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 				};
@@ -469,8 +466,7 @@
 				regulator-name = "DA9063_BPERI";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, 
-										  <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
 					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 				};
