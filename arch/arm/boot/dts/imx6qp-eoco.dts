@@ -17,9 +17,9 @@
 #include "imx6qp-eoco.dtsi"
 
 / {
-        model = "Teledyne FLIR i.MX6 Dual Plus eoco Board";
-        compatible = "fsl,imx6qp-eoco", "fsl,imx6qp-flir", "fsl,imx6qp";
-        chosen {
-                bootargs = "console=ttymxc0,115200 earlyprintk";
-        };
+	model = "Teledyne FLIR i.MX6 Dual Plus eoco Board";
+	compatible = "fsl,imx6qp-eoco", "flir,ninjago", "fsl,imx6qp-flir", "fsl,imx6qp";
+	chosen {
+		bootargs = "console=ttymxc0,115200 earlyprintk";
+	};
 };
