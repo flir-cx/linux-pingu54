@@ -147,9 +147,6 @@ struct mipi_dsi_info {
 };
 
 int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi, int panel);
-static void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
-		       bool cmd_mode);
-static int mipi_dsi_power_on(struct mxc_dispdrv_handle *disp);
 
 #ifdef CONFIG_FB_MXC_TRULY_WVGA_SYNC_PANEL
 void mipid_hx8369_get_lcd_videomode(struct fb_videomode **mode, int *size,

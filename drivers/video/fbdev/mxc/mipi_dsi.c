@@ -131,6 +131,10 @@ static const struct _mipi_dsi_phy_pll_clk mipi_dsi_phy_pll_clk_table[] = {
 	{160,  0x04}, /*  150-160MHz	*/
 };
 
+static void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
+				bool cmd_mode);
+static int mipi_dsi_power_on(struct mxc_dispdrv_handle *disp);
+
 static ssize_t power_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -949,7 +953,7 @@ static struct mxc_dispdrv_driver mipi_dsi_drv = {
 	.swap_panel = mipi_swap_panel,
 };
 
-static int device_reset(struct device *dev)
+__attribute__((unused)) static int device_reset(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	enum of_gpio_flags flags;
