@@ -183,6 +183,13 @@ int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *mipi_dsi);
 int mipid_otm1287a_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state);
 int mipid_otm1287a_lcd_power_get(struct mipi_dsi_info *mipi_dsi);
 #endif
+#ifdef CONFIG_FB_MXC_TRULY_ST7703
+void mipid_st7703_get_lcd_videomode(struct fb_videomode **mode, int *size,
+		struct mipi_lcd_config **data);
+int mipid_st7703_lcd_setup(struct mipi_dsi_info *mipi_dsi);
+int mipid_st7703_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state);
+int mipid_st7703_lcd_power_get(struct mipi_dsi_info *mipi_dsi);
+#endif
 #ifdef CONFIG_FB_MXC_KOPIN_KCDA914
 void mipid_kcda914_get_lcd_videomode(struct fb_videomode **mode, int *size,
 		struct mipi_lcd_config **data);

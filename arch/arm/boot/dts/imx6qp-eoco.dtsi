@@ -43,7 +43,7 @@
 	regulators {
 		compatible = "simple-bus";
 
-		reg_ec101_lcd_dummy: reg_ec101_lcd_dummy {
+		reg_eoco_lcd_dummy: reg_eoco_lcd_dummy {
 			compatible = "regulator-fixed";
 			regulator-name = "lcd_dummy";
 		};
@@ -95,7 +95,7 @@
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "mipi_dsi";
 		interface_pix_fmt = "RGB24";
-		mode_str ="ORISE-VGA";
+		mode_str ="TRULY-VGA";
 		default_bpp = <32>;
 		int_clk = <0>;
 		late_init = <0>;
@@ -133,6 +133,7 @@
 		pinctrl-0 = <&pinctrl_pwm1>;
 		default-brightness-level = <7>;
 		options = <3>;	// Restore backlight after suspend
+		status = "disabled";
 	};
 
 	v4l2_cap_0 {
@@ -228,15 +229,6 @@
 		};
 	};
 
-	dpsound: dpsound {
-		compatible = "fsl,imx-audio-tc358767a";
-		model = "imx-audio-tc358767a";
-		cpu-dai = <&ssi2>;
-		audio-codec = <&displayport>;
-		mux-int-port = <2>;
-		mux-ext-port = <4>;
-	};
-	
 	yildun {
 		compatible = "flir,yildun";
 		pinctrl-names = "default", "idle";
@@ -255,8 +247,8 @@
 &mipi_dsi {
 	dev_id = <0>;
 	disp_id = <1>;
-	lcd_panel = "ORISE-VGA";
-	disp-power-on-supply = <&reg_ec101_lcd_dummy>;
+	lcd_panel = "TRULY-VGA";
+	disp-power-on-supply = <&reg_eoco_lcd_dummy>;
 	status = "okay";
 };
 
@@ -559,21 +551,13 @@
 		pagesize = <16>;
 	};
 
-	displayport: dp@0F {
-		compatible = "tc358767_lcd2dp";
-		reg = <0x0F>;
-		reset_gpio = <&gpio4 20 GPIO_ACTIVE_LOW>;
-		shdn_gpio = <&gpio3 13 GPIO_ACTIVE_LOW>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
-	};
 };
 
 &iomuxc {
 
-	imx6dl-ec101 {
+	imx6qp-eoco {
 
-		pinctrl_pwm1: pwm1 {
+		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_9__PWM1_OUT		0x80000000
 			>;
@@ -755,6 +739,13 @@
 &pcie {
 	status = "okay";
 	reset-gpio = <&gpio2 3 0>;
+};
+
+&pwm1 {
+	#pwm-cells = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "disabled";
 };
 
 /*Active serial port*/

@@ -72,6 +72,15 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 		}
 	},
 #endif
+#ifdef CONFIG_FB_MXC_TRULY_ST7703
+	{
+		"TRULY-VGA", {
+			mipid_st7703_get_lcd_videomode, mipid_st7703_lcd_setup,
+			mipid_st7703_lcd_power_set,
+			mipid_st7703_lcd_power_get
+		}
+	},
+#endif
 #ifdef CONFIG_FB_MXC_KOPIN_KCDA914
 	{
 		"KOPIN-VGA", {
@@ -123,7 +132,7 @@ static const struct _mipi_dsi_phy_pll_clk mipi_dsi_phy_pll_clk_table[] = {
 };
 
 static ssize_t power_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+			struct device_attribute *attr, char *buf)
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
 	char tmpbuf[100];
@@ -156,23 +165,23 @@ static ssize_t power_show(struct device *dev,
 		tmpbufi+=strlen(" secondary");
 	}
 
-	dev_err(dev, "primary %u secondary %u\n", primary,secondary);
+	dev_dbg(dev, "primary %u secondary %u\n", primary,secondary);
 	return sprintf(buf, "%s\n", tmpbuf);
 }
 static ssize_t power_store(struct device *dev, struct device_attribute *attr,
-				     const char *buf, size_t count)
+			const char *buf, size_t count)
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
 
-        if (strncmp(buf, "off", strlen("off")) == 0) {
+	if (strncmp(buf, "off", strlen("off")) == 0) {
 		mipi_dsi_select_panel(mipi_dsi, 0);
-        } else if (strncmp(buf, "primary", strlen("primary")) == 0) {
+	} else if (strncmp(buf, "primary", strlen("primary")) == 0) {
 		mipi_dsi_select_panel(mipi_dsi, 1);
-        } else if (strncmp(buf, "secondary", strlen("secondary")) == 0) {
+	} else if (strncmp(buf, "secondary", strlen("secondary")) == 0) {
 		mipi_dsi_select_panel(mipi_dsi, 2);
-        } else {
-                dev_err(dev, "Unknown command\n");
-        }
+	} else {
+		dev_err(dev, "Unknown command\n");
+	}
 
 	return strlen(buf);
 }
@@ -213,69 +222,106 @@ static inline void mipi_dsi_write_register(struct mipi_dsi_info *mipi_dsi,
 			reg, val);
 }
 
+static int mipi_dsi_poll_register(struct mipi_dsi_info *mipi_dsi, u32 reg,
+				u32 poll_mask)
+{
+	u32 status = 0;
+	u32 timeout = 0;
+	mipi_dsi_read_register(mipi_dsi, reg, &status);
+	dev_dbg(&mipi_dsi->pdev->dev, "\tread_reg:0x%02x, val:0x%08x.\n",
+			reg, status);
+	while ((status & poll_mask) == poll_mask) {
+		udelay(50);
+		timeout++;
+		if (timeout == MIPI_DSI_REG_RW_TIMEOUT)
+			return -EIO;
+		mipi_dsi_read_register(mipi_dsi, reg, &status);
+		dev_dbg(&mipi_dsi->pdev->dev, "\tread_reg:0x%02x, val:0x%08x.\n",
+			reg, status);
+	}
+	return 0;
+}
+
 static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 				u8 data_type, const u32 *buf, int len)
 {
 	u32 val;
 	u32 status = 0;
 	int write_len = len;
-	uint32_t	timeout = 0;
-
-	if (len) {
-		/* generic long write command */
-		while (len / DSI_GEN_PLD_DATA_BUF_SIZE) {
+	uint32_t timeout = 0;
+	int written = 0;
+	if (write_len >= MIPI_DSI_GEN_FIFO_SIZE)
+	{
+		val = data_type | ((write_len & DSI_GEN_HDR_DATA_MASK)
+			<< DSI_GEN_HDR_DATA_SHIFT);
+		while (len > 0) {
+			if ((written / DSI_GEN_PLD_DATA_BUF_SIZE) + 1 ==
+				(MIPI_DSI_GEN_FIFO_SIZE / DSI_GEN_PLD_DATA_BUF_SIZE)) {
+				/* Last write before fifo is full, start clocking out */
+				mipi_dsi_write_register(mipi_dsi,
+							MIPI_DSI_GEN_HDR, val);
+				dev_err(&mipi_dsi->pdev->dev, "Started DSI clocking out fifo when %d bytes written\n", written);
+				if (mipi_dsi_poll_register(mipi_dsi,
+						MIPI_DSI_CMD_PKT_STATUS,
+						DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL)) {
+					return -EIO;
+				}
+				dev_dbg(&mipi_dsi->pdev->dev, "Fifo is no longer full");
+			}
 			mipi_dsi_write_register(mipi_dsi,
+				MIPI_DSI_GEN_PLD_DATA, *buf);
+			dev_dbg(&mipi_dsi->pdev->dev, "\twrite_reg:0x%02x, val:0x%08x.\n",
 				MIPI_DSI_GEN_PLD_DATA, *buf);
 			buf++;
 			len -= DSI_GEN_PLD_DATA_BUF_SIZE;
-			mipi_dsi_read_register(mipi_dsi,
-				MIPI_DSI_CMD_PKT_STATUS, &status);
-			while ((status & DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL) ==
-					 DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL) {
-				udelay(50);
-				timeout++;
-				if (timeout == MIPI_DSI_REG_RW_TIMEOUT)
-					return -EIO;
-				mipi_dsi_read_register(mipi_dsi,
-					MIPI_DSI_CMD_PKT_STATUS, &status);
+			written += DSI_GEN_PLD_DATA_BUF_SIZE;
+			if (mipi_dsi_poll_register(mipi_dsi,
+					MIPI_DSI_CMD_PKT_STATUS,
+					DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL)) {
+				return -EIO;
 			}
 		}
-		/* write the remainder bytes */
-		if (len > 0) {
-			while ((status & DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL) ==
-					 DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL) {
-				udelay(50);
-				timeout++;
-				if (timeout == MIPI_DSI_REG_RW_TIMEOUT)
-					return -EIO;
-				mipi_dsi_read_register(mipi_dsi,
-					MIPI_DSI_CMD_PKT_STATUS, &status);
-			}
-			mipi_dsi_write_register(mipi_dsi,
-				MIPI_DSI_GEN_PLD_DATA, *buf);
-		}
-
+	} else if (len) {
 		val = data_type | ((write_len & DSI_GEN_HDR_DATA_MASK)
 			<< DSI_GEN_HDR_DATA_SHIFT);
+		/* generic long write command */
+		while (len > 0) {
+			mipi_dsi_write_register(mipi_dsi,
+				MIPI_DSI_GEN_PLD_DATA, *buf);
+			dev_dbg(&mipi_dsi->pdev->dev, "\twrite_reg:0x%02x, val:0x%08x.\n",
+				MIPI_DSI_GEN_PLD_DATA, *buf);
+			buf++;
+			len -= DSI_GEN_PLD_DATA_BUF_SIZE;
+			/* If this is the last byte don't wait here for completion */
+			if (len > 0)  {
+				if (mipi_dsi_poll_register(mipi_dsi,
+						MIPI_DSI_CMD_PKT_STATUS,
+						DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL)) {
+					return -EIO;
+				}
+			}
+		}
 	} else {
 		/* generic short write command */
 		val = data_type | ((*buf & DSI_GEN_HDR_DATA_MASK)
 			<< DSI_GEN_HDR_DATA_SHIFT);
 	}
 
-	mipi_dsi_read_register(mipi_dsi, MIPI_DSI_CMD_PKT_STATUS, &status);
-	while ((status & DSI_CMD_PKT_STATUS_GEN_CMD_FULL) ==
-			 DSI_CMD_PKT_STATUS_GEN_CMD_FULL) {
-		udelay(50);
-		timeout++;
-		if (timeout == MIPI_DSI_REG_RW_TIMEOUT)
-			return -EIO;
-		mipi_dsi_read_register(mipi_dsi, MIPI_DSI_CMD_PKT_STATUS,
-				&status);
+	if (mipi_dsi_poll_register(mipi_dsi,
+			MIPI_DSI_CMD_PKT_STATUS,
+			DSI_CMD_PKT_STATUS_GEN_CMD_FULL)) {
+		return -EIO;
 	}
-	mipi_dsi_write_register(mipi_dsi, MIPI_DSI_GEN_HDR, val);
+	if (write_len < MIPI_DSI_GEN_FIFO_SIZE)
+	{
+		/* We have already started the clocking out */
+		mipi_dsi_write_register(mipi_dsi, MIPI_DSI_GEN_HDR, val);
+		dev_dbg(&mipi_dsi->pdev->dev, "\twrite_reg:0x%02x, val:0x%08x.\n",
+				MIPI_DSI_GEN_HDR, val);
+	}
 
 	mipi_dsi_read_register(mipi_dsi, MIPI_DSI_CMD_PKT_STATUS, &status);
+	timeout = 0;
 	while (!((status & DSI_CMD_PKT_STATUS_GEN_CMD_EMPTY) ==
 			 DSI_CMD_PKT_STATUS_GEN_CMD_EMPTY) ||
 			!((status & DSI_CMD_PKT_STATUS_GEN_PLD_W_EMPTY) ==
@@ -346,7 +392,7 @@ static int mipi_dsi_pkt_read(struct mipi_dsi_info *mipi_dsi,
 	    ((len + DSI_GEN_PLD_DATA_BUF_SIZE) >= read_len)) {
 		return 0;
 	} else {
-		dev_err(&mipi_dsi->pdev->dev,
+		dev_dbg(&mipi_dsi->pdev->dev,
 			"actually read_len:%d != len:%d.\n", read_len, len);
 		return -ERANGE;
 	}
@@ -562,32 +608,32 @@ int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi,
 				 int panel)
 {
 	if (panel == 0) {
-                dev_err(&mipi_dsi->pdev->dev, "Shut off all displays\n");
-                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		dev_err(&mipi_dsi->pdev->dev, "Shut off all displays\n");
+		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
 	} else  if (panel == 1) {
-                dev_err(&mipi_dsi->pdev->dev, "Power on primary display\n");
-                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
+		dev_err(&mipi_dsi->pdev->dev, "Power on primary display\n");
+		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
 
-                mipi_dsi_set_mode(mipi_dsi, 1);
-                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-                mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
-                mipi_dsi_set_mode(mipi_dsi, 0);
-                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+		mipi_dsi_set_mode(mipi_dsi, 1);
+		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+		mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
+		mipi_dsi_set_mode(mipi_dsi, 0);
+		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
 
 	} else  if (panel == 2) {
-                dev_err(&mipi_dsi->pdev->dev, "Power on secondary display\n");
-                mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-                mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
+		dev_err(&mipi_dsi->pdev->dev, "Power on secondary display\n");
+		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
 
-                mipi_dsi_set_mode(mipi_dsi, 1);
-                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-                mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
-                mipi_dsi_set_mode(mipi_dsi, 0);
-                msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+		mipi_dsi_set_mode(mipi_dsi, 1);
+		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+		mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
+		mipi_dsi_set_mode(mipi_dsi, 0);
+		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
 	} else {
 		dev_err(&mipi_dsi->pdev->dev, "Unknown panel selected\n");
 		return -EIO;
@@ -637,7 +683,12 @@ static int mipi_dsi_power_on(struct mxc_dispdrv_handle *disp)
 		mipi_dsi_enable_controller(mipi_dsi, false);
 		mipi_dsi_set_mode(mipi_dsi, false);
 		/* host send pclk/hsync/vsync for two frames before sleep-out */
-		msleep((1000/mipi_dsi->mode->refresh + 1) << 1);
+		if (mipi_dsi->mode->refresh){
+			msleep((1000/mipi_dsi->mode->refresh + 1) << 1);
+		} else {
+			/* Refresh of 0 is valid, just use a valid sleep */
+			msleep((1000/30 + 1) << 1);
+		}
 		mipi_dsi_set_mode(mipi_dsi, true);
 		err = mipi_dsi_dcs_cmd(mipi_dsi, MIPI_DCS_EXIT_SLEEP_MODE,
 			NULL, 0);
@@ -693,11 +744,14 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 	struct  device		 *dev = &mipi_dsi->pdev->dev;
 
 	for (i = 0; i < ARRAY_SIZE(mipi_dsi_lcd_db); i++) {
+		dev_info(dev, "Compare dsi panel %s - db panel %s.\n", mipi_dsi->primary_panel, mipi_dsi_lcd_db[i].panel);
 		if (!strcmp(mipi_dsi->primary_panel,
 			mipi_dsi_lcd_db[i].panel)) {
+			dev_info(dev, "Select dsi panel %s - db panel %s.\n", mipi_dsi->primary_panel, mipi_dsi_lcd_db[i].panel);
+
 			mipi_dsi->primary_cb =
 				&mipi_dsi_lcd_db[i].cb;
-                        dev_err(dev, "Found primary panel %s.\n", mipi_dsi_lcd_db[i].panel);
+			dev_info(dev, "Found primary panel %s.\n", mipi_dsi_lcd_db[i].panel);
 			break;
 		}
 	}
@@ -705,14 +759,14 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 		dev_err(dev, "failed to find supported primary panel.\n");
 		return -EINVAL;
 	}
-        
+
 	/*Find handle to second display*/
 	for (i = 0; i < ARRAY_SIZE(mipi_dsi_lcd_db); i++) {
 		if (!strcmp(mipi_dsi->secondary_panel,
 			mipi_dsi_lcd_db[i].panel)) {
 			mipi_dsi->secondary_cb =
 				&mipi_dsi_lcd_db[i].cb;
-                        dev_err(dev, "Found secondary panel %s.\n", mipi_dsi_lcd_db[i].panel);
+			dev_info(dev, "Found secondary panel %s.\n", mipi_dsi_lcd_db[i].panel);
 			break;
 		}
 	}
@@ -819,7 +873,7 @@ static int mipi_dsi_disp_init(struct mxc_dispdrv_handle *disp,
 	}
 
 	ret = ipu_di_to_crtc(dev, mipi_dsi->dev_id,
-			     mipi_dsi->disp_id, &setting->crtc);
+			mipi_dsi->disp_id, &setting->crtc);
 	if (ret < 0)
 		return ret;
 
@@ -991,7 +1045,7 @@ MODULE_DEVICE_TABLE(of, imx_mipi_dsi_dt_ids);
  * @param	pdev	The device structure for the MIPI DSI passed in by the
  *			driver framework.
  *
- * @return      Returns 0 on success or negative error code on error
+ * @return	Returns 0 on success or negative error code on error
  */
 static int mipi_dsi_probe(struct platform_device *pdev)
 {

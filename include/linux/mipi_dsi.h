@@ -162,4 +162,5 @@
 
 #define		DSI_PHY_CLK_INIT_COMMAND			(0x44)
 #define		DSI_GEN_PLD_DATA_BUF_SIZE			(0x4)
+#define		MIPI_DSI_GEN_FIFO_SIZE				(64)
 #endif

@@ -68,6 +68,11 @@ config FB_MXC_ORISE_OTM1287A
 	depends on FB_MXC_DISP_FRAMEWORK
 	depends on FB_MXC_MIPI_DSI
 
+config FB_MXC_TRULY_ST7703
+	tristate "Truly ST7703 display driver"
+	depends on FB_MXC_DISP_FRAMEWORK
+	depends on FB_MXC_MIPI_DSI
+
 config FB_MXC_KOPIN_KCDA914
 	tristate "Kopin A914 display driver"
 	depends on FB_MXC_DISP_FRAMEWORK
