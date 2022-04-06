@@ -195,7 +195,7 @@ static int otm1287a_write_cmd(struct mipi_dsi_info *mipi_dsi, u32 cmd)
 int mipid_otm1287a_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 {
 	int ret;
-        int i;
+	int i;
 
 	if (mipi_dsi->lcd_mipi_sel_gpio)
 		gpio_set_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio, 1);
