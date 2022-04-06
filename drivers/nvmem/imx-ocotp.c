@@ -25,6 +25,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <asm/system_info.h> // For system_serial_*
+#include "../../arch/arm/mach-imx/hardware.h" // For cpu_is_imx*
 
 #define IMX_OCOTP_OFFSET_B0W0		0x400 /* Offset from base address of the
 					       * OTP Bank0 Word0
@@ -32,6 +34,28 @@
 #define IMX_OCOTP_OFFSET_PER_WORD	0x10  /* Offset between the start addr
 					       * of two consecutive OTP words.
 					       */
+
+/* Offsets from base address to
+   Bank0,Word1 (OCOTP_CFG0)
+   Bank0,Word2 (OCOTP_CFG1)
+   Bank0,Word3 (OCOTP_CFG2)
+   for imx6 unique ID
+*/
+#define IMX_6_OCOTP_OFFSET_SERIAL_LOW	(IMX_OCOTP_OFFSET_B0W0 + 0x10)
+#define IMX_6_OCOTP_OFFSET_SERIAL_HIGH	(IMX_OCOTP_OFFSET_B0W0 + 0x20)
+#define IMX_6_OCOTP_OFFSET_SYSTEM_REV	(IMX_OCOTP_OFFSET_B0W0 + 0x30)
+
+/* Offsets from base address to
+   Bank1,Word3 (OCOTP_CFG0)
+   Bank1,Word4 (OCOTP_CFG1)
+   Bank1,Word5 (OCOTP_CFG2)
+   Bank1,Word6 (OCOTP_CFG3)
+   for imx7 unique id
+*/
+#define IMX_7_OCOTP_OFFSET_SERIAL_0		(IMX_OCOTP_OFFSET_B0W0 + 0xB0)
+#define IMX_7_OCOTP_OFFSET_SERIAL_1		(IMX_OCOTP_OFFSET_B0W0 + 0xC0)
+#define IMX_7_OCOTP_OFFSET_SERIAL_2		(IMX_OCOTP_OFFSET_B0W0 + 0xD0)
+#define IMX_7_OCOTP_OFFSET_SERIAL_3		(IMX_OCOTP_OFFSET_B0W0 + 0xE0)
 
 #define IMX_OCOTP_ADDR_CTRL		0x0000
 #define IMX_OCOTP_ADDR_CTRL_SET		0x0004
@@ -465,6 +489,57 @@ write_end:
 	return ret < 0 ? ret : bytes;
 }
 
+
+static int update_serial_number(struct ocotp_priv *priv) {
+	int ret;
+	mutex_lock(&ocotp_mutex);
+	ret = clk_prepare_enable(priv->clk);
+	if (ret < 0) {
+		dev_err(priv->dev, "failed to prepare/enable ocotp clk\n");
+	}
+	else {
+		ret = imx_ocotp_wait_for_busy(priv, 0);
+		if (ret < 0) {
+			dev_err(priv->dev, "timeout during read setup\n");
+		}
+		else {
+			/* OCOTP_CFG0-3 contain 16-bit values that we transform into a system
+			* unique ID / system serial. CFG0 becomes the LSW and then we build up
+			* from there.
+			* Unlike the IMX6, on the IMX7 these registers each only contain
+			* 16-bit hex values. */
+			if (cpu_is_imx7()) {
+				u16 value;
+				system_serial_low = readl(priv->base + IMX_7_OCOTP_OFFSET_SERIAL_0);
+				value = readl(priv->base + IMX_7_OCOTP_OFFSET_SERIAL_1);
+				system_serial_low |= value << 16;
+				system_serial_high = readl(priv->base + IMX_7_OCOTP_OFFSET_SERIAL_2);
+				value = readl(priv->base + IMX_7_OCOTP_OFFSET_SERIAL_3);
+				system_serial_high |= value << 16;
+			}
+			/* OCOTP_CFG0-2 contain 32-bit values,
+			which we transform into system unique ID / system serial.
+			First offset contains the low word and second contains the high word.*/
+			else if (cpu_is_imx6()) {
+				u32 value;
+				system_serial_low = readl(priv->base + IMX_6_OCOTP_OFFSET_SERIAL_LOW);
+				system_serial_high = readl(priv->base + IMX_6_OCOTP_OFFSET_SERIAL_HIGH);
+				value = readl(priv->base + IMX_6_OCOTP_OFFSET_SYSTEM_REV);
+				system_rev = (value >> 16) & 0xf;
+			}
+			else {
+				dev_err(priv->dev, "Unknown device - unable to set serial.\n");
+				system_serial_low = 0xDEADBEA1;
+				system_serial_high = 0xDEADBEA1;
+			}
+		}
+		clk_disable_unprepare(priv->clk);
+	}
+	mutex_unlock(&ocotp_mutex);
+	return ret;
+}
+
+
 static struct nvmem_config imx_ocotp_nvmem_config = {
 	.name = "imx-ocotp",
 	.read_only = false,
@@ -603,6 +678,14 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 	clk_prepare_enable(priv->clk);
 	imx_ocotp_clr_err_if_set(priv);
 	clk_disable_unprepare(priv->clk);
+
+	/* Update system serial */
+	int ret = update_serial_number(priv);
+	if (ret != 0) {
+		dev_err(priv->dev, "Failed to set device serial: %d.\n", ret);
+		system_serial_low = 0xDEADBEA1;
+		system_serial_high = 0xDEADBEA1;
+	}
 
 	nvmem = devm_nvmem_register(dev, &imx_ocotp_nvmem_config);
 
