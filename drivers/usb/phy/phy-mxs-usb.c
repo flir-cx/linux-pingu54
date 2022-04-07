@@ -211,6 +211,14 @@
 /* The MXS PHYs which have DCD module for charger detection */
 #define MXS_PHY_HAS_DCD				BIT(5)
 
+/* Threshold for CC ADC to be considered a DCP (dedicated charging port) */
+#define CC_ADC_DCP_THRESHOLD        1000
+
+uint16_t m4_cc1_adc;
+EXPORT_SYMBOL(m4_cc1_adc);
+uint16_t m4_cc2_adc;
+EXPORT_SYMBOL(m4_cc2_adc);
+
 struct mxs_phy_data {
 	unsigned int flags;
 };
@@ -983,7 +991,15 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 
 	if (i > 20) {
 		dev_err(phy->dev, "charger detecting timeout\n");
-		chgr_type = UNKNOWN_TYPE;
+
+		dev_info(phy->dev, "Checking CC pins... CC1: %d, CC2: %d\n", m4_cc1_adc, m4_cc2_adc);
+		if (m4_cc1_adc > CC_ADC_DCP_THRESHOLD || m4_cc2_adc > CC_ADC_DCP_THRESHOLD) {
+			dev_info(phy->dev, "DCP\n");
+			chgr_type = DCP_TYPE;
+		} else {
+			dev_info(phy->dev, "SDP\n");
+			chgr_type = UNKNOWN_TYPE;
+		}
 	}
 
 	/* disable dcd module */
@@ -1135,6 +1151,10 @@ static int mxs_phy_probe(struct platform_device *pdev)
 static int mxs_phy_remove(struct platform_device *pdev)
 {
 	struct mxs_phy *mxs_phy = platform_get_drvdata(pdev);
+
+	/* Reset cc values */
+	m4_cc1_adc = 0;
+	m4_cc2_adc = 0;
 
 	usb_remove_phy(&mxs_phy->phy);
 	pm_runtime_get_sync(&pdev->dev);
