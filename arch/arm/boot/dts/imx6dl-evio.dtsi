@@ -214,7 +214,7 @@
 		reg = <0x55>;
 	};
 
-    touchscreen:tsc@70 {
+    touchscreen_evco:tsc@70 {
         status = "okay";
         compatible = "cypress,cyttsp5";
         reg = <0x70>;
