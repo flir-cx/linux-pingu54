@@ -50,14 +50,19 @@ uvc_send_response(struct uvc_device *uvc, struct uvc_request_data *data)
  * V4L2 ioctls
  */
 
+#define V4L2_PIX_FMT_MJLS v4l2_fourcc('M', 'J', 'L', 'S') /* JPEG-LS 16-bit */
+#define V4L2_PIX_FMT_DFVI v4l2_fourcc('D', 'F', 'V', 'I') /* Dual frame */
+
 struct uvc_format {
 	u8 bpp;
 	u32 fcc;
 };
 
 static struct uvc_format uvc_formats[] = {
-	{ 16, V4L2_PIX_FMT_YUYV  },
+	{ 16, V4L2_PIX_FMT_UYVY  },
 	{ 0,  V4L2_PIX_FMT_MJPEG },
+	{ 0,  V4L2_PIX_FMT_MJLS  },
+	{ 0,  V4L2_PIX_FMT_DFVI  },
 };
 
 static int
@@ -292,7 +297,6 @@ uvc_v4l2_open(struct file *file)
 	handle->device = &uvc->video;
 	file->private_data = &handle->vfh;
 
-	uvc_function_connect(uvc);
 	return 0;
 }
 
@@ -303,8 +307,6 @@ uvc_v4l2_release(struct file *file)
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 	struct uvc_file_handle *handle = to_uvc_file_handle(file->private_data);
 	struct uvc_video *video = handle->device;
-
-	uvc_function_disconnect(uvc);
 
 	mutex_lock(&video->mutex);
 	uvcg_video_enable(video, 0);
