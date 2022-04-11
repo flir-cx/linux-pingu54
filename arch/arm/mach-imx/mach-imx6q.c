@@ -240,21 +240,27 @@ static void __init imx6q_csi_mux_init(void)
 	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
 	if (!IS_ERR(gpr)) {
 		if (of_machine_is_compatible("fsl,imx6q-sabresd") ||
-			of_machine_is_compatible("fsl,imx6q-sabreauto") ||
-			of_machine_is_compatible("fsl,imx6qp-sabresd") ||
-			of_machine_is_compatible("fsl,imx6qp-sabreauto"))
+		    of_machine_is_compatible("fsl,imx6q-sabreauto") ||
+		    of_machine_is_compatible("fsl,imx6qp-sabresd") ||
+		    of_machine_is_compatible("fsl,imx6qp-sabreauto")) {
 			regmap_update_bits(gpr, IOMUXC_GPR1, 1 << 19, 1 << 19);
-		else if (of_machine_is_compatible("fsl,imx6dl-sabresd") ||
-			 of_machine_is_compatible("fsl,imx6dl-sabreauto"))
+		} else if (of_machine_is_compatible("fsl,imx6dl-sabresd") ||
+			   of_machine_is_compatible("fsl,imx6dl-sabreauto")) {
 			regmap_update_bits(gpr, IOMUXC_GPR13, 0x3F, 0x0C);
-		else if (of_machine_is_compatible("fsl,imx6dl-ec101") ||
-                         of_machine_is_compatible("fsl,imx6dl-ec501")) {
+		} else if (of_machine_is_compatible("fsl,imx6qp-eoco") ||
+			   of_machine_is_compatible("fsl,imx6qp-flir")) {
+			regmap_update_bits(gpr, IOMUXC_GPR1, 1 << 20, 1 << 20);
+			regmap_update_bits(gpr, IOMUXC_GPR1, 1 << 19, 1 << 19);
+		} else if (of_machine_is_compatible("flir,ninjago") ||
+			   of_machine_is_compatible("fsl,imx6dl-ec101") ||
+			   of_machine_is_compatible("fsl,imx6dl-ec501")) {
 			regmap_update_bits(gpr, IOMUXC_GPR13, 0x3F, 0x24);
 			regmap_update_bits(gpr, IOMUXC_GPR1, IMX6Q_GPR1_MIPI_IPU2_MUX_IOMUX, IMX6Q_GPR1_MIPI_IPU2_MUX_IOMUX);
-                }
+		} else {
+			pr_err("%s(): Unknown machine, no  changes made to csi mux\n", __func__);
+		}
 	} else {
-		pr_err("%s(): failed to find fsl,imx6q-iomux-gpr regmap\n",
-		       __func__);
+		pr_err("%s(): failed to find fsl,imx6q-iomux-gpr regmap\n", __func__);
 	}
 }
 
