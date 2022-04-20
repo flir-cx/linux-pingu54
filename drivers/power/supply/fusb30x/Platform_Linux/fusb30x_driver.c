@@ -202,7 +202,7 @@ static void fusb30x_shutdown(struct i2c_client *client)
 /*******************************************************************************
  * Driver macros
  ******************************************************************************/
-module_init(fusb30x_init);                                                      // Defines the module's entrance function
+late_initcall(fusb30x_init);                                                    // Defines the module's entrance function
 module_exit(fusb30x_exit);                                                      // Defines the module's exit function
 
 MODULE_LICENSE("GPL");                                                          // Exposed on call to modinfo
