@@ -231,6 +231,16 @@ config LEDS_LM3642
 	  converter plus 1.5A constant current driver for a high-current
 	  white LED.
 
+config LEDS_LM3644
+	tristate "LED Support for LM3644"
+	depends on LEDS_CLASS && I2C
+	help
+	  This option enables support for LM3644
+	  flashled controller with LM3644 driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called leds-lm3644.
+
 config LEDS_LM3692X
 	tristate "LED support for LM3692x Chips"
 	depends on LEDS_CLASS && I2C && OF
