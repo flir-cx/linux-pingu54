@@ -12,6 +12,8 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
 /*This file represents leif-a and later*/
 
 / {
@@ -254,13 +256,16 @@
 		compatible = "ti,lp5521";
 		reg = <0x32>;
 		clock-mode = <1>;
-		enable-gpio = <&leif_pca9534_0x42 6 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&leif_pca9534_0x42 6 GPIO_ACTIVE_HIGH>;
 		label = "ledlist0";
+                color = <LED_COLOR_ID_RGB>;
 		chan0 {
 		      chan-name = "ledlist_5"; //LED[1]
 		      led-cur = /bits/ 8 <0x32>;
 		      max-cur = /bits/ 8 <0x32>; //Max allowed by LEDs current is 5mA, 
 		      linux,default-trigger = "none";
+	              color = <LED_COLOR_ID_RED>;
+                      reg = <0x0>; // Channel no.
 		};
 
 		chan1 {
@@ -268,6 +273,8 @@
 		      led-cur = /bits/ 8 <0x32>;
 		      max-cur = /bits/ 8 <0x32>; //Max allowed by LEDs current is 5mA, 
 		      linux,default-trigger = "none";
+	              color = <LED_COLOR_ID_GREEN>;
+                      reg = <0x1>; // Channel no.
 		      };
 
 		chan2 {
@@ -275,6 +282,8 @@
 		      led-cur = /bits/ 8 <0x32>;
 		      max-cur = /bits/ 8 <0x32>; //Max allowed by LEDs current is 5mA, 
 		      linux,default-trigger = "none";
+	              color = <LED_COLOR_ID_BLUE>;
+                      reg = <0x2>; // Channel no.
 		      };
 
 	};
@@ -286,11 +295,14 @@
 		//enable-gpio is being held by lp5521first device...
 		//enable-gpio = <&leif_pca9534_0x42 6 GPIO_ACTIVE_LOW>;
 		label = "ledlist1";
+                color = <LED_COLOR_ID_RGB>;
 		chan0 {
 		      chan-name = "ledlist_2";  //LED[4]
 		      led-cur = /bits/ 8 <0x32>;
 		      max-cur = /bits/ 8 <0x32>; //Max allowed by LEDs current is 5mA, 
 		      linux,default-trigger = "none";
+	              color = <LED_COLOR_ID_RED>;
+                      reg = <0x0>; // Channel no.
 		};
 
 
@@ -299,6 +311,8 @@
 		      led-cur = /bits/ 8 <0x32>;
 		      max-cur = /bits/ 8 <0x32>; //Max allowed by LEDs current is 5mA, 
 		      linux,default-trigger = "none";
+	              color = <LED_COLOR_ID_GREEN>;
+                      reg = <0x1>; // Channel no.
 		      };
 
 		chan2 {
@@ -306,6 +320,8 @@
 		      led-cur = /bits/ 8 <0x32>;
 		      max-cur = /bits/ 8 <0x32>; //Max allowed by LEDs current is 5mA, 
 		      linux,default-trigger = "none";
+	              color = <LED_COLOR_ID_BLUE>;
+                      reg = <0x2>; // Channel no.
 		      };
 	};
 };

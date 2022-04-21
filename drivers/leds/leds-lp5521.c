@@ -536,8 +536,10 @@ static int lp5521_probe(struct i2c_client *client,
 		if (np) {
 			pdata = lp55xx_of_populate_pdata(&client->dev, np,
 							 chip);
-			if (IS_ERR(pdata))
+			if (IS_ERR(pdata)) {
+    			dev_err(&client->dev, "failed to populate %d\n", pdata);
 				return PTR_ERR(pdata);
+            }
 		} else {
 			dev_err(&client->dev, "no platform data\n");
 			return -EINVAL;

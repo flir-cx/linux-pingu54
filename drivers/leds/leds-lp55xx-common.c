@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 
 #include "leds-lp55xx-common.h"
@@ -438,18 +439,13 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 	if (!pdata || !cfg)
 		return -EINVAL;
 
-	if (gpio_is_valid(pdata->enable_gpio)) {
-		ret = devm_gpio_request_one(dev, pdata->enable_gpio,
-					    GPIOF_DIR_OUT, "lp5523_enable");
-		if (ret < 0) {
-			dev_err(dev, "could not acquire enable gpio (err=%d)\n",
-				ret);
-			goto err;
-		}
+	if (pdata->enable_gpiod) {
+		gpiod_direction_output(pdata->enable_gpiod, 0);
 
-		gpio_set_value_cansleep(pdata->enable_gpio, 0);
+		gpiod_set_consumer_name(pdata->enable_gpiod, "LP55xx enable");
+		gpiod_set_value(pdata->enable_gpiod, 0);
 		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
-		gpio_set_value_cansleep(pdata->enable_gpio, 1);
+		gpiod_set_value(pdata->enable_gpiod, 1);
 		usleep_range(1000, 2000); /* 500us abs min. */
 	}
 
@@ -490,8 +486,8 @@ void lp55xx_deinit_device(struct lp55xx_chip *chip)
 	if (chip->clk)
 		clk_disable_unprepare(chip->clk);
 
-	if (gpio_is_valid(pdata->enable_gpio))
-		gpio_set_value_cansleep(pdata->enable_gpio, 0);
+	if (pdata->enable_gpiod)
+		gpiod_set_value(pdata->enable_gpiod, 0);
 }
 EXPORT_SYMBOL_GPL(lp55xx_deinit_device);
 

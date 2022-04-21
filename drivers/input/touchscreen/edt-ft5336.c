@@ -203,7 +203,7 @@ void detect_leds(struct device *dev, struct edt_ft5336_ts_data *tsdata)
 	if(!tsdata->detected_leds){
 		down_read(&leds_list_lock);
 		list_for_each_entry(led_cdev, &leds_list, node) {
-			if (strncmp(led_cdev->name, "ledlist", strlen("ledlist")) == 0){
+			if (led_cdev->name && strncmp(led_cdev->name, "ledlist", strlen("ledlist")) == 0){
 				dev_info(dev, "Found %s %u\n", led_cdev->name, led_cdev->brightness);
 				if(led_cdev->name[8] == '1')
 					tsdata->led_key[0] = led_cdev;
@@ -1180,6 +1180,7 @@ static int edt_ft5336_ts_probe(struct i2c_client *client,
 	dev_dbg(&client->dev,
 		"Model \"%s\", Rev. \"%s\", %dx%d sensors\n",
 		tsdata->name, fw_version, tsdata->num_x, tsdata->num_y);
+
 
 //    abs_max_x = tsdata->num_x * 64 - 1;
 //    abs_max_y = tsdata->num_y * 64 - 1;
