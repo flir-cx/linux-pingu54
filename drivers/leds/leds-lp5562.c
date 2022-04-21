@@ -548,10 +548,6 @@ static int lp5562_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, led);
 
-	ret = lp55xx_init_device(chip);
-	if (ret)
-		goto err_init;
-
 	ret = lp55xx_register_leds(led, chip);
 	if (ret)
 		goto err_register_leds;
