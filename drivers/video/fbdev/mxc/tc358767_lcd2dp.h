@@ -106,6 +106,22 @@ struct mxc_lcd2dp {
 	unsigned int edid_retry;
 };
 
+/* PHY */
+#define DP_PHY_RST			BIT(28)  /* DP PHY Global Soft Reset */
+#define BGREN				BIT(25)  /* AUX PHY BGR Enable */
+#define PWR_SW_EN			BIT(24)  /* PHY Power Switch Enable */
+#define PHY_M1_RST			BIT(12)  /* Reset PHY1 Main Channel */
+#define PHY_RDY				BIT(16)  /* PHY Main Channels Ready */
+#define PHY_M0_RST			BIT(8)   /* Reset PHY0 Main Channel */
+#define PHY_2LANE			BIT(2)   /* PHY Enable 2 lanes */
+#define PHY_A0_EN			BIT(1)   /* PHY Aux Channel0 Enable */
+#define PHY_M0_EN			BIT(0)   /* PHY Main Channel0 Enable */
+
+
+#define AUX_TIMEOUT		BIT(1)
+#define AUX_BUSY		BIT(0)
+
+
 // DSI
 #define DSI_INTSTATUS		0x0220
 
@@ -166,9 +182,15 @@ struct mxc_lcd2dp {
 #define DP0_AUX_RDATA3		0x0688
 #define DP0_AUX_STAT		0x068c
 
+#define DP0_SRCCTRL_NOTP		(0 << 8)
+#define DP0_SRCCTRL_LANESKEW		BIT(7)
+#define DP0_SRCCTRL_EN810B		BIT(12)
+#define DP0_SRCCTRL_SCRMBLDIS		BIT(13)
+
 // DP0 Link
 #define DP0_SRC_CTRL		0x06a0
 #define DP0_LTSTAT		0x06d0
+#define DP0_SNKLTCHGREQ		0x06d4
 #define DP0_LTLOOP_CTRL		0x06d8
 #define DP0_SNK_LTCTRL		0x06e4
 
@@ -210,6 +232,19 @@ struct mxc_lcd2dp {
 #define PXL_PLL_CTRL		0x0908
 #define PXL_PLL_PARAM		0x0914
 #define SYS_PLL_PARAM		0x0918
+
+#define REF_FREQ_38M4			(0 << 8) /* 38.4 MHz */
+#define REF_FREQ_19M2			(1 << 8) /* 19.2 MHz */
+#define REF_FREQ_26M			(2 << 8) /* 26 MHz */
+#define REF_FREQ_13M			(3 << 8) /* 13 MHz */
+#define SYSCLK_SEL_LSCLK		(0 << 4)
+#define LSCLK_DIV_1			(0 << 0)
+#define LSCLK_DIV_2			(1 << 0)
+
+
+#define PLLUPDATE			BIT(2)
+#define PLLBYP				BIT(1)
+#define PLLEN				BIT(0)
 
 // Debug
 #define TEST_CTL		0x0A00

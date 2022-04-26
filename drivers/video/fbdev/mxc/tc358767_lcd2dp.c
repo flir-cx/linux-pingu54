@@ -52,6 +52,23 @@
 #define COLOR_BAR 0
 
 
+static inline int lcd2dp_poll_timeout(struct mxc_lcd2dp *lcd2dp, unsigned int addr,
+				  unsigned int cond_mask,
+				  unsigned int cond_value,
+				  unsigned long sleep_us, u64 timeout_us)
+{
+	unsigned int val;
+
+	return regmap_read_poll_timeout(lcd2dp->regmap, addr, val,
+					(val & cond_mask) == cond_value,
+					sleep_us, timeout_us);
+}
+
+static int lcd2dp_aux_wait_busy(struct mxc_lcd2dp *lcd2dp)
+{
+	return lcd2dp_poll_timeout(lcd2dp, DP0_AUX_STAT, AUX_BUSY, 0, 100, 100000);
+}
+
 static inline void lcd2dp_reg_write(struct mxc_lcd2dp *lcd2dp,
 					unsigned int addr,
 					unsigned int val)
@@ -70,7 +87,7 @@ static inline void lcd2dp_reg_write(struct mxc_lcd2dp *lcd2dp,
 	 * and register value in little endian.
 	 * Regmap currently sends it all in big endian.
 	 */
-	ret = regmap_write(lcd2dp->regmap, addr, __swab32(val));
+	ret = regmap_write(lcd2dp->regmap, addr, val); //__swab32(val));
 	if (ret)
 		dev_err(&lcd2dp->client_i2c->dev, "regmap_write addr %X ret %d\n", addr, ret);
 }
@@ -94,7 +111,7 @@ static inline void lcd2dp_reg_read(struct mxc_lcd2dp *lcd2dp,
 	 * TC358767 returns register value in little endian.
 	 * Covert it to big endian.
 	 */
-	*val = __swab32(*val);
+	//*val = __swab32(*val);
 
 	dev_dbg(&lcd2dp->client_i2c->dev, "Read from %X val = %X\n", addr, *val);
 }
@@ -410,11 +427,46 @@ static struct snd_soc_dai_driver tc358767_dai_driver[] = {
 	}
 };
 
+static bool tc_readable_reg(struct device *dev, unsigned int reg)
+{
+	return reg != SYS_CTRL;
+}
+
+static bool tc_writeable_reg(struct device *dev, unsigned int reg)
+{
+	return (reg != DP_IDREG) &&
+	       (reg != DP0_LTSTAT) &&
+	       (reg != DP0_SNKLTCHGREQ);
+}
+
+
+static const struct regmap_range tc_volatile_ranges[] = {
+	regmap_reg_range(DP0_AUX_WDATA0, DP0_AUX_STAT),
+	regmap_reg_range(DP0_LTSTAT, DP0_SNKLTCHGREQ),
+	regmap_reg_range(DP_PHY_CTRL, DP_PHY_CTRL),
+	regmap_reg_range(DP0_PLL_CTRL, PXL_PLL_CTRL),
+	regmap_reg_range(VIDEO_FRAME_TIMING_UPLOAD_ENB0, VIDEO_FRAME_TIMING_UPLOAD_ENB0),
+	regmap_reg_range(INTSTS_G, INTSTS_G),
+	regmap_reg_range(GPIO_INPUT, GPIO_INPUT),
+};
+
+static const struct regmap_access_table tc_volatile_table = {
+	.yes_ranges = tc_volatile_ranges,
+	.n_yes_ranges = ARRAY_SIZE(tc_volatile_ranges),
+};
+
+
 static const struct regmap_config lcd2dp_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 32,
 	.max_register = 0xb00,
 	.reg_stride = 4,
+	.cache_type = REGCACHE_RBTREE,
+	.readable_reg = tc_readable_reg,
+	.volatile_table = &tc_volatile_table,
+	.writeable_reg = tc_writeable_reg,
+    .reg_format_endian = REGMAP_ENDIAN_BIG,
+    .val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
 
@@ -943,6 +995,8 @@ static int lcd2dp_read_edid(struct mxc_lcd2dp *lcd2dp)
 static int lcd2dp_setup(struct mxc_lcd2dp *lcd2dp)
 {
 	unsigned int val;
+    int ret;
+	u32 dp_phy_ctrl, reg, pllparam;
 
 	dev_info(&lcd2dp->client_i2c->dev, "setup\n");
 
@@ -953,41 +1007,73 @@ static int lcd2dp_setup(struct mxc_lcd2dp *lcd2dp)
 		return 1;
         }
 
-	// Setup main link
-	lcd2dp_reg_write(lcd2dp, DP0_SRC_CTRL, 0x3080);
+	lcd2dp_reg_write(lcd2dp, DP0_CTRL, 0);
+
+	// Setup PLL
+	reg = DP0_SRCCTRL_NOTP | DP0_SRCCTRL_LANESKEW | DP0_SRCCTRL_EN810B | DP0_SRCCTRL_SCRMBLDIS;
+	lcd2dp_reg_write(lcd2dp, DP0_SRC_CTRL, reg);
 	lcd2dp_reg_write(lcd2dp, DP1_SRC_CTRL, 0x0);
-	lcd2dp_reg_write(lcd2dp, SYS_PLL_PARAM, 0x0001);
 
-	// DP PHY / PLLs
-	lcd2dp_reg_write(lcd2dp, DP_PHY_CTRL, 0x03000003);	// AUX enable (Will be changed)
-	lcd2dp_reg_write(lcd2dp, DP0_PLL_CTRL, 0x5);
-	msleep(70);
-	lcd2dp_reg_write(lcd2dp, DP1_PLL_CTRL, 0x5);		// PLL bypass
-	msleep(70);
-
+	pllparam = LSCLK_DIV_2 | REF_FREQ_38M4;
+	//lcd2dp_reg_write(lcd2dp, SYS_PLL_PARAM, 0x0001); // PLL multiplier = 1
+	lcd2dp_reg_write(lcd2dp, SYS_PLL_PARAM, pllparam);
 #if COLOR_BAR
 	lcd2dp_reg_write(lcd2dp, PXL_PLL_PARAM, 0x220205);	// 38.4MHz * 5 / (2*2*2) = 24MHz
 								// 38.4 * 45 / 2 / 16 = 54 [150..650]
-	lcd2dp_reg_write(lcd2dp, PXL_PLL_CTRL, 0x5);		// PLL bypass
-	msleep(70);
 #endif
 
-	// reset main channel
-	lcd2dp_reg_write(lcd2dp, DP_PHY_CTRL, 0x13001103);	// Reset
-	msleep(100);
-	lcd2dp_reg_write(lcd2dp, DP_PHY_CTRL, 0x03000003);	// !Reset
-	msleep(100);
-	lcd2dp_reg_read(lcd2dp, DP_PHY_CTRL, &val);
-	if (!(val & (1<<16))) {
-		dev_err(&lcd2dp->client_i2c->dev, "main link not ready\n");
+	// Setup main link
+	dp_phy_ctrl = BGREN | PWR_SW_EN | PHY_A0_EN | PHY_M0_EN;
+	lcd2dp_reg_write(lcd2dp, DP_PHY_CTRL, dp_phy_ctrl);
+
+	// Update PLL
+	lcd2dp_reg_write(lcd2dp, DP0_PLL_CTRL, PLLUPDATE | PLLEN); // PLL bypass disabled , enable PLL
+	/* Wait for PLL to lock: up to 2.09 ms, depending on refclk */
+	usleep_range(3000, 6000);
+	lcd2dp_reg_write(lcd2dp, DP1_PLL_CTRL, PLLUPDATE | PLLEN);		// PLL bypass disabled , enable PLL
+	/* Wait for PLL to lock: up to 2.09 ms, depending on refclk */
+	usleep_range(3000, 6000);
+
+	ret = lcd2dp_poll_timeout(lcd2dp, DP_PHY_CTRL, PHY_RDY, PHY_RDY, 100, 100000);
+	if (ret == -ETIMEDOUT) {
+		dev_err(&lcd2dp->client_i2c->dev, "Timeout waiting for PHY to become ready");
+		return 1;
+	} else if (ret) {
+		dev_err(&lcd2dp->client_i2c->dev, "AUX link setup failed: %d", ret);
 		return 1;
 	}
 
+	// reset main channel
+	dp_phy_ctrl |= DP_PHY_RST | PHY_M1_RST | PHY_M0_RST;
+	lcd2dp_reg_write(lcd2dp, DP_PHY_CTRL, dp_phy_ctrl); //0x13001103);	// Reset
+	usleep_range(100, 200);
+	dp_phy_ctrl &= ~(DP_PHY_RST | PHY_M1_RST | PHY_M0_RST);
+	lcd2dp_reg_write(lcd2dp, DP_PHY_CTRL, dp_phy_ctrl);	// !Reset
+	ret = lcd2dp_poll_timeout(lcd2dp, DP_PHY_CTRL, PHY_RDY, PHY_RDY, 500, 100000);
+	if (ret) {
+		dev_err(&lcd2dp->client_i2c->dev, "timeout waiting for phy become ready");
+		return 1;
+	}
+
+	//msleep(100);
+	//lcd2dp_reg_read(lcd2dp, DP_PHY_CTRL, &val);
+	//if (!(val & (1<<16))) {
+	//	dev_err(&lcd2dp->client_i2c->dev, "main link not ready\n");
+	//	return 1;
+	//}
+
 	// Read DP Rx Link Capability
-	lcd2dp_reg_write(lcd2dp, DP0_AUX_CFG1, 0x1063f);
-	lcd2dp_reg_write(lcd2dp, DP0_AUX_ADDR, 0x1);
-	lcd2dp_reg_write(lcd2dp, DP0_AUX_CFG0, 0x109);		// Read MAX_LINE_RATE
-	msleep(10);
+	lcd2dp_reg_write(lcd2dp, DP0_AUX_CFG1, 0x1063f);    // Setup AUX link
+	lcd2dp_reg_write(lcd2dp, DP0_AUX_ADDR, 0x1);        // Read MAX_LINE_RATE
+	/* Start transfer */
+	lcd2dp_reg_write(lcd2dp, DP0_AUX_CFG0, 0x109);		// AUX Native Read (0x09) bsize=1 byte Address Only=0
+
+	ret = lcd2dp_aux_wait_busy(lcd2dp);
+	if (ret) {
+		dev_err(&lcd2dp->client_i2c->dev, "AUX transfer busy\n");
+		return 1;
+    }
+
 	lcd2dp_reg_read(lcd2dp, DP0_AUX_STAT, &val);
 	if ((val & 0xffff) != 0x0200) {
 		dev_err(&lcd2dp->client_i2c->dev, "Read cap: AUX status fail %X\n", val);
