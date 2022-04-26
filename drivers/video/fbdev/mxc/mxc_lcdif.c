@@ -49,6 +49,18 @@ static struct fb_videomode lcdif_modedb[] = {
 	FB_SYNC_CLK_LAT_FALL,
 	FB_VMODE_NONINTERLACED,
 	0,},
+	{
+	/* 640x480 @ 60 Hz , pixel clk @ 27MHz */
+	"FLIR-VGA", 60, 640, 480, 37037, 40, 8, 25, 2, 96, 2,
+	FB_SYNC_CLK_LAT_FALL,
+	FB_VMODE_NONINTERLACED,
+	0,},
+	{
+	/* 640x480 @ 59.94 Hz , pixel clk @ 25.175MHz , DisplayPort VGAstd */
+	"FLIR-DP", 60, 640, 480, 39722, 48, 16, 33, 10, 96, 2,
+	0,
+	FB_VMODE_NONINTERLACED,
+	0,},
 };
 static int lcdif_modedb_sz = ARRAY_SIZE(lcdif_modedb);
 
