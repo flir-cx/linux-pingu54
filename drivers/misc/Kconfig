@@ -443,6 +443,11 @@ config SRAM
 config SRAM_EXEC
 	bool
 
+config CA111
+       tristate "CA111 Laser distance finder"
+	help
+	   CA111 Laser distance finder
+
 config PCI_ENDPOINT_TEST
 	depends on PCI
 	select CRC32
