@@ -1068,7 +1068,7 @@ static int fxos8700_probe(struct i2c_client *client,
 		goto err_register_sys;
 	}
 	fxos8700_device_init(client);
-	dev_err(&client->dev, "fxos8700 device driver probe successfully");
+	dev_info(&client->dev, "fxos8700 device driver probe successfully");
 	return 0;
 err_register_sys:
 	misc_deregister(&fxos8700_mag_device);
