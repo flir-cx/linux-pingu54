@@ -234,7 +234,7 @@ struct device_data {
 
 static int cnt = 0;
 
-static int fxos8700_position_settings[9][3][3] = {
+static int fxos8700_position_settings[10][3][3] = {
 	{ { 0, -1, 0}, { 1, 0, 0}, {0, 0, 1} },
 	{ {-1, 0, 0}, { 0, -1, 0}, {0, 0, 1} },  //X=-X, Y=-Y, Z=Z  -> Appcore  1,1,1 XYZ (EVRO)
 	{ { 0, 1, 0}, {-1, 0, 0}, {0, 0, 1} },
@@ -244,14 +244,17 @@ static int fxos8700_position_settings[9][3][3] = {
 	{ { 0, 1, 0}, { 1, 0, 0}, {0, 0, -1} },
 	{ { 1,0, 0}, { 0,-1, 0}, {0, 0, 1} }, //Axis X forward, Y to the right, Z down
 	                                      //Matches Accelerometer calculations...
-	{ { 0, 0, -1}, { 0,-1,0}, {-1,0,0} }  //X = -Z, Y=-Y, Z=-X  -->Appcore config 1,1,1  XYZ (EVLC2)
+	{ { 0, 0, -1}, { 0,-1,0}, {-1,0,0} },  //X = -Z, Y=-Y, Z=-X  -->Appcore config 1,1,1  XYZ (EVLC2)
+	{ { 0, 1, 0}, {1, 0, 0}, {0, 0, -1} }  //X = Y', Y=-X', Z=-Z' --> Appcore config 1,1,1 XYC (New location)
+	//create rotation matrix, negate Y axis, seems to work...
+	//"Camera axes" Are X out through the lens, Y to the right, and Z down to the ground
 };
 
 static int fxos8700_data_convert(struct fxos8700_data_axis *axis_data, int position)
 {
 	short rawdata[3], data[3];
 	int i, j;
-	if (position < 0 || position > 8)
+	if (position < 0 || position > 9)
 		position = 0;
 	rawdata[0] = axis_data->x;
 	rawdata[1] = axis_data->y;
