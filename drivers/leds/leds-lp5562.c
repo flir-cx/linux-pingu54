@@ -511,6 +511,87 @@ static struct lp55xx_device_config lp5562_cfg = {
 	.dev_attr_group     = &lp5562_group,
 };
 
+/* On */
+static const u8 pat_on[] = { 0x40, 0xFF, 0xC0, 0x00, };
+
+/* Off */
+static const u8 pat_off[] = { 0x40, 0x00, 0xC0, 0x00, };
+
+/* Blink 500 ms */
+static const u8 pat_blink_500[] = { 0x40, 0xFF, 0x60, 0x00, 0x40, 0x00, 0x60, 0x00, 0x00, 0x00, };
+
+/* Boot */
+static const u8 pat_boot_1[] = { 0xE1, 0x00, 0xE0, 0x08, 0x0F, 0x7F, 0xE1, 0x00, 0x0F, 0xFF, 0xE0, 0x08, 0x00, 0x00, };
+static const u8 pat_boot_2[] = { 0xE2, 0x00, 0x0F, 0x7F, 0xE0, 0x02, 0xE2, 0x00, 0x0F, 0xFF, 0xE0, 0x02, 0x00, 0x00, };
+static const u8 pat_boot_3[] = { 0x0F, 0x7F, 0xE0, 0x04, 0xE0, 0x80, 0x0F, 0xFF, 0xE0, 0x04, 0xE0, 0x80, 0x00, 0x00, };
+
+struct lp55xx_predef_pattern board_led_patterns[] = {
+	/* Pattern zero is all off */
+	{
+		/* Boot */
+		.r = pat_boot_1,
+		.g = pat_boot_2,
+		.b = pat_boot_3,
+		.size_r = ARRAY_SIZE(pat_boot_1),
+		.size_g = ARRAY_SIZE(pat_boot_2),
+		.size_b = ARRAY_SIZE(pat_boot_3),
+	},
+	{
+		/* Battery 10-35 */
+		.r = pat_off,
+		.g = pat_off,
+		.b = pat_on,
+		.size_r = ARRAY_SIZE(pat_off),
+		.size_g = ARRAY_SIZE(pat_off),
+		.size_b = ARRAY_SIZE(pat_on),
+	},
+	{
+		/* Battery 35-75 */
+		.r = pat_off,
+		.g = pat_on,
+		.b = pat_on,
+		.size_r = ARRAY_SIZE(pat_off),
+		.size_g = ARRAY_SIZE(pat_on),
+		.size_b = ARRAY_SIZE(pat_on),
+	},
+	{
+		/* Battery 75-100 */
+		.r = pat_on,
+		.g = pat_on,
+		.b = pat_on,
+		.size_r = ARRAY_SIZE(pat_on),
+		.size_g = ARRAY_SIZE(pat_on),
+		.size_b = ARRAY_SIZE(pat_on),
+	},
+	{
+		/* Charging 0-33 */
+		.r = pat_off,
+		.g = pat_off,
+		.b = pat_blink_500,
+		.size_r = ARRAY_SIZE(pat_off),
+		.size_g = ARRAY_SIZE(pat_off),
+		.size_b = ARRAY_SIZE(pat_blink_500),
+	},
+	{
+		/* Charging 33-66 */
+		.r = pat_off,
+		.g = pat_blink_500,
+		.b = pat_on,
+		.size_r = ARRAY_SIZE(pat_off),
+		.size_g = ARRAY_SIZE(pat_blink_500),
+		.size_b = ARRAY_SIZE(pat_on),
+	},
+	{
+		/* Charging 66-100 */
+		.r = pat_blink_500,
+		.g = pat_on,
+		.b = pat_on,
+		.size_r = ARRAY_SIZE(pat_blink_500),
+		.size_g = ARRAY_SIZE(pat_on),
+		.size_b = ARRAY_SIZE(pat_on),
+	},
+};
+
 static int lp5562_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -551,6 +632,9 @@ static int lp5562_probe(struct i2c_client *client,
 	ret = lp55xx_register_leds(led, chip);
 	if (ret)
 		goto err_register_leds;
+
+	pdata->patterns = board_led_patterns;
+	pdata->num_patterns = ARRAY_SIZE(board_led_patterns);
 
 	ret = lp55xx_register_sysfs(chip);
 	if (ret) {
