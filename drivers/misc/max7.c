@@ -636,7 +636,7 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 	disable_irq(gpio_to_irq(max7->irqpin));
 
-	dev_err(dev, "Enableing pm_runtime support\n");
+	dev_info(dev, "Enableing pm_runtime support\n");
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev,2000);
 	pm_runtime_use_autosuspend(&client->dev);
