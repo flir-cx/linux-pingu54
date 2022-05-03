@@ -341,7 +341,7 @@ static int send_ublox_request(struct i2c_client *client, u8 msg_class, u16 msg_I
 	ret = max7_write(client, msg, msg_len);
 	if(ret < 0)
 	{
-		dev_err(&client->dev, "failed to send ublox request\n");
+		dev_info(&client->dev, "failed to send ublox request\n");
 		kfree(msg);
 		return ret;
 	}
@@ -538,7 +538,7 @@ static int max7_initialise(struct i2c_client *client)
 
 	ret = send_ublox_request(client, UBX_CLASS_CFG, 0, &data_disableuart, sizeof(data_disableuart));
 	if( ret < 0 ){
-		dev_err(&client->dev, "Failed to send disableuart request\n");
+		dev_info(&client->dev, "Failed to send disableuart request\n");
 		goto out;
 	}
 		
@@ -546,14 +546,14 @@ static int max7_initialise(struct i2c_client *client)
 	/*Process the Ublox ACK / NAck message and print it*/
 	ret = process_ublox_ack(client, UBX_CLASS_CFG, 0);
 	if(ret < 0){
-		dev_err(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
+		dev_info(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
 		goto out;
 	}
 
 
 	ret = send_ublox_request(client, UBX_CLASS_CFG, 0, &data_enablei2cirq, sizeof(data_enablei2cirq));
 	if(ret < 0){
-		dev_err(&client->dev, "Failed to send enablei2cirq request\n");
+		dev_info(&client->dev, "Failed to send enablei2cirq request\n");
 		goto out;
 	}
 
@@ -561,7 +561,7 @@ static int max7_initialise(struct i2c_client *client)
 	/*Process the Ublox ACK / NAck message and print it*/
 	ret = process_ublox_ack(client, UBX_CLASS_CFG, 0);
 	if(ret < 0){
-		dev_err(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
+		dev_info(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
 		goto out;
 	}
 
@@ -646,7 +646,7 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	//regulator has been enabled, sleep a while 
 	// for gps to become ready
-	usleep_range(100000,250000);
+	msleep(250);
 	
         max7->client = client;
 	ret = max7_initialise(client);
