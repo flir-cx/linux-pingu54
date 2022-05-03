@@ -769,6 +769,14 @@ static int max7_suspend(struct device *dev)
 	return ret;
 }
 
+static void max7_shutdown(struct i2c_client *client)
+{
+	int ret = 0;
+	ret = regulator_disable(max7->supply);
+	usleep_range(1000, 5000);
+	gpio_direction_output(max7->resetpin, 0);
+}
+
 static int max7_runtime_resume(struct device *dev)
 {
 	int ret = 0;
@@ -822,6 +830,7 @@ static struct i2c_driver max7_driver = {
         .id_table       = max7_id,
         .probe          = max7_probe,
         .remove         = max7_remove,
+	.shutdown = max7_shutdown,
 };
 
 module_i2c_driver(max7_driver);
