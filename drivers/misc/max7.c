@@ -200,9 +200,9 @@ static int max7_write(struct i2c_client *client, void *msg, int len)
 
 //flush the stream before read
 	ret = max7_read_msg_stream_len(client);
-	if(ret > 500)	
+	if(ret > 500)
 	{
-		max7_read_msg_stream(client, ubx_buf, 500);	
+		max7_read_msg_stream(client, ubx_buf, 500);
 	}
 	else if(ret > 0)
 	{
@@ -297,28 +297,11 @@ static int max7_read_msg_stream_len(struct i2c_client *client)
  */
 static long max7_i2c_ioctl(struct file *filep,unsigned int cmd, unsigned long arg)
 {
-	int err = 0;
 	int ret = 0;
 	int len;
-//	struct i2c_client *client = max7->client;
-	/*
-	 * extract the type and number bitfields, and don't decode
-	 * wrong cmds: return ENOTTY (inappropriate ioctl) before access_ok()
-	 */
-	//if (_IOC_TYPE(cmd) != SCULL_IOC_MAGIC) return -ENOTTY;
-	//if (_IOC_NR(cmd) > SCULL_IOC_MAXNR) return -ENOTTY;
 
-	/*
-	 * the direction is a bitmask, and VERIFY_WRITE catches R/W
-	 * transfers. `Type' is user oriented, while
-	 * access_ok is kernel oriented, so the concept of "read" and
-	 * "write" is reversed
-	 */
-	if (_IOC_DIR(cmd) & _IOC_READ)
-		err = !access_ok(VERIFY_WRITE, (void *)arg, _IOC_SIZE(cmd));
-	else if (_IOC_DIR(cmd) & _IOC_WRITE)
-		err = !access_ok(VERIFY_READ, (void *)arg, _IOC_SIZE(cmd));
-	if (err) return -EFAULT;
+	if (!access_ok((void *)arg, _IOC_SIZE(cmd)))
+		return -EFAULT;
 
 	switch(cmd) {
 
@@ -546,7 +529,7 @@ static int max7_initialise(struct i2c_client *client)
 		dev_info(&client->dev, "Failed to send disableuart request\n");
 		goto out;
 	}
-		
+
 	usleep_range(100,200);
 	/*Process the Ublox ACK / NAck message and print it*/
 	ret = process_ublox_ack(client, UBX_CLASS_CFG, 0);
@@ -554,7 +537,6 @@ static int max7_initialise(struct i2c_client *client)
 		dev_info(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
 		goto out;
 	}
-
 
 	ret = send_ublox_request(client, UBX_CLASS_CFG, 0, &data_enablei2cirq, sizeof(data_enablei2cirq));
 	if(ret < 0){
@@ -569,7 +551,6 @@ static int max7_initialise(struct i2c_client *client)
 		dev_info(&client->dev, "Ublox Navigation Setting (UBX-CFG-...) Failed \n");
 		goto out;
 	}
-
 
 out:
 	return ret;
@@ -652,8 +633,8 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	//regulator has been enabled, sleep a while 
 	// for gps to become ready
 	msleep(250);
-	
-        max7->client = client;
+
+	max7->client = client;
 	ret = max7_initialise(client);
 	if(ret < 0){
 		ret = -EPROBE_DEFER;
