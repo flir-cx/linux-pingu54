@@ -1,0 +1,164 @@
+/*
+ * Copyright 2022 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	eohp_buttons {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		slider_right {
+			label = "slider_right"; // FJ_A_TOP
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x74 1 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_RIGHT>;
+		};
+        slider_left {
+			label = "slider_left"; // FJ_E_TOP
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x74 6 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_LEFT>;
+		};
+        slider_push {
+			label = "slider_push"; // FJ_PUSH_TOP
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x74 3 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_MIDDLE>;
+		};
+
+		button_1 {
+			label = "button_1"; // B1_TOP
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x74 7 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_0>;
+		};
+        button_2 {
+			label = "button_2"; // B2_TOP
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x74 5 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_1>;
+		};
+        button_3 {
+			label = "button_3"; // B3_TOP
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x74 2 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_2>;
+		};
+	};
+
+    eohp_joystick {
+		compatible = "gpio-keys";
+		autorepeat;
+        joystick_a {
+			label = "joystick_a"; // TJ_A_REAR
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x72 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_LEFT>;
+		};
+		joystick_b {
+			label = "joystick_b"; // TJ_B_REAR
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x72 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_LEFT_DOWN>;
+		};
+        joystick_c {
+			label = "joystick_c"; // TJ_C_REAR
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x72 5 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_DOWN>;
+		};
+        joystick_d {
+			label = "joystick_d"; // TJ_D_REAR
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x72 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RIGHT_DOWN>; 
+		};
+        joystick_e {
+			label = "joystick_e"; //TJ_E_REAR
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x72 7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RIGHT>;
+		};
+        joystick_f {
+			label = "joystick_f"; // TJ_F_REAR
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x72 4 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RIGHT_UP>;
+		};
+        joystick_g {
+			label = "joystick_g"; // TJ_G_REAR
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x72 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_UP>;
+		};
+		joystick_h {
+			label = "joystick_h"; // TJ_H_REAR
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x72 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_LEFT_UP>;
+		};
+        joystick_push {
+			label = "joystick_push"; // TJ_PUSH_TOP
+			gpio-key;
+			gpios = <&eohp_pcf8574_0x74 0 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_JOYSTICK>;
+		};
+	};
+
+    eohp_leds { 
+        compatible = "gpio-leds";
+        status = "disabled";
+        led_red {
+            label = "red-led"; 
+            gpios = <&eohp_pcf8574_0x74 4 GPIO_ACTIVE_LOW>;
+            default-state = "off";
+        };
+    };
+};
+
+&i2c1 {
+    /* GPIO-Expander */
+	eohp_pcf8574_0x72: eohp_pcf8574_0x72@39 {
+		compatible = "nxp,pcf8574";
+		reg = <0x39>;
+		gpio-controller;
+		status = "okay";
+		interrupt-parent = <&gpio4>; //I2C1_Alert_n
+		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		interrupts-shared;
+		#interrupt-cells = <2>;
+		#gpio-cells = <2>;
+	};
+
+    /* GPIO-Expander */
+	eohp_pcf8574_0x74: eohp_pcf8574_0x74@3a {
+		compatible = "nxp,pcf8574";
+		reg = <0x3a>;
+		gpio-controller;
+		status = "okay";
+		interrupt-parent = <&gpio4>; //I2C1_Alert_n
+		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		interrupts-shared;
+		#interrupt-cells = <2>;
+		#gpio-cells = <2>;
+	};
+
+    /* EEPROM */
+	evbw_24c02_a8: evbw_24c02_a8@53 {
+		compatible = "atmel,24c02";
+		reg = <0x53>;
+		pagesize = <16>;
+	};
+};

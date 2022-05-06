@@ -55,6 +55,22 @@
 			enable-active-high;
 		};
 
+		reg_gps_en: reg_gps_en {
+			compatible = "regulator-fixed";
+			status = "disabled";
+			regulator-name = "reg_gps_en";
+			gpio = <&eoco_pca9534_0x46 1 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_bt_en: reg_bt_en {
+			compatible = "regulator-fixed";
+			status = "disabled";
+			regulator-name = "reg_bt_en";
+			gpio = <&eoco_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
 		/*Removed on ec101-d but required by fvdk*/
 		reg_ec101_fpa_i2c: ec101_fpa_i2c {
 			compatible = "regulator-fixed";
@@ -240,6 +256,45 @@
 		fpga2-ce-gpio		= <&gpio3 3 GPIO_ACTIVE_HIGH>;
 		spi2-sclk-gpio		= <&gpio2 23 GPIO_ACTIVE_HIGH>;
 		spi2-mosi-gpio		= <&gpio2 24 GPIO_ACTIVE_HIGH>;
+	};
+
+	eobu_switch {
+		compatible = "gpio-keys";
+		autorepeat;
+		p_button {
+			label = "p_button";
+			gpio-key;
+			gpios = <&eoco_pca9534_0x46 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+		};
+		temp_range {
+			label = "temp_range";
+			gpio-key;
+			gpios = <&eoco_pca9534_0x46 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+		};
+	};
+
+	eoco_switch {
+		compatible = "gpio-keys";
+		autorepeat;
+		lcd_active {
+			label = "lcd_active";
+			gpio-key;
+			gpios =  <&gpio1 4 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_3>;
+		};
+	};
+
+	leds { // TODO move to EOXI
+		compatible = "gpio-leds";
+		debug-led {
+			label = "sdcard-led"; //name sdcard-led used by autofs
+			//to turn-on and off when filesystem is mounted
+			gpios = <&eoco_pca9534_0x46 4 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "mmc1";
+		};
 	};
 };
 
@@ -557,22 +612,33 @@
 		touchscreen-size-x = <640>;
 		touchscreen-size-y = <480>;
 	};
+
+	/* EEPROM */
+	evbw_24c02_ae: evbw_24c02_ae@57 {
+		compatible = "atmel,24c02";
+		reg = <0x57>;
+		pagesize = <16>;
+	};
+
 };
+
 &i2c3 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	ec101_24c02: ec101_24c02@57 {
-		compatible = "atmel,24c02";
-		reg = <0x57>;
-		pagesize = <16>;
-	};
 	eoco_pca9534_0x46: eoco_pca9534_0x46@23 {
 		compatible = "nxp,pca9534";
 		reg = <0x23>;
 		gpio-controller;
+		status = "okay";
+		vcc-supply = <&DA9063_LDO11>;
+		interrupt-parent = <&gpio4>; //I2C3_Alert_n
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		interrupts-shared;
+		#interrupt-cells = <2>;
 		#gpio-cells = <2>;
 	};
 
@@ -591,6 +657,9 @@
 		format = "RGB4";
 		status = "okay";
 	};
+
+	/*Accelerometer ADXL344A*/
+	//Todo
 
 //	sensor_flir_csi1: csi1@3d {
 //		compatible = "flir,flir_csi";
