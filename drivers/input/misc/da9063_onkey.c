@@ -215,6 +215,7 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 
 	onkey->config = match->data;
 	onkey->dev = &pdev->dev;
+	platform_set_drvdata(pdev, onkey);
 
 	onkey->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!onkey->regmap) {
