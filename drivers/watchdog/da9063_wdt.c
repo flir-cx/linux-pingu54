@@ -226,6 +226,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_restart_priority(wdd, 128);
 	watchdog_set_drvdata(wdd, da9063);
+	dev_set_drvdata(dev, wdd);
 
 	wdd->timeout = DA9063_WDG_TIMEOUT;
 
