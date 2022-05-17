@@ -55,22 +55,6 @@
 			enable-active-high;
 		};
 
-		reg_gps_en: reg_gps_en {
-			compatible = "regulator-fixed";
-			status = "disabled";
-			regulator-name = "reg_gps_en";
-			gpio = <&eoco_pca9534_0x46 1 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
-		reg_bt_en: reg_bt_en {
-			compatible = "regulator-fixed";
-			status = "disabled";
-			regulator-name = "reg_bt_en";
-			gpio = <&eoco_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
 		/*Removed on ec101-d but required by fvdk*/
 		reg_ec101_fpa_i2c: ec101_fpa_i2c {
 			compatible = "regulator-fixed";
@@ -294,6 +278,32 @@
 			gpios = <&eoco_pca9534_0x46 4 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 			linux,default-trigger = "mmc1";
+		};
+	};
+
+	outputs { // Temporary handling of power signals.
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pwr>;
+		cooler-disable {
+			label = "cooler-disable"; 
+			gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		power-off {
+			label = "power-off"; 
+			gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		aduc-reset {
+			label = "aduc-reset"; 
+			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		aduc-psen {
+			label = "aduc-psen"; 
+			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
 		};
 	};
 };
@@ -897,6 +907,16 @@
 				MX6QDL_PAD_EIM_D17__GPIO3_IO17  0x10010
 				MX6QDL_PAD_EIM_D18__GPIO3_IO18  0x10010
 				MX6QDL_PAD_EIM_D19__GPIO3_IO19  0x10010
+			>;
+		};
+
+		pinctrl_pwr: pwrgrp {
+			fsl,pins = <
+				// direction: OUTPUT, SION: DISABLED, HYS: DISABLED, PUS: no_init, PUE: KEEP, PKE: ENABLED
+				MX6QDL_PAD_EIM_EB0__GPIO2_IO28	0x00009030
+				MX6QDL_PAD_EIM_EB1__GPIO2_IO29	0x00009030
+				MX6QDL_PAD_EIM_EB2__GPIO2_IO30	0x00009030
+				MX6QDL_PAD_EIM_WAIT__GPIO5_IO00 0x00009030
 			>;
 		};
 	};
