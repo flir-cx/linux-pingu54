@@ -460,6 +460,7 @@
 		label = "leds";
 		clock-mode = <1>;	/* Internal clock */
 		enable-gpio = <&gpio_ptc 11 GPIO_ACTIVE_HIGH>;
+		disable-init;
 
 		led1 {
 			chan-name = "led-1";

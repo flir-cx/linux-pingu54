@@ -577,8 +577,10 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 
 	of_property_read_string(np, "label", &pdata->label);
 	of_property_read_u8(np, "clock-mode", &pdata->clock_mode);
-
+	
 	pdata->enable_gpio = of_get_named_gpio(np, "enable-gpio", 0);
+
+	pdata->disable_init = of_property_read_bool(np, "disable-init");
 
 	/* LP8501 specific */
 	of_property_read_u8(np, "pwr-sel", (u8 *)&pdata->pwr_sel);

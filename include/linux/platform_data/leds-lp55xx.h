@@ -70,6 +70,9 @@ struct lp55xx_platform_data {
 	/* optional enable GPIO */
 	int enable_gpio;
 
+	/* Disable init sequence */
+	bool disable_init;
+
 	/* Predefined pattern data */
 	struct lp55xx_predef_pattern *patterns;
 	unsigned int num_patterns;
