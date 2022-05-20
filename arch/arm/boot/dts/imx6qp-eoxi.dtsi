@@ -1,0 +1,77 @@
+/*
+ * Copyright 2022 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	leds { 
+		compatible = "gpio-leds";
+		debug-led {
+			label = "sdcard-led"; //name sdcard-led used by autofs
+			//to turn-on and off when filesystem is mounted
+			gpios = <&eoco_pca9534_0x46 4 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "mmc1";
+		};
+	};
+};
+
+/*SD-card*/
+&usdhc1 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>; 
+	wp-gpios = <&eoco_pca9534_0x46 3 GPIO_ACTIVE_HIGH>;
+    vmmc-supply = <&DA9063_LDO7>; // Card supply voltage  
+	vqmmc-supply = <&DA9063_LDO4>;  // Line voltage. 
+	max-frequency = <100000000>;
+	status = "okay";
+};
+
+&iomuxc{
+	imx6qp-eoxi {
+		pinctrl_usdhc1: usdhc1grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x17069
+				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x10069
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x17069
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x17069
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x17069
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x17069
+			>;
+		};
+	
+		pinctrl_usdhc1_100mhz: usdhc3grp100mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x170f9
+				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x100f9
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x170f9
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x170f9
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x170f9
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x170f9
+			>;
+		};
+
+		pinctrl_usdhc1_200mhz: usdhc3grp200mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD    0x170f9
+				MX6QDL_PAD_SD1_CLK__SD1_CLK    0x100f9
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x170f9
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x170f9
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x170f9
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x170f9
+			>;
+		};
+	};
+};

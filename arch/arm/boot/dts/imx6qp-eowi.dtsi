@@ -107,7 +107,7 @@
 
 /* Iomux */
 &iomuxc {
-	imx6dl-evbw {
+	imx6qp-eowi {
 		pinctrl_usdhc3: usdhc3grp {
 			fsl,pins = <
 				/* Use 22 kohm pull up on SD signals */
