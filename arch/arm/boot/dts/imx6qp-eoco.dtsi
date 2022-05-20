@@ -270,17 +270,6 @@
 		};
 	};
 
-	leds { // TODO move to EOXI
-		compatible = "gpio-leds";
-		debug-led {
-			label = "sdcard-led"; //name sdcard-led used by autofs
-			//to turn-on and off when filesystem is mounted
-			gpios = <&eoco_pca9534_0x46 4 GPIO_ACTIVE_LOW>;
-			default-state = "off";
-			linux,default-trigger = "mmc1";
-		};
-	};
-
 	outputs { // Temporary handling of power signals.
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -303,8 +292,20 @@
 		aduc-psen {
 			label = "aduc-psen"; 
 			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
+			default-state = "on";
 		};
+	};
+
+	rotary: rotary-encoder {
+		compatible = "rotary-encoder";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_rotary>;
+		gpios = <&gpio4 14 GPIO_ACTIVE_LOW>, <&gpio4 6 GPIO_ACTIVE_LOW>;
+		linux,axis = <REL_X>;
+		rotary-encoder,encoding = "gray";
+		rotary-encoder,relative-axis;
+		rotary-encoder,steps-per-period = <1>;
+		status = "okay";
 	};
 };
 
@@ -326,11 +327,6 @@
 	status = "okay";
 };
 
-&audmux {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_audmux>;
-	status = "okay";
-};
 
 &fec {
 	pinctrl-names = "default";
@@ -551,7 +547,7 @@
 				regulator-name = "DA9063_LDO6";
 			};
 
-			/* 3V15D_FPGA2 */
+			/* 3V15D_SD */
 			DA9063_LDO7:ldo7  {
 				regulator-name = "DA9063_LDO7";
 			};
@@ -624,12 +620,11 @@
 	};
 
 	/* EEPROM */
-	evbw_24c02_ae: evbw_24c02_ae@57 {
+	eoco_24c02_ae: eoco_24c02_ae@57 {
 		compatible = "atmel,24c02";
 		reg = <0x57>;
 		pagesize = <16>;
 	};
-
 };
 
 &i2c3 {
@@ -690,9 +685,7 @@
 };
 
 &iomuxc {
-
 	imx6qp-eoco {
-
 		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_9__PWM1_OUT		0x80000000
@@ -863,18 +856,6 @@
 				MX6QDL_PAD_EIM_DA13__GPIO3_IO13		   0x10
 			>;
 		};
-		
-		pinctrl_audmux: audmuxgrp {
-			fsl,pins = <
-				MX6QDL_PAD_KEY_COL0__AUD5_TXC    0x130b0
-				MX6QDL_PAD_KEY_ROW0__AUD5_TXD    0x110b0
-				MX6QDL_PAD_KEY_COL1__AUD5_TXFS   0x130b0
-				MX6QDL_PAD_KEY_ROW1__AUD5_RXD    0x130b0
-				MX6QDL_PAD_SD2_DAT1__AUD4_TXFS   0x130b0    
-				MX6QDL_PAD_SD2_DAT2__AUD4_TXD    0x110b0    
-				MX6QDL_PAD_SD2_DAT3__AUD4_TXC    0x130b0    
-			>;
-                };
                 
 		pinctrl_yildun_fpga: yildunfpgagrp {
 			fsl,pins = <
@@ -910,6 +891,13 @@
 			>;
 		};
 
+		pinctrl_rotary: rotarygrp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL4__GPIO4_IO14            0x0001B0B0
+				MX6QDL_PAD_KEY_COL0__GPIO4_IO06            0x0001B0B0
+			>;
+		};
+
 		pinctrl_pwr: pwrgrp {
 			fsl,pins = <
 				// direction: OUTPUT, SION: DISABLED, HYS: DISABLED, PUS: no_init, PUE: KEEP, PKE: ENABLED
@@ -919,6 +907,7 @@
 				MX6QDL_PAD_EIM_WAIT__GPIO5_IO00 0x00009030
 			>;
 		};
+
 	};
 };
 

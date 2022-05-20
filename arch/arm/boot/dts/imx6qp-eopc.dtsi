@@ -18,31 +18,32 @@
 
 
 		temp_8v_en: temp_8v_en { 
-            status = "disabled";
+            status = "okay";
 			compatible = "regulator-fixed";
 			regulator-name = "temp_8v_en";
 			gpio = <&eopc_pcf8574_0x76 0 GPIO_ACTIVE_HIGH>;
-			enable-active-low;
+			enable-active-high;
+			regulator-boot-on;
 		};
 
 		reg_3v3d_en: reg_3v3d_en { 
-            status = "disabled";
+            status = "okay";
 			compatible = "regulator-fixed";
 			regulator-name = "reg_3v3d_en";
 			gpio = <&eopc_pcf8574_0x76 1 GPIO_ACTIVE_HIGH>;
-			enable-active-high; 
+			enable-active-high;
+			regulator-boot-on;
 		};
 
 		reg_3v6gopc_en: reg_3v6gopc_en {
-            status = "disabled";
+            status = "okay";
 			compatible = "regulator-fixed";
 			regulator-name = "reg_3v6gopc_en";
 			gpio = <&eopc_pcf8574_0x76 2 GPIO_ACTIVE_HIGH>;
-			enable-active-high; 
+			enable-active-high;
+			regulator-boot-on;
 		};
 	};
-
-    
 };
 
 &i2c1 {
