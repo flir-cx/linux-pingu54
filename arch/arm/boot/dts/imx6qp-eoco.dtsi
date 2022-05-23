@@ -287,7 +287,7 @@
 		aduc-reset {
 			label = "aduc-reset"; 
 			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
+			default-state = "on";
 		};
 		aduc-psen {
 			label = "aduc-psen"; 
