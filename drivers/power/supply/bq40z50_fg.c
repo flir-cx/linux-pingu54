@@ -266,18 +266,6 @@ static int fg_write_block(struct bq_fg_chip *bq, u8 reg, u8 *data, u8 len)
 	return ret;
 }
 
-static u8 checksum(u8 *data, u8 len)
-{
-	u8 i;
-	u16 sum = 0;
-
-	for (i = 0; i < len; i++)
-		sum += data[i];
-
-	sum &= 0xFF;
-
-	return 0xFF - sum;
-}
 
 #if 0
 static void fg_print_buf(const char *msg, u8 *buf, u8 len)
@@ -331,7 +319,6 @@ static int fg_mac_read_block(struct bq_fg_chip *bq, u16 cmd, u8 *buf, u8 len)
 static int fg_mac_write_block(struct bq_fg_chip *bq, u16 cmd, u8 *data, u8 len)
 {
 	int ret;
-	u8 cksum;
 	u8 t_buf[40];
 	int i;
 
@@ -606,8 +593,6 @@ static enum power_supply_property fg_props[] = {
 	/*POWER_SUPPLY_PROP_HEALTH,*//*implement it in battery power_supply*/
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
-	POWER_SUPPLY_PROP_RESISTANCE_ID,
-	POWER_SUPPLY_PROP_UPDATE_NOW,
 };
 
 static int fg_get_property(struct power_supply *psy, enum power_supply_property psp,
@@ -710,13 +695,6 @@ static int fg_get_property(struct power_supply *psy, enum power_supply_property 
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LIPO;
 		break;
 
-	case POWER_SUPPLY_PROP_RESISTANCE_ID:
-		val->intval = 0;
-		break;
-	case POWER_SUPPLY_PROP_UPDATE_NOW:
-		val->intval = 0;
-		break;
-
 	default:
 		return -EINVAL;
 	}
@@ -738,9 +716,6 @@ static int fg_set_property(struct power_supply *psy,
 		bq->fake_soc = val->intval;
 		power_supply_changed(bq->fg_psy);
 		break;
-	case POWER_SUPPLY_PROP_UPDATE_NOW:
-		fg_dump_registers(bq);
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -757,7 +732,6 @@ static int fg_prop_is_writeable(struct power_supply *psy,
 	switch (prop) {
 	case POWER_SUPPLY_PROP_TEMP:
 	case POWER_SUPPLY_PROP_CAPACITY:
-	case POWER_SUPPLY_PROP_UPDATE_NOW:
 		ret = 1;
 		break;
 	default:
@@ -774,7 +748,7 @@ static int fg_psy_register(struct bq_fg_chip *bq)
 	struct power_supply_config fg_psy_cfg = {};
 
 	bq->fg_psy_d.name = "bms";
-	bq->fg_psy_d.type = POWER_SUPPLY_TYPE_BMS;
+	bq->fg_psy_d.type = POWER_SUPPLY_TYPE_BATTERY;
 	bq->fg_psy_d.properties = fg_props;
 	bq->fg_psy_d.num_properties = ARRAY_SIZE(fg_props);
 	bq->fg_psy_d.get_property = fg_get_property;
@@ -1134,4 +1108,3 @@ module_i2c_driver(bq_fg_driver);
 MODULE_DESCRIPTION("TI BQ40Z50 Driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Texas Instruments");
-
