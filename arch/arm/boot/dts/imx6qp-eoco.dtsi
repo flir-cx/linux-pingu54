@@ -216,14 +216,14 @@
 		display-timings { 
 			timing {
 				clock-frequency = <25175000>;
-				hactive = <640>;
-				vactive = <480>;
-				hfront-porch = <8>;
-				hback-porch = <40>;
-				hsync-len = <96>;
-				vback-porch = <25>;
-				vfront-porch = <2>;
-				vsync-len = <2>;
+				hactive = <800>;
+				vactive = <600>;
+				hfront-porch = <40>;
+				hback-porch = <88>;
+				hsync-len = <128>;
+				vback-porch = <16>;
+				vfront-porch = <1>;
+				vsync-len = <23>;
 				pixelclk-active = <0>;
 			};
 		};
@@ -625,6 +625,40 @@
 		reg = <0x57>;
 		pagesize = <16>;
 	};
+	flir_ema100080: flir_ema100080@32 {
+		compatible = "flir,ema100080";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_viewfinder>;
+
+		eoco-fvm-psave-gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+
+		reg = <0x32>;
+		// These were taken from old ce driver. It is essentially SVGA_60, from page 45 in the eMagin 100080 datasheet
+		// So this is the setup for the 800x600, this needs to match what is setup in mxc_lcdif (nxp code)
+		i2c-config-cmds =	<0x01 0x80>, // Red Analog Input Gain
+					<0x02 0x38>, // Red Analog Input DC Offset
+					<0x03 0x80>, // Green Analog Input Gain
+					<0x04 0x38>, // Green Analog Input DC Offset
+					<0x05 0x80>, // Blue Analog Input Gain
+					<0x06 0x38>, // Blue Analog Input DC Offset
+					<0x07 0x80>, // Mono Analog Input Gain
+					<0x08 0x38>, // Mono Analog Input DC Offset
+					<0x09 0x00>, // Vertical Mode Settings (SVGA 600 rows, RGB)
+					<0x0A 0x02>, // HMODE (SVGA 800 columns, internal PLL, no screen saver)
+					<0x0D 0x00>, // HRATE_L (Horizontal Shift Frame Rate = 0x8000 (every 9 minute))
+					<0x0E 0x80>, // HRATE_U
+					<0x0F 0x1E>, // PLL_L (Feedback Divider=0x41E, Post-Scaler Divider=1)
+					<0x10 0x0C>, // PLL_U
+					<0x11 0x0C>, // PIF (Phase Interpolator Frequency = 40 MHz)
+					<0x12 0x00>, // PI2 (Phase Adjustment)
+					<0x13 0xD4>, // HSTART (Horizontal Active Start Count)
+					<0x14 0x19>, // VSTART (Vertical Active Start Count)
+					<0x15 0xD8>, // HBLK
+					<0x16 0x0C>, // HDEL
+					<0x17 0x02>, // PWDN (disable MONO analog input)
+					<0x18 0x80>, // ATB (power control through PWDN register)
+					<0x1A 0x08>; // TRIM (automatic and periodic calibration)
+	};
 };
 
 &i2c3 {
@@ -820,13 +854,17 @@
 				>;
 		};
 
+		pinctrl_viewfinder: vfgrp {
+			fsl,pins = <
+				MX6QDL_PAD_DI0_PIN15__GPIO4_IO17	0x100b1
+			>;
+		};
+
 		pinctrl_ipu1: ipu1grp {
 			fsl,pins = <
 				MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK 0x10
-				MX6QDL_PAD_DI0_PIN15__IPU1_DI0_PIN15       0x10
 				MX6QDL_PAD_DI0_PIN2__IPU1_DI0_PIN02        0x10
 				MX6QDL_PAD_DI0_PIN3__IPU1_DI0_PIN03        0x10
-				MX6QDL_PAD_DI0_PIN4__IPU1_DI0_PIN04        0x80000000
 				MX6QDL_PAD_DISP0_DAT0__IPU1_DISP0_DATA00   0x10
 				MX6QDL_PAD_DISP0_DAT1__IPU1_DISP0_DATA01   0x10
 				MX6QDL_PAD_DISP0_DAT2__IPU1_DISP0_DATA02   0x10
@@ -851,9 +889,6 @@
 				MX6QDL_PAD_DISP0_DAT21__IPU1_DISP0_DATA21  0x10
 				MX6QDL_PAD_DISP0_DAT22__IPU1_DISP0_DATA22  0x10
 				MX6QDL_PAD_DISP0_DAT23__IPU1_DISP0_DATA23  0x10
-
-				MX6QDL_PAD_DI0_PIN4__GPIO4_IO20		   0x10
-				MX6QDL_PAD_EIM_DA13__GPIO3_IO13		   0x10
 			>;
 		};
                 

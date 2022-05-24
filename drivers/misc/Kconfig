@@ -371,6 +371,16 @@ config HMC6352
 	  This driver provides support for the Honeywell HMC6352 compass,
 	  providing configuration and heading data via sysfs.
 
+config FLIR_EMA100080
+	tristate "Flir eMagin 100080 viewfinder"
+	depends on I2C
+	help
+	  Say yes here if you have Flir eMagin 100080 viewfinder connected via
+	  an adv1723.
+
+	  Say M if you want to compile it as a module. Module will be called
+	  ema100080.
+
 config DS1682
 	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
 	depends on I2C
