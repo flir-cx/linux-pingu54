@@ -38,6 +38,23 @@ struct mxc_lcdif_data {
 
 static struct fb_videomode lcdif_modedb[] = {
 	{
+		/* 800x600 @ 60 Hz , pixel clk @ 40MHz */
+		.name = "FLIR-DP",
+		.refresh = 60,
+		.xres = 800,
+		.yres = 600,
+		.pixclock = 25000,
+		.left_margin = 88,
+		.right_margin = 40,
+		.upper_margin = 23,
+		.lower_margin = 1,
+		.hsync_len = 128,
+		.vsync_len = 4,
+		.sync = (/*FB_SYNC_CLK_LAT_FALL |*/ FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT),
+		.vmode = FB_VMODE_NONINTERLACED,
+		.flag = 0,
+	},
+	{
 	/* 800x480 @ 57 Hz , pixel clk @ 27MHz */
 	"CLAA-WVGA", 57, 800, 480, 37037, 40, 60, 10, 10, 20, 10,
 	FB_SYNC_CLK_LAT_FALL,
