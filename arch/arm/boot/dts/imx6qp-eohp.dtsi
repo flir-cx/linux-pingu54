@@ -156,9 +156,9 @@
 	};
 
     /* EEPROM */
-	evbw_24c02_a8: evbw_24c02_a8@53 {
+	eohp_24c02_a8: eohp_24c02_a8@54 {
 		compatible = "atmel,24c02";
-		reg = <0x53>;
+		reg = <0x54>;
 		pagesize = <16>;
 	};
 };
