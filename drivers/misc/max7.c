@@ -59,7 +59,8 @@ static int max7_read_msg_stream_len(struct i2c_client *client);
 static int max7_runtime_resume(struct device *dev);
 static int max7_runtime_suspend(struct device *dev);
 static int max7_initialise(struct i2c_client *client);
-
+static int max7_disable(bool runtime);
+static int max7_enable(bool runtime);
 
 struct max7_data *max7;
 struct task_struct *thread;
@@ -143,8 +144,6 @@ static irqreturn_t max7_isr(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-
-
 
 static int calculate_checksum(char *msg, int msg_len)
 {
@@ -585,27 +584,24 @@ static int max7_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	ret = regulator_enable(max7->supply);
 
 	max7->resetpin = of_get_named_gpio_flags(node, "reset-pin", 0, NULL);
-	if(max7->resetpin < 0){
-		dev_err(dev, "Failed reading reset pin\n");
-		ret = -EINVAL;
-		goto err_001;
-	};
+	if(max7->resetpin >= 0){
+		if (gpio_is_valid(max7->resetpin)) {
+			ret = devm_gpio_request_one(&client->dev, max7->resetpin,
+							GPIOF_OUT_INIT_LOW, "Ublox reset");
 
-	if (gpio_is_valid(max7->resetpin)) {
-		ret = devm_gpio_request_one(&client->dev, max7->resetpin,
-					      GPIOF_OUT_INIT_LOW, "Ublox reset");
-
-		if (ret) {
-			dev_err(&client->dev,
-				"Failed to request GPIO %d, error %d\n",
-				max7->resetpin, ret);
+			if (ret) {
+				dev_err(&client->dev,
+					"Failed to request GPIO %d, error %d\n",
+					max7->resetpin, ret);
+				goto err_001;
+			}
+			gpio_direction_input(max7->resetpin);
+		} else {
+			dev_err(&client->dev, "Reset pin not valid\n");
 			goto err_001;
 		}
-	} else {
-		dev_err(&client->dev, "Reset pin not valid\n");
-	}
+	};
 
-	gpio_direction_input(max7->resetpin);
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(dev, "i2c_check_functionality error\n");
                 goto err_free_pdata;
@@ -689,11 +685,12 @@ err_2:
 err_1:
 	misc_deregister(&max7_gps_miscdevice);
 err_0:
-//	gpio_set_value_cansleep(max7->resetpin, 0);
 	devm_gpio_free(&client->dev, max7->irqpin);
 err_01:
 err_free_pdata:
-	devm_gpio_free(&client->dev, max7->resetpin);
+	if(max7->resetpin >= 0){
+		devm_gpio_free(&client->dev, max7->resetpin);
+	}
 err_001:
 	regulator_disable(max7->supply);
 	kfree(max7);
@@ -707,8 +704,10 @@ static int max7_remove(struct i2c_client *client)
 {
 	devm_free_irq(&client->dev, gpio_to_irq(max7->irqpin), max7);
 	devm_gpio_free(&client->dev, max7->irqpin);
-	gpio_direction_output(max7->resetpin, 0);
-	devm_gpio_free(&client->dev, max7->resetpin);
+	if(max7->resetpin >= 0){
+		gpio_direction_output(max7->resetpin, 0);
+		devm_gpio_free(&client->dev, max7->resetpin);
+	}
 	kthread_stop(thread);
 	kfree(max7->rdkbuf);
 	max7->rdkbuf=0;
@@ -724,63 +723,59 @@ static const struct i2c_device_id max7_id[] = {
         { }
 };
 
-static int max7_resume(struct device *dev)
-{
-	int ret = 0;
-
-	if(atomic_read(&(max7->runtimesuspend)) == 0){
-		//max7 has not been suspended by runtime pm, disable max7
-		gpio_direction_input(max7->resetpin);
-		ret = regulator_enable(max7->supply);
-		usleep_range(200000, 300000);
-	}
-	return ret;
-}
-
 static int max7_suspend(struct device *dev)
 {
-	int ret = 0;
-
-	if(atomic_read(&(max7->runtimesuspend)) == 0){
-		//max7 has not been suspended by runtime pm, enable max7
-		ret = regulator_disable(max7->supply);
-		usleep_range(1000, 5000);
-		gpio_direction_output(max7->resetpin, 0);
-	}
-	return ret;
+	return max7_disable(false);
 }
 
 static void max7_shutdown(struct i2c_client *client)
 {
-	int ret = 0;
-	if (atomic_read(&(max7->runtimesuspend)) == 0) {
-		/* max7 has not been suspended by runtime pm, enable max7 */
-		ret = regulator_disable(max7->supply);
-		usleep_range(1000, 5000);
-		gpio_direction_output(max7->resetpin, 0);
-	}
-}
-
-static int max7_runtime_resume(struct device *dev)
-{
-	int ret = 0;
-	if(atomic_read(&(max7->runtimesuspend)) == 1){
-		atomic_set(&(max7->runtimesuspend), 0);
-		gpio_direction_input(max7->resetpin);
-		ret = regulator_enable(max7->supply);
-		usleep_range(200000, 300000);
-	}
-	return ret;
+	max7_disable(false);
 }
 
 static int max7_runtime_suspend(struct device *dev)
 {
+	return max7_disable(true);
+}
+
+static int max7_disable(bool runtime)
+{	
 	int ret = 0;
 	if(atomic_read(&(max7->runtimesuspend)) == 0){
-		atomic_set(&(max7->runtimesuspend), 1);
+		if(runtime){
+			atomic_set(&(max7->runtimesuspend), 1);
+		}
 		ret = regulator_disable(max7->supply);
 		usleep_range(1000, 5000);
-		gpio_direction_output(max7->resetpin, 0);
+		if(max7->resetpin >= 0){
+			gpio_direction_output(max7->resetpin, 0);
+		}
+	}
+	return ret;
+}
+
+static int max7_resume(struct device *dev)
+{
+	return max7_enable(false);
+}
+
+static int max7_runtime_resume(struct device *dev)
+{
+	return max7_enable(true);
+}
+
+static int max7_enable(bool runtime)
+{	
+	int ret = 0;
+	if(atomic_read(&(max7->runtimesuspend)) == 1){
+		if(runtime){
+			atomic_set(&(max7->runtimesuspend), 1);
+		}
+		if(max7->resetpin >= 0){
+			gpio_direction_input(max7->resetpin);
+		}
+		ret = regulator_enable(max7->supply);
+		usleep_range(200000, 300000);
 	}
 	return ret;
 }
