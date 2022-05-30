@@ -164,6 +164,7 @@ struct bq24298_dev_info {
 	struct power_supply		*charger;
 	struct power_supply		*battery;
 	struct power_supply             *notify_psy;
+    struct delayed_work work;
 	struct notifier_block           nb;
 	char				model_name[I2C_NAME_SIZE];
 	kernel_ulong_t			model;
@@ -179,6 +180,7 @@ struct bq24298_dev_info {
 	u8				watchdog;
 	u8                              iinlim;
 	bool                            iinlimset;
+    int             max_current;
 };
 struct bq24298_dev_info *bdi;
 /*
@@ -1056,6 +1058,11 @@ static int bq24298_battery_get_health(struct bq24298_dev_info *bdi,
 	return 0;
 }
 
+static void bq24298_iinlim_work(struct work_struct *work)
+{
+	bq24298_set_iinlim_helper(bdi->max_current,1);
+} 
+
 static int bq24298_notifier_call(struct notifier_block *nb,
 		unsigned long val, void *v)
 {
@@ -1067,7 +1074,8 @@ static int bq24298_notifier_call(struct notifier_block *nb,
 
 	dev_dbg(bq->dev, "%s: notifier was called from %s\n", __func__,npsy->desc->name);
 	npsy->desc->get_property(npsy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
-	bq24298_set_iinlim_helper(prop.intval,1);
+    bq->max_current = prop.intval;
+    schedule_delayed_work(&bq->work, 0);
 	return NOTIFY_OK;
 }
 
@@ -1500,6 +1508,9 @@ static int bq24298_probe(struct i2c_client *client,
 			goto out5;
 		}
 	}
+
+    INIT_DELAYED_WORK(&bdi->work, bq24298_iinlim_work);
+
 	return 0;
 out5:
 out4:
