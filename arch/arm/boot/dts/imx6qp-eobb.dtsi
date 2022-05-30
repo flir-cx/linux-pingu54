@@ -21,6 +21,7 @@
     /* FUELGAUGE */
     battery: bq40z50@b {
 		compatible = "ti,bq40z50";
+		status = "disabled";
 		reg = <0xb>;
 	};
 };

@@ -23,7 +23,6 @@
 			regulator-min-microvolt = <3150000>;
 			regulator-max-microvolt = <3150000>;
 			gpio = <&eoco_pca9534_0x46 1 GPIO_ACTIVE_HIGH>;
-			regulator-boot-on;
 			enable-active-high;
 		};
 
@@ -63,7 +62,7 @@
 
 	gps:eowi_gps@42 {
 		compatible = "ublox,m8";
-		status = "okay";
+		status = "disabled";
 		reg = <0x42>;
 			interrupt-pin = <&gpio7 12 GPIO_ACTIVE_HIGH>;
 			vin-supply = <&reg_gps_en>;
