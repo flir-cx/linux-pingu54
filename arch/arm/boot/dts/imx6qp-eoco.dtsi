@@ -245,13 +245,13 @@
 			label = "p_button";
 			gpio-key;
 			gpios = <&eoco_pca9534_0x46 0 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_1>;
+			linux,code = <KEY_F4>;
 		};
 		temp_range {
 			label = "temp_range";
 			gpio-key;
 			gpios = <&eoco_pca9534_0x46 6 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_2>;
+			linux,code = <KEY_F9>;
 		};
 	};
 
@@ -262,7 +262,7 @@
 			label = "lcd_active";
 			gpio-key;
 			gpios =  <&gpio1 4 GPIO_ACTIVE_HIGH>;
-			linux,code = <KEY_3>;
+			linux,code = <KEY_F20>;
 		};
 	};
 
@@ -297,7 +297,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_rotary>;
 		gpios = <&gpio4 14 GPIO_ACTIVE_LOW>, <&gpio4 6 GPIO_ACTIVE_LOW>;
-		linux,axis = <REL_X>;
+		linux,axis = <REL_HWHEEL>;
 		rotary-encoder,encoding = "gray";
 		rotary-encoder,relative-axis;
 		rotary-encoder,steps-per-period = <1>;
