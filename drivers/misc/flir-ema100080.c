@@ -26,8 +26,6 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 
-
-
 struct flir_ema100080_i2c_cmd {
 	u8 reg;
 	u8 cmd;
@@ -43,7 +41,8 @@ struct flir_ema100080_data {
 
 	/* Commands to run on startup , to init emagin display*/
 	int i2c_config_cmds_size;
-	struct flir_ema100080_i2c_cmd i2c_config_cmds[FLIR_EMA100080_MAX_I2C_CMDS];
+	struct flir_ema100080_i2c_cmd
+		i2c_config_cmds[FLIR_EMA100080_MAX_I2C_CMDS];
 
 	/* GPIO for enabling psave on dac */
 	struct gpio_desc *fvm_psave_gpiod;
@@ -215,17 +214,26 @@ static int flir_ema100080_probe(struct i2c_client *client,
 	}
 
 	ret = sysfs_create_group(&client->dev.kobj, &flirvf_attr_groups);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "Failed to add sys fs entry\n");
-
+		goto err_misc_deregister;
+	}
 	/* Call the prob implementation */
 	ret = flir_ema100080_on_probe(vf);
 	if (ret < 0) {
-		dev_err(dev, "Probe vf callback failed\n");
-		return ret;
+		dev_err(dev, "Probe vf callback failed %d\n", ret);
+		goto err_remove_group;
 	}
 
 	return 0;
+
+err_remove_group:
+	dev_dbg(&client->dev, "remove sysfs group\n");
+	sysfs_remove_group(&client->dev.kobj, &flirvf_attr_groups);
+err_misc_deregister:
+	dev_dbg(&client->dev, "deregister misc dev\n");
+	misc_deregister(&vf->miscdev);
+	return ret;
 }
 
 /**
@@ -242,8 +250,10 @@ static int flir_ema100080_remove(struct i2c_client *client)
 	dev_dbg(&client->dev, "%s: enter\n", __func__);
 
 	sysfs_remove_group(&client->dev.kobj, &flirvf_attr_groups);
+	dev_dbg(&client->dev, "remove sysfs group\n");
 
 	misc_deregister(&vf->miscdev);
+	dev_dbg(&client->dev, "deregister misc dev\n");
 
 	ret = flir_ema100080_on_remove(vf);
 	vf->dev = 0;
@@ -483,9 +493,10 @@ static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf)
  */
 static int flir_ema100080_on_probe(struct flir_ema100080_data *vf)
 {
-	if (init_emagin_lcd(vf) < 0) {
+	int ret = init_emagin_lcd(vf);
+	if (ret < 0) {
 		dev_err(vf->dev, "Failed to initialize emagin lcd\n");
-		return -EFAULT;
+		return ret;
 	}
 
 	return flir_ema100080_set_pwr_on(vf);
