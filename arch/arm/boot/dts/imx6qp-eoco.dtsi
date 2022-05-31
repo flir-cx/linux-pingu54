@@ -71,7 +71,6 @@
 //		laser_soft-gpios = <&rori_pca9534 5 GPIO_ACTIVE_LOW>;
 //		laser_switch-gpios = <&rori_pca9534 2 GPIO_ACTIVE_LOW>;
 		standbyMinutes = <360>;  // 360 = 6 hours
-		backlight = <&backlight_lcd>;
 	};
 
 	boards{
@@ -122,18 +121,15 @@
 		late_init = <0>;
 		status = "okay";
 		disp_dev = "lcd";
-		mode_str ="FLIR-DP";
+		mode_str ="FLIR-VF";
 	};
 
 	backlight_lcd: backlight_lcd {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 500000>; //500us=2KHz
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pwm1>;
 		default-brightness-level = <7>;
-		options = <3>;	// Restore backlight after suspend
-		status = "disabled";
+		status = "okay";
 	};
 
 	v4l2_cap_0 {
@@ -722,7 +718,7 @@
 	imx6qp-eoco {
 		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
-				MX6QDL_PAD_GPIO_9__PWM1_OUT		0x80000000
+				MX6QDL_PAD_GPIO_9__PWM1_OUT		0x1b0b1
 			>;
 		};
 
@@ -955,7 +951,7 @@
 	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
-	status = "disabled";
+	status = "okay";
 };
 
 /*Active serial port*/

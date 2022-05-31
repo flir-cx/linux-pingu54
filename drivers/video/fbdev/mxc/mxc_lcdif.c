@@ -39,7 +39,7 @@ struct mxc_lcdif_data {
 static struct fb_videomode lcdif_modedb[] = {
 	{
 		/* 800x600 @ 60 Hz , pixel clk @ 40MHz */
-		.name = "FLIR-DP",
+		.name = "FLIR-VF",
 		.refresh = 60,
 		.xres = 800,
 		.yres = 600,
