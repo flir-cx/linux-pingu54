@@ -446,6 +446,7 @@ static int init_emagin_lcd(struct flir_ema100080_data *vf)
 	int i;
 	int ret = 0;
 	dev_dbg(vf->dev, "Enter %s", __func__);
+
 	for (i = 0; i < vf->i2c_config_cmds_size; i++) {
 		u8 reg = vf->i2c_config_cmds[i].reg;
 		u8 cmd = vf->i2c_config_cmds[i].cmd;
@@ -454,7 +455,7 @@ static int init_emagin_lcd(struct flir_ema100080_data *vf)
 		ret = i2c_smbus_write_byte_data(vf->client, reg, cmd);
 
 		if (ret < 0) {
-			dev_err(vf->dev, "i2c write failed\n");
+			dev_err(vf->dev, "i2c write failed, is the eMagin lcd connected?\n");
 			return ret;
 		}
 	}

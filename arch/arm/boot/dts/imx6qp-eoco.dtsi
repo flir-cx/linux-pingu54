@@ -655,6 +655,12 @@
 					<0x18 0x80>, // ATB (power control through PWDN register)
 					<0x1A 0x08>; // TRIM (automatic and periodic calibration)
 	};
+	backlight: backlight_vf@30 {
+		reg = <0x30>;
+		compatible = "flir,max5380";
+		default-brightness = <0x40>;
+		max-brightness = <255>;
+	};
 };
 
 &i2c3 {
