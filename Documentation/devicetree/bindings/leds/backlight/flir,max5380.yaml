@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/backlight/flir,max5380.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Binding for Flir max5380 backlight
+
+maintainers:
+  - Flir
+
+description: |
+  max5380 driver is used for controlling backlight of the eMagin 100080 display
+  with a max5380 dac controlling the VHB input of the eMagin 100080 display
+properties:
+  compatible:
+    flir,max5830
+
+  reg:
+    maxItems: 1
+
+  default-brightness:
+    description: |
+      brightness value on boot.
+
+  max-brightness:
+    description: |
+      Maximum brightness level.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    backlight: backlight_vf@30 {
+      reg = <0x30>;
+      compatible = "flir,max5380";
+      default-brightness = <0x40>;
+      max-brightness = <255>;
+    };
+

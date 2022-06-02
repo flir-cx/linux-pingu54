@@ -50,7 +50,7 @@ static struct fb_videomode lcdif_modedb[] = {
 		.lower_margin = 1,
 		.hsync_len = 128,
 		.vsync_len = 4,
-		.sync = (/*FB_SYNC_CLK_LAT_FALL |*/ FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT),
+		.sync = (FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT),
 		.vmode = FB_VMODE_NONINTERLACED,
 		.flag = 0,
 	},
