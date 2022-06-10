@@ -1,0 +1,38 @@
+
+/*
+ * Copyright 2022 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+
+
+/*FLIR i2c1 bus*/
+&i2c1 {
+
+	/* EEPROM */
+	eodp_24c02: eodp_24c02@56 {
+		compatible = "atmel,24c02";
+		reg = <0x56>;
+		pagesize = <16>;
+	};
+
+    /* ACCELEROMETER */
+    eodp_adxl344: eodp_adxl344@1d {
+		compatible = "flir,adxl344";
+		reg = <0x1d>;
+		// Remap axes for appcore
+		axis-map-x = <0>;
+		axis-map-y = <2>;
+		axis-map-z = <1>;
+		negate-y;
+	};
+}

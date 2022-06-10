@@ -33,7 +33,7 @@
 			label = "slider_push"; // FJ_PUSH_TOP
 			gpio-key;
 			gpios = <&eohp_pcf8574_0x74 3 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_3>;
+			linux,code = <KEY_2>;
 		};
 
 		button_1 {

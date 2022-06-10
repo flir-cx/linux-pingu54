@@ -683,24 +683,29 @@
 		#gpio-cells = <2>;
 	};
 
-	sensor_flir_csi0: csi0@1d {
-		compatible = "flir,flir_csi";
+	/* ACCELEROMETER */
+	eoco_adxl344: eoco_adxl344@1d {
+		compatible = "flir,adxl344";
 		reg = <0x1d>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_evco_csi0>;
-		clocks = <&clks 201>;
-		clock-names = "csi_mclk";
-		ipu_id = <0>;
-		csi_id = <0>;
-		mclk = <24000000>;
-		mclk_source = <0>;
-		capturemode = <0>;
-		format = "RGB4";
-		status = "okay";
+		// Remap axes for appcore
+		axis-map-x = <0>;
+		axis-map-y = <2>;
+		axis-map-z = <1>;
+		negate-y;
+		is-sensor-accel;
 	};
 
-	/*Accelerometer ADXL344A*/
-	//Todo
+	/* MAGNETOMETER */
+	eoco_bm1422: eoco_bm1422@f {
+		compatible = "rohm,bm1422";
+		reg = <0xf>;
+		status = "disabled";
+		// Remap axes for appcore
+		axis-map-x = <1>;
+		axis-map-y = <0>;
+		axis-map-z = <2>;
+		negate-z;
+	};
 
 //	sensor_flir_csi1: csi1@3d {
 //		compatible = "flir,flir_csi";
