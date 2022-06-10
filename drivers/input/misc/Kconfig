@@ -719,6 +719,13 @@ config INPUT_ADXL34X_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called adxl34x-spi.
 
+config INPUT_ADXL344
+	tristate "ADXL344 Three-Axis Digital Accelerometer"
+	depends on I2C
+	default n
+	help
+	  Flir driver for adxl344 accelerometer.
+
 config INPUT_IMS_PCU
 	tristate "IMS Passenger Control Unit driver"
 	depends on USB
