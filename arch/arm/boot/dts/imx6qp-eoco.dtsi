@@ -180,7 +180,7 @@
 		disp_id = <2>;
 		status = "okay";
 	};
-	
+
 	fakedisp: fake-vga {
 		display-timings {
 			timing {
@@ -196,7 +196,7 @@
 			};
 		};
 	};
-	
+
 	lcd@0 {
 		compatible = "fsl,lcd";
 		ipu_id = <0>;
@@ -209,7 +209,7 @@
 	};
 
 	lcdtiming: lcdtiming {
-		display-timings { 
+		display-timings {
 			timing {
 				clock-frequency = <25175000>;
 				hactive = <800>;
@@ -271,22 +271,22 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pwr>;
 		cooler-disable {
-			label = "cooler-disable"; 
+			label = "cooler-disable";
 			gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 		power-off {
-			label = "power-off"; 
+			label = "power-off";
 			gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 		aduc-reset {
-			label = "aduc-reset"; 
+			label = "aduc-reset";
 			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 		aduc-psen {
-			label = "aduc-psen"; 
+			label = "aduc-psen";
 			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
@@ -348,13 +348,13 @@
 		spi-max-frequency = <20000000>;
 		reg = <1>;
 	};
-	
+
 	spidev: spidev@2 {
 		status = "okay";
 		compatible = "linux,spidev";
 		spi-max-frequency = <1000000>;
 		reg = <2>;
-	};	
+	};
 
 };
 
@@ -661,6 +661,39 @@
 		default-brightness = <0x40>;
 		max-brightness = <255>;
 	};
+
+	sensor_flir_csi0: csi0@3c {
+		compatible = "flir,flir_csi";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_evco_csi0>;
+		clocks = <&clks 201>;
+		clock-names = "csi_mclk";
+		ipu_id = <0>;
+		csi_id = <0>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+		capturemode = <0>;
+		format = "RGB4";
+		status = "okay";
+	};
+
+	sensor_flir_csi1: csi1@3d {
+		compatible = "flir,flir_csi";
+		reg = <0x3d>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_evco_csi1>;
+		clocks = <&clks 201>;
+		clock-names = "csi_mclk";
+		ipu_id = <0>;
+		csi_id = <1>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+		capturemode = <5>;
+		format = "UYVY";
+		status = "okay";
+	};
+
 };
 
 &i2c3 {
@@ -706,22 +739,6 @@
 		axis-map-z = <2>;
 		negate-z;
 	};
-
-//	sensor_flir_csi1: csi1@3d {
-//		compatible = "flir,flir_csi";
-//		reg = <0x3d>;
-//		pinctrl-names = "default";
-//		pinctrl-0 = <&pinctrl_evco_csi1>;
-//		clocks = <&clks 201>;
-//		clock-names = "csi_mclk";
-//		ipu_id = <0>;
-//		csi_id = <1>;
-//		mclk = <24000000>;
-//		mclk_source = <0>;
-//		capturemode = <5>;
-//		format = "UYVY";
-//		status = "okay";
-//	};
 
 };
 
@@ -898,7 +915,7 @@
 				MX6QDL_PAD_DISP0_DAT23__IPU1_DISP0_DATA23  0x10
 			>;
 		};
-                
+
 		pinctrl_yildun_fpga: yildunfpgagrp {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_DA0__GPIO3_IO00	0x10030
@@ -907,7 +924,7 @@
 				MX6QDL_PAD_EIM_DA3__GPIO3_IO03	0x10030
 			>;
 		};
-		
+
 		pinctrl_yildun_spi: yildunspigrp {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_CS0__ECSPI2_SCLK	0x100b1
@@ -923,7 +940,7 @@
 				MX6QDL_PAD_EIM_OE__GPIO2_IO25	0x100b1
 			>;
 		};
-		
+
 		pinctrl_fvd: fvdgrp {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D16__GPIO3_IO16  0x10010
@@ -1035,8 +1052,8 @@
 
 &ipu1 {
 	bypass_reset = <1>;
-	// IOMUX_GPR6: ID0 = F (real time), ID1 = 4 (high prio), ID2 = 2 (normal prio) 
-	axi-id = <&gpr 0x18 0x024F024F>;	
+	// IOMUX_GPR6: ID0 = F (real time), ID1 = 4 (high prio), ID2 = 2 (normal prio)
+	axi-id = <&gpr 0x18 0x024F024F>;
 };
 
 &reg_arm {

@@ -1,0 +1,162 @@
+
+/*
+ * Copyright 2022 Teledyne FLIR
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/input/input.h>
+
+/ {
+
+
+	clocks{
+	eodc_clk24m: VCM_MCLK_0{
+			compatible = "fixed-clock";
+                        #clock-cells = <0>;
+			clock-frequency = <24000000>;
+			vin-supply = <&reg_eodc_3v0d>;
+		};
+	};
+
+	vcam {
+		compatible = "flir,vcam";
+		vcam_paralell_interface = <1>;
+		vcam_i2c_bus = <0>;
+		vcam_pwdn-gpio = <&eodc_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
+		vcam_reset-gpio = <&eodc_pca9534_0x46 4 GPIO_ACTIVE_HIGH>;
+		vcam_clk_en-gpio = <&eodc_pca9534_0x46 6 GPIO_ACTIVE_LOW>;
+		dvdd-supply = <&reg_eodc_dvdd>;
+		avdd-supply = <&reg_eodc_avdd>;
+		flipped_sensor = <0>;
+
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+	EOCO_3V6A: EOCO_3V6A {
+			compatible = "regulator-fixed";
+			regulator-name = "EOCO_3V6A";
+			regulator-min-microvolt = <3600000>;
+			regulator-max-microvolt = <3600000>;
+			regulator-always-on; //Always enabled..
+		};
+		//Force i2c enable...
+	reg_vcm_i2c_enable: reg_vcm_i2c_enable {
+			compatible = "regulator-fixed";
+			regulator-name = "EODC_I2C_ENABLE";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			gpio = <&eodc_pca9534_0x46 7 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&reg_eodc_3v0d>;
+			enable-active-high;
+			regulator-always-on; //Always enable..
+			regulator-boot-on; //Always enable..
+		};
+
+	reg_eodc_3v0d: reg_eodc_3v0d {
+			compatible = "regulator-fixed";
+			regulator-name = "EODC_3V0D";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			vin-supply = <&EOCO_3V6A>;
+			regulator-always-on; //Always enabled..
+		};
+
+	reg_eodc_3v6_godc: reg_eodc_3v6_godc {
+			compatible = "regulator-fixed";
+			regulator-name = "eodc_3v6_godc";
+			regulator-min-microvolt = <3600000>;
+			regulator-max-microvolt = <3600000>;
+			vin-supply = <&EOCO_3V6A>;
+			enable-active-high;
+			regulator-always-on;
+		};
+
+	reg_eodc_dovdd: reg_eodc_dovdd {
+			compatible = "regulator-fixed";
+			regulator-name = "eodc_dovdd";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			gpio = <&eodc_pca9534_0x46 1 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&reg_eodc_3v6_godc>;
+			enable-active-high;
+			regulator-always-on;
+		};
+
+	reg_eodc_avdd: reg_eodc_avdd {
+			compatible = "regulator-fixed";
+			regulator-name = "eodc_avdd";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			vin-supply = <&reg_eodc_3v6_godc>;
+			regulator-always-on;
+		};
+
+	reg_eodc_dvdd: reg_eodc_dvdd {
+			compatible = "regulator-fixed";
+			regulator-name = "eodc_dvdd";
+			regulator-min-microvolt = <1500000>;
+			regulator-max-microvolt = <1500000>;
+			vin-supply = <&reg_eodc_3v6_godc>;
+			enable-active-high;
+			regulator-always-on;
+		};
+
+	};
+  };
+
+
+
+
+
+&i2c1 {
+eodc_24c02: eodc_24c02@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
+		pagesize = <16>;
+		vcc-supply = <&reg_eodc_3v0d>;
+	};
+
+eodc_pca9534_0x46: eodc_pca9534_0x46@23 {
+		compatible = "nxp,pca9534";
+		reg = <0x23>;
+		gpio-controller;
+		vcc-supply = <&reg_eodc_3v0d>;
+                #interrupt-cells = <2>;
+                #gpio-cells = <2>;
+		//B0 -
+		//B1 VCM_Pwr_En
+		//B2
+		//B3 VCM_RESET
+		//B4
+		//B5
+		//B6 VCM_Clk_En
+		//B7 VCM_I2C_En
+		};
+
+/* ov564x: ov564x@3c { */
+/* 		compatible = "ovti,ov564x"; */
+/* 		reg = <0x3c>; */
+/* 		pinctrl-names = "default"; */
+/* 		pinctrl-0 = <&pinctrl_evco_csi0>; */
+/* 		clocks = <&clks 201>; */
+/* 		clock-names = "csi_mclk"; */
+/* 		DOVDD-supply = <&reg_eodc_dovdd>; /\* 1.8v *\/ */
+/* 		AVDD-supply = <&reg_eodc_avdd>;  /\* 2.8v, on rev C board is VGEN3, on rev B board is VGEN5 *\/ */
+/* 		DVDD-supply = <&reg_eodc_dvdd>;  /\* 1.5v*\/ */
+/* 		pwn-gpios = <&eodc_pca9534_0x46 2 GPIO_ACTIVE_HIGH>; */
+/* 		rst-gpios = <&eodc_pca9534_0x46 3 GPIO_ACTIVE_HIGH>; */
+/* 		csi_id = <0>; */
+/* 		mclk = <24000000>; */
+/* 		mclk_source = <0>; */
+/* 	}; */
+
+
+};
