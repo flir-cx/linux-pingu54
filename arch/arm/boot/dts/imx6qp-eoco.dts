@@ -15,6 +15,7 @@
 
 #include "imx6qp.dtsi"
 #include "imx6qp-eoco.dtsi"
+#include "imx6qp-eodc.dtsi"
 #include "imx6qp-eohp.dtsi"
 #include "imx6qp-eopc.dtsi"
 #include "imx6qp-eowi.dtsi"
