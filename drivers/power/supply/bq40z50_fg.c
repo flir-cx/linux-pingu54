@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#define pr_fmt(fmt)	"[bq40z50] %s: " fmt, __func__
+#define pr_fmt(fmt) "[bq40z50] %s: " fmt, __func__
 #include <linux/module.h>
 #include <linux/param.h>
 #include <linux/jiffies.h>
@@ -27,50 +27,48 @@
 #include <linux/interrupt.h>
 #include <linux/gpio/consumer.h>
 
-#define bq_info	pr_info
-#define bq_dbg	pr_debug
-#define bq_err	pr_err
-#define bq_log	pr_err
+#define bq_info pr_info
+#define bq_dbg pr_debug
+#define bq_err pr_err
+#define bq_log pr_err
 
+#define INVALID_REG_ADDR 0xFF
 
-#define	INVALID_REG_ADDR	0xFF
-
-#define FG_FLAGS_FD				BIT(4)
-#define	FG_FLAGS_FC				BIT(5)
-#define	FG_FLAGS_DSG				BIT(6)
-#define FG_FLAGS_RCA				BIT(9)
-
+#define FG_FLAGS_FD BIT(4)
+#define FG_FLAGS_FC BIT(5)
+#define FG_FLAGS_DSG BIT(6)
+#define FG_FLAGS_RCA BIT(9)
 
 enum bq_fg_reg_idx {
 	BQ_FG_REG_MAC = 0,
-	BQ_FG_REG_TEMP,		/* Battery Temperature */
-	BQ_FG_REG_VOLT,		/* Battery Voltage */
-	BQ_FG_REG_AI,		/* Average Current */
-	BQ_FG_REG_BATT_STATUS,	/* BatteryStatus */
-	BQ_FG_REG_TTE,		/* Time to Empty */
-	BQ_FG_REG_TTF,		/* Time to Full */
-	BQ_FG_REG_FCC,		/* Full Charge Capacity */
-	BQ_FG_REG_RM,		/* Remaining Capacity */
-	BQ_FG_REG_CC,		/* Cycle Count */
-	BQ_FG_REG_SOC,		/* Relative State of Charge */
-	BQ_FG_REG_SOH,		/* State of Health */
-	BQ_FG_REG_DC,		/* Design Capacity */
-	BQ_FG_REG_MBA,		/* ManufacturerBlockAccess*/
+	BQ_FG_REG_TEMP, /* Battery Temperature */
+	BQ_FG_REG_VOLT, /* Battery Voltage */
+	BQ_FG_REG_AI, /* Average Current */
+	BQ_FG_REG_BATT_STATUS, /* BatteryStatus */
+	BQ_FG_REG_TTE, /* Time to Empty */
+	BQ_FG_REG_TTF, /* Time to Full */
+	BQ_FG_REG_FCC, /* Full Charge Capacity */
+	BQ_FG_REG_RM, /* Remaining Capacity */
+	BQ_FG_REG_CC, /* Cycle Count */
+	BQ_FG_REG_SOC, /* Relative State of Charge */
+	BQ_FG_REG_SOH, /* State of Health */
+	BQ_FG_REG_DC, /* Design Capacity */
+	BQ_FG_REG_MBA, /* ManufacturerBlockAccess*/
+	BQ_FG_REG_MA, /* ManufacturerAccess*/
 	NUM_REGS,
 };
 
 enum bq_fg_mac_cmd {
-	FG_MAC_CMD_OP_STATUS	= 0x0000,
-	FG_MAC_CMD_DEV_TYPE	= 0x0001,
-	FG_MAC_CMD_FW_VER	= 0x0002,
-	FG_MAC_CMD_HW_VER	= 0x0003,
-	FG_MAC_CMD_IF_SIG	= 0x0004,
-	FG_MAC_CMD_CHEM_ID	= 0x0006,
-	FG_MAC_CMD_GAUGING	= 0x0021,
-	FG_MAC_CMD_SEAL		= 0x0030,
-	FG_MAC_CMD_DEV_RESET	= 0x0041,
+	FG_MAC_CMD_OP_STATUS = 0x0000,
+	FG_MAC_CMD_DEV_TYPE = 0x0001,
+	FG_MAC_CMD_FW_VER = 0x0002,
+	FG_MAC_CMD_HW_VER = 0x0003,
+	FG_MAC_CMD_IF_SIG = 0x0004,
+	FG_MAC_CMD_CHEM_ID = 0x0006,
+	FG_MAC_CMD_GAUGING = 0x0021,
+	FG_MAC_CMD_SEAL = 0x0030,
+	FG_MAC_CMD_DEV_RESET = 0x0041,
 };
-
 
 enum {
 	SEAL_STATE_RSVED,
@@ -78,7 +76,6 @@ enum {
 	SEAL_STATE_SEALED,
 	SEAL_STATE_FA,
 };
-
 
 enum bq_fg_device {
 	BQ40Z50,
@@ -89,26 +86,26 @@ static const unsigned char *device2str[] = {
 };
 
 static u8 bq40z50_regs[NUM_REGS] = {
-	0x00,	/* CONTROL */
-	0x08,	/* TEMP */
-	0x09,	/* VOLT */
-	0x0B,	/* AVG CURRENT */
-	0x16,	/* FLAGS */
-	0x12,	/* Time to empty */
-	0x13,	/* Time to full */
-	0x10,	/* Full charge capacity */
-	0x0F,	/* Remaining Capacity */
-	0x17,	/* CycleCount */
-	0x0D,	/* State of Charge */
-	0x4F,	/* State of Health */
-	0x18,	/* Design Capacity */
-	0x44,	/* ManufacturerBlockAccess*/
+	0x00, /* CONTROL */
+	0x08, /* TEMP */
+	0x09, /* VOLT */
+	0x0B, /* AVG CURRENT */
+	0x16, /* FLAGS */
+	0x12, /* Time to empty */
+	0x13, /* Time to full */
+	0x10, /* Full charge capacity */
+	0x0F, /* Remaining Capacity */
+	0x17, /* CycleCount */
+	0x0D, /* State of Charge */
+	0x4F, /* State of Health */
+	0x18, /* Design Capacity */
+	0x44, /* ManufacturerBlockAccess*/
+	0x23, /* ManufacturerAccess*/
 };
 
 struct bq_fg_chip {
 	struct device *dev;
 	struct i2c_client *client;
-
 
 	struct mutex i2c_rw_lock;
 	struct mutex data_lock;
@@ -127,22 +124,24 @@ struct bq_fg_chip {
 	/* status tracking */
 
 	bool batt_fc;
-	bool batt_fd;	/* full depleted */
+	bool batt_fd; /* full depleted */
 
 	bool batt_dsg;
-	bool batt_rca;	/* remaining capacity alarm */
+	bool batt_rca; /* remaining capacity alarm */
+
+	bool batt_present;
 
 	int seal_state; /* 0 - Full Access, 1 - Unsealed, 2 - Sealed */
 	int batt_tte;
 	int batt_soc;
-	int batt_fcc;	/* Full charge capacity */
-	int batt_rm;	/* Remaining capacity */
-	int batt_dc;	/* Design Capacity */
+	int batt_fcc; /* Full charge capacity */
+	int batt_rm; /* Remaining capacity */
+	int batt_dc; /* Design Capacity */
 	int batt_volt;
 	int batt_temp;
 	int batt_curr;
 
-	int batt_cyclecnt;	/* cycle count */
+	int batt_cyclecnt; /* cycle count */
 
 	/* debug */
 	int skip_reads;
@@ -151,28 +150,11 @@ struct bq_fg_chip {
 	int fake_soc;
 	int fake_temp;
 
-	struct	delayed_work monitor_work;
+	struct delayed_work monitor_work;
 
 	struct power_supply *fg_psy;
 	struct power_supply_desc fg_psy_d;
 };
-
-
-static int __fg_read_word(struct i2c_client *client, u8 reg, u16 *val)
-{
-	s32 ret;
-
-	ret = i2c_smbus_read_word_data(client, reg);
-	if (ret < 0) {
-		bq_err("i2c read word fail: can't read from reg 0x%02X\n", reg);
-		return ret;
-	}
-
-	*val = (u16)ret;
-
-	return 0;
-}
-
 
 static int __fg_write_word(struct i2c_client *client, u8 reg, u16 val)
 {
@@ -181,7 +163,7 @@ static int __fg_write_word(struct i2c_client *client, u8 reg, u16 val)
 	ret = i2c_smbus_write_word_data(client, reg, val);
 	if (ret < 0) {
 		bq_err("i2c write word fail: can't write 0x%02X to reg 0x%02X\n",
-				val, reg);
+		       val, reg);
 		return ret;
 	}
 
@@ -190,7 +172,6 @@ static int __fg_write_word(struct i2c_client *client, u8 reg, u16 val)
 
 static int __fg_read_block(struct i2c_client *client, u8 reg, u8 *buf, u8 len)
 {
-
 	int ret;
 
 	/* len is ignored due to smbus block reading contains Num of bytes to be returned */
@@ -218,13 +199,22 @@ static int fg_read_word(struct bq_fg_chip *bq, u8 reg, u16 *val)
 	}
 
 	mutex_lock(&bq->i2c_rw_lock);
-	ret = __fg_read_word(bq->client, reg, val);
-	mutex_unlock(&bq->i2c_rw_lock);
 
+	ret = i2c_smbus_read_word_data(bq->client, reg);
+	if (ret < 0) {
+		if (bq->batt_present) {
+			bq_err("battery was removed");
+			bq->batt_present = false;
+		}
+	} else {
+		*val = (u16)ret;
+	}
+	mutex_unlock(&bq->i2c_rw_lock);
 	return ret;
 }
 
-static int fg_write_word(struct bq_fg_chip *bq, u8 reg, u16 val)
+static int __attribute__((unused))
+fg_write_word(struct bq_fg_chip *bq, u8 reg, u16 val)
 {
 	int ret;
 
@@ -249,7 +239,6 @@ static int fg_read_block(struct bq_fg_chip *bq, u8 reg, u8 *buf, u8 len)
 	mutex_unlock(&bq->i2c_rw_lock);
 
 	return ret;
-
 }
 
 static int fg_write_block(struct bq_fg_chip *bq, u8 reg, u8 *data, u8 len)
@@ -265,7 +254,6 @@ static int fg_write_block(struct bq_fg_chip *bq, u8 reg, u8 *data, u8 len)
 
 	return ret;
 }
-
 
 #if 0
 static void fg_print_buf(const char *msg, u8 *buf, u8 len)
@@ -284,7 +272,8 @@ static void fg_print_buf(const char *msg, u8 *buf, u8 len)
 }
 #else
 static void fg_print_buf(const char *msg, u8 *buf, u8 len)
-{}
+{
+}
 #endif
 
 static int fg_mac_read_block(struct bq_fg_chip *bq, u16 cmd, u8 *buf, u8 len)
@@ -294,15 +283,17 @@ static int fg_mac_read_block(struct bq_fg_chip *bq, u16 cmd, u8 *buf, u8 len)
 	u8 t_len;
 	int i;
 
-	t_buf[0] = (u8)(cmd >> 8);
-	t_buf[1] = (u8)cmd;
+	t_buf[0] = (u8)cmd;
+	t_buf[1] = (u8)(cmd >> 8);
+
 	ret = fg_write_block(bq, bq->regs[BQ_FG_REG_MBA], t_buf, 2);
-	if (ret < 0)
+	if (ret < 0) {
 		return ret;
+	}
 
-	msleep(100);
+	msleep(2);
 
-	ret = fg_read_block(bq, bq->regs[BQ_FG_REG_MBA], t_buf, 36);
+	ret = fg_read_block(bq, bq->regs[BQ_FG_REG_MBA], t_buf, len);
 	if (ret < 0)
 		return ret;
 	t_len = ret;
@@ -310,7 +301,7 @@ static int fg_mac_read_block(struct bq_fg_chip *bq, u16 cmd, u8 *buf, u8 len)
 	fg_print_buf("mac_read_block", t_buf, t_len);
 
 	for (i = 0; i < t_len - 2; i++)
-		buf[i] = t_buf[i+2];
+		buf[i] = t_buf[i + 2];
 
 	return 0;
 }
@@ -339,32 +330,37 @@ static int fg_mac_write_block(struct bq_fg_chip *bq, u16 cmd, u8 *data, u8 len)
 }
 #endif
 
-static void fg_read_fw_version(struct bq_fg_chip *bq)
+static int fg_read_fw_version(struct bq_fg_chip *bq)
 {
-
 	int ret;
+	u16 device;
 	u8 buf[36];
 
-	ret = fg_write_word(bq, bq->regs[BQ_FG_REG_MBA], FG_MAC_CMD_FW_VER);
-
+	ret = fg_mac_read_block(bq, FG_MAC_CMD_FW_VER, buf, 13);
 	if (ret < 0) {
-		bq_err("Failed to send firmware version subcommand:%d\n", ret);
-		return;
+		return ret;
 	}
 
-	mdelay(2);
+	device = buf[1] << 8 | buf[0];
+	bq_log("Device:%04X \n", device);
 
-	ret = fg_mac_read_block(bq, bq->regs[BQ_FG_REG_MBA], buf, 11);
-	if (ret < 0) {
-		bq_err("Failed to read firmware version:%d\n", ret);
-		return;
+	// The datasheet does no explicitly state what devicetype corresponds to
+	// the bq40z50 fuelgauge. 0x0045 is what is reported.
+	// On a future note: This is were we would distinguish between
+	// multiple different devices in case added at a later point.
+	if (device != 0x0045) {
+		bq_err("Device: %x does not match expected (0x0045) \n", device);
+		return -ENXIO;
 	}
 
-	bq_log("FW Ver:%04X, Build:%04X\n",
-		buf[2] << 8 | buf[3], buf[4] << 8 | buf[5]);
+	bq->batt_present = true;
+
+	bq_log("FW Ver:%04X, Build:%04X\n", buf[2] << 8 | buf[3],
+	       buf[4] << 8 | buf[5]);
 	bq_log("Ztrack Ver:%04X\n", buf[7] << 8 | buf[8]);
-}
 
+	return 0;
+}
 
 static int fg_read_status(struct bq_fg_chip *bq)
 {
@@ -376,15 +372,14 @@ static int fg_read_status(struct bq_fg_chip *bq)
 		return ret;
 
 	mutex_lock(&bq->data_lock);
-	bq->batt_fc		= !!(flags & FG_FLAGS_FC);
-	bq->batt_fd		= !!(flags & FG_FLAGS_FD);
-	bq->batt_rca		= !!(flags & FG_FLAGS_RCA);
-	bq->batt_dsg		= !!(flags & FG_FLAGS_DSG);
+	bq->batt_fc = !!(flags & FG_FLAGS_FC);
+	bq->batt_fd = !!(flags & FG_FLAGS_FD);
+	bq->batt_rca = !!(flags & FG_FLAGS_RCA);
+	bq->batt_dsg = !!(flags & FG_FLAGS_DSG);
 	mutex_unlock(&bq->data_lock);
 
 	return 0;
 }
-
 
 static int fg_read_rsoc(struct bq_fg_chip *bq)
 {
@@ -398,7 +393,6 @@ static int fg_read_rsoc(struct bq_fg_chip *bq)
 	}
 
 	return soc;
-
 }
 
 static int fg_read_temperature(struct bq_fg_chip *bq)
@@ -413,7 +407,6 @@ static int fg_read_temperature(struct bq_fg_chip *bq)
 	}
 
 	return temp - 2730;
-
 }
 
 static int fg_read_volt(struct bq_fg_chip *bq)
@@ -428,7 +421,6 @@ static int fg_read_volt(struct bq_fg_chip *bq)
 	}
 
 	return volt;
-
 }
 
 static int fg_read_current(struct bq_fg_chip *bq, int *curr)
@@ -466,7 +458,6 @@ static int fg_read_fcc(struct bq_fg_chip *bq)
 
 static int fg_read_dc(struct bq_fg_chip *bq)
 {
-
 	int ret;
 	u16 dc;
 
@@ -484,7 +475,6 @@ static int fg_read_dc(struct bq_fg_chip *bq)
 
 	return dc;
 }
-
 
 static int fg_read_rm(struct bq_fg_chip *bq)
 {
@@ -504,7 +494,6 @@ static int fg_read_rm(struct bq_fg_chip *bq)
 	}
 
 	return rm;
-
 }
 
 static int fg_read_cyclecount(struct bq_fg_chip *bq)
@@ -552,8 +541,10 @@ static int fg_read_tte(struct bq_fg_chip *bq)
 
 static int fg_get_batt_status(struct bq_fg_chip *bq)
 {
+	int ret = fg_read_status(bq);
 
-	fg_read_status(bq);
+	if (ret < 0)
+		return POWER_SUPPLY_STATUS_UNKNOWN;
 
 	if (bq->batt_fc)
 		return POWER_SUPPLY_STATUS_FULL;
@@ -563,13 +554,10 @@ static int fg_get_batt_status(struct bq_fg_chip *bq)
 		return POWER_SUPPLY_STATUS_CHARGING;
 	else
 		return POWER_SUPPLY_STATUS_NOT_CHARGING;
-
 }
-
 
 static int fg_get_batt_capacity_level(struct bq_fg_chip *bq)
 {
-
 	if (bq->batt_fc)
 		return POWER_SUPPLY_CAPACITY_LEVEL_FULL;
 	else if (bq->batt_rca)
@@ -578,9 +566,7 @@ static int fg_get_batt_capacity_level(struct bq_fg_chip *bq)
 		return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 	else
 		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
-
 }
-
 
 static enum power_supply_property fg_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
@@ -590,16 +576,34 @@ static enum power_supply_property fg_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	/*POWER_SUPPLY_PROP_HEALTH,*//*implement it in battery power_supply*/
+	/*POWER_SUPPLY_PROP_HEALTH,*/ /*implement it in battery power_supply*/
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 };
 
-static int fg_get_property(struct power_supply *psy, enum power_supply_property psp,
-					union power_supply_propval *val)
+static int fg_get_property(struct power_supply *psy,
+			   enum power_supply_property psp,
+			   union power_supply_propval *val)
 {
 	struct bq_fg_chip *bq = power_supply_get_drvdata(psy);
 	int ret;
+
+	// If battery is not present
+	if (!bq->batt_present) {
+		// Check battery if battery has been inserted and assert device info
+		ret = fg_read_fw_version(bq);
+
+		// We are allowed to ask for the presence at this point
+		if (psp == POWER_SUPPLY_PROP_PRESENT) {
+			val->intval = bq->batt_present;
+			return 0;
+		}
+
+		// If there is no battery we return an error.
+		if (ret < 0) {
+			return -ENXIO;
+		}
+	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -607,19 +611,22 @@ static int fg_get_property(struct power_supply *psy, enum power_supply_property 
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		ret = fg_read_volt(bq);
+		if (ret < 0)
+			return -ENXIO;
 		mutex_lock(&bq->data_lock);
-		if (ret >= 0)
-			bq->batt_volt = ret;
+		bq->batt_volt = ret;
 		val->intval = bq->batt_volt * 1000;
 		mutex_unlock(&bq->data_lock);
-
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-		val->intval = 1;
+		fg_get_batt_status(bq); // Perform a dummy read to update status
+		val->intval = bq->batt_present;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		ret = fg_read_current(bq, &bq->batt_curr);
+		if (ret < 0)
+			return -ENXIO;
 		mutex_lock(&bq->data_lock);
-		fg_read_current(bq, &bq->batt_curr);
 		val->intval = -bq->batt_curr * 1000;
 		mutex_unlock(&bq->data_lock);
 		break;
@@ -630,9 +637,10 @@ static int fg_get_property(struct power_supply *psy, enum power_supply_property 
 			break;
 		}
 		ret = fg_read_rsoc(bq);
+		if (ret < 0)
+			return -ENXIO;
 		mutex_lock(&bq->data_lock);
-		if (ret >= 0)
-			bq->batt_soc = ret;
+		bq->batt_soc = ret;
 		val->intval = bq->batt_soc;
 		mutex_unlock(&bq->data_lock);
 		break;
@@ -647,25 +655,28 @@ static int fg_get_property(struct power_supply *psy, enum power_supply_property 
 			break;
 		}
 		ret = fg_read_temperature(bq);
+		if (ret < 0)
+			return -ENXIO;
 		mutex_lock(&bq->data_lock);
-		if (ret > 0)
-			bq->batt_temp = ret;
+		bq->batt_temp = ret;
 		val->intval = bq->batt_temp;
 		mutex_unlock(&bq->data_lock);
 		break;
 
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
 		ret = fg_read_tte(bq);
+		if (ret < 0)
+			return -ENXIO;
 		mutex_lock(&bq->data_lock);
-		if (ret >= 0)
-			bq->batt_tte = ret;
-
+		bq->batt_tte = ret;
 		val->intval = bq->batt_tte;
 		mutex_unlock(&bq->data_lock);
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		ret = fg_read_fcc(bq);
+		if (ret < 0)
+			return -ENXIO;
 		mutex_lock(&bq->data_lock);
 		if (ret > 0)
 			bq->batt_fcc = ret;
@@ -675,18 +686,20 @@ static int fg_get_property(struct power_supply *psy, enum power_supply_property 
 
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		ret = fg_read_dc(bq);
+		if (ret < 0)
+			return -ENXIO;
 		mutex_lock(&bq->data_lock);
-		if (ret > 0)
-			bq->batt_dc = ret;
+		bq->batt_dc = ret;
 		val->intval = bq->batt_dc * 1000;
 		mutex_unlock(&bq->data_lock);
 		break;
 
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		ret = fg_read_cyclecount(bq);
+		if (ret < 0)
+			return -ENXIO;
 		mutex_lock(&bq->data_lock);
-		if (ret >= 0)
-			bq->batt_cyclecnt = ret;
+		bq->batt_cyclecnt = ret;
 		val->intval = bq->batt_cyclecnt;
 		mutex_unlock(&bq->data_lock);
 		break;
@@ -703,8 +716,8 @@ static int fg_get_property(struct power_supply *psy, enum power_supply_property 
 static void fg_dump_registers(struct bq_fg_chip *bq);
 
 static int fg_set_property(struct power_supply *psy,
-			       enum power_supply_property prop,
-			       const union power_supply_propval *val)
+			   enum power_supply_property prop,
+			   const union power_supply_propval *val)
 {
 	struct bq_fg_chip *bq = power_supply_get_drvdata(psy);
 
@@ -723,9 +736,8 @@ static int fg_set_property(struct power_supply *psy,
 	return 0;
 }
 
-
 static int fg_prop_is_writeable(struct power_supply *psy,
-				       enum power_supply_property prop)
+				enum power_supply_property prop)
 {
 	int ret;
 
@@ -741,8 +753,6 @@ static int fg_prop_is_writeable(struct power_supply *psy,
 	return ret;
 }
 
-
-
 static int fg_psy_register(struct bq_fg_chip *bq)
 {
 	struct power_supply_config fg_psy_cfg = {};
@@ -757,9 +767,8 @@ static int fg_psy_register(struct bq_fg_chip *bq)
 
 	fg_psy_cfg.drv_data = bq;
 	fg_psy_cfg.num_supplicants = 0;
-	bq->fg_psy = devm_power_supply_register(bq->dev,
-						&bq->fg_psy_d,
-						&fg_psy_cfg);
+	bq->fg_psy =
+		devm_power_supply_register(bq->dev, &bq->fg_psy_d, &fg_psy_cfg);
 	if (IS_ERR(bq->fg_psy)) {
 		bq_err("Failed to register fg_psy");
 		return PTR_ERR(bq->fg_psy);
@@ -767,24 +776,18 @@ static int fg_psy_register(struct bq_fg_chip *bq)
 	return 0;
 }
 
-
 static void fg_psy_unregister(struct bq_fg_chip *bq)
 {
-
 	power_supply_unregister(bq->fg_psy);
 }
 
 static const u8 fg_dump_regs[] = {
-	0x08, 0x09, 0x0A, 0x0D,
-	0x0F, 0x10, 0x16, 0x3C,
-	0x3D, 0x3E, 0x3F, 0x54,
-	0x55, 0x56, 0x57, 0x71,
-	0x72, 0x74, 0x75, 0x76,
-	0x77, 0x78,
+	0x08, 0x09, 0x0A, 0x0D, 0x0F, 0x10, 0x16, 0x3C, 0x3D, 0x3E, 0x3F,
+	0x54, 0x55, 0x56, 0x57, 0x71, 0x72, 0x74, 0x75, 0x76, 0x77, 0x78,
 };
 
 static ssize_t fg_attr_show_Ra_table(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				     struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bq_fg_chip *bq = i2c_get_clientdata(client);
@@ -802,7 +805,8 @@ static ssize_t fg_attr_show_Ra_table(struct device *dev,
 	memcpy(&buf[idx], temp_buf, len);
 	idx += len;
 	for (i = 0; i < 15; i++) {
-		len = sprintf(temp_buf, "%d ", t_buf[i*2] << 8 | t_buf[i*2 + 1]);
+		len = sprintf(temp_buf, "%d ",
+			      t_buf[i * 2] << 8 | t_buf[i * 2 + 1]);
 		memcpy(&buf[idx], temp_buf, len);
 		idx += len;
 	}
@@ -811,7 +815,7 @@ static ssize_t fg_attr_show_Ra_table(struct device *dev,
 }
 
 static ssize_t fg_attr_show_Qmax(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				 struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bq_fg_chip *bq = i2c_get_clientdata(client);
@@ -820,14 +824,15 @@ static ssize_t fg_attr_show_Qmax(struct device *dev,
 	u8 temp_buf[32];
 	int i, idx, len;
 
-	memset(t_buf, 0, 64);
+	memset(t_buf, 0, 32);
 	/* GaugingStatus3 register contains Qmax value */
 	ret = fg_mac_read_block(bq, 0x0075, t_buf, 24);
 	if (ret < 0)
 		return 0;
 	idx = 0;
 	for (i = 0; i < 4; i++) {
-		len = sprintf(temp_buf, "Qmax Cell %d = %d\n", i, (t_buf[i*2] << 8) | t_buf[i*2+1]);
+		len = sprintf(temp_buf, "Qmax Cell %d = %d\n", i,
+			      (t_buf[i * 2] << 8) | t_buf[i * 2 + 1]);
 		memcpy(&buf[idx], temp_buf, len);
 		idx += len;
 	}
@@ -847,7 +852,6 @@ static struct attribute *fg_attributes[] = {
 static const struct attribute_group fg_attr_group = {
 	.attrs = fg_attributes,
 };
-
 
 static void fg_dump_registers(struct bq_fg_chip *bq)
 {
@@ -869,13 +873,11 @@ static irqreturn_t fg_btp_irq_thread(int irq, void *dev_id)
 
 	/* user can update btp trigger point here*/
 
-
 	return IRQ_HANDLED;
 }
 
 static void fg_update_status(struct bq_fg_chip *bq)
 {
-
 	mutex_lock(&bq->data_lock);
 
 	bq->batt_soc = fg_read_rsoc(bq);
@@ -885,13 +887,14 @@ static void fg_update_status(struct bq_fg_chip *bq)
 	bq->batt_rm = fg_read_rm(bq);
 
 	mutex_unlock(&bq->data_lock);
-	bq_log("RSOC:%d, Volt:%d, Current:%d, Temperature:%d\n",
-		bq->batt_soc, bq->batt_volt, bq->batt_curr, bq->batt_temp);
+	bq_log("RSOC:%d, Volt:%d, Current:%d, Temperature:%d\n", bq->batt_soc,
+	       bq->batt_volt, bq->batt_curr, bq->batt_temp);
 }
 
 static void fg_monitor_workfunc(struct work_struct *work)
 {
-	struct bq_fg_chip *bq = container_of(work, struct bq_fg_chip, monitor_work.work);
+	struct bq_fg_chip *bq =
+		container_of(work, struct bq_fg_chip, monitor_work.work);
 
 	fg_update_status(bq);
 
@@ -900,18 +903,20 @@ static void fg_monitor_workfunc(struct work_struct *work)
 	schedule_delayed_work(&bq->monitor_work, 5 * HZ);
 }
 
-
 static void determine_initial_status(struct bq_fg_chip *bq)
 {
+	// If battery is not present, don't bother
+	if (!bq->batt_present)
+		return;
+
 	fg_update_status(bq);
 
 	fg_btp_irq_thread(bq->client->irq, bq);
 }
 
 static int bq_fg_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+		       const struct i2c_device_id *id)
 {
-
 	int ret;
 	struct bq_fg_chip *bq;
 	u8 *regs;
@@ -925,17 +930,19 @@ static int bq_fg_probe(struct i2c_client *client,
 	bq->client = client;
 	bq->chip = id->driver_data;
 
-	bq->batt_soc	= -ENODATA;
-	bq->batt_fcc	= -ENODATA;
-	bq->batt_rm	= -ENODATA;
-	bq->batt_dc	= -ENODATA;
-	bq->batt_volt	= -ENODATA;
-	bq->batt_temp	= -ENODATA;
-	bq->batt_curr	= -ENODATA;
+	bq->batt_soc = -ENODATA;
+	bq->batt_fcc = -ENODATA;
+	bq->batt_rm = -ENODATA;
+	bq->batt_dc = -ENODATA;
+	bq->batt_volt = -ENODATA;
+	bq->batt_temp = -ENODATA;
+	bq->batt_curr = -ENODATA;
 	bq->batt_cyclecnt = -ENODATA;
 
-	bq->fake_soc	= -EINVAL;
-	bq->fake_temp	= -EINVAL;
+	bq->batt_present = false;
+
+	bq->fake_soc = -EINVAL;
+	bq->fake_temp = -EINVAL;
 
 	if (bq->chip == BQ40Z50) {
 		regs = bq40z50_regs;
@@ -956,12 +963,13 @@ static int bq_fg_probe(struct i2c_client *client,
 	bq->irq_waiting = false;
 
 	if (client->irq) {
-		ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-			fg_btp_irq_thread,
+		ret = devm_request_threaded_irq(
+			&client->dev, client->irq, NULL, fg_btp_irq_thread,
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"bq fuel gauge irq", bq);
 		if (ret < 0) {
-			bq_err("request irq for irq=%d failed, ret = %d\n", client->irq, ret);
+			bq_err("request irq for irq=%d failed, ret = %d\n",
+			       client->irq, ret);
 			goto err_1;
 		}
 		enable_irq_wake(client->irq);
@@ -981,8 +989,7 @@ static int bq_fg_probe(struct i2c_client *client,
 
 	INIT_DELAYED_WORK(&bq->monitor_work, fg_monitor_workfunc);
 
-	bq_log("bq fuel gauge probe successfully, %s\n",
-			device2str[bq->chip]);
+	bq_log("bq fuel gauge probe successfully, %s\n", device2str[bq->chip]);
 
 	return 0;
 
@@ -991,12 +998,10 @@ err_1:
 	return ret;
 }
 
-
 static inline bool is_device_suspended(struct bq_fg_chip *bq)
 {
 	return !bq->resume_completed;
 }
-
 
 static int bq_fg_suspend(struct device *dev)
 {
@@ -1016,13 +1021,12 @@ static int bq_fg_suspend_noirq(struct device *dev)
 	struct bq_fg_chip *bq = i2c_get_clientdata(client);
 
 	if (bq->irq_waiting) {
-		pr_err_ratelimited("Aborting suspend, an interrupt was detected while suspending\n");
+		pr_err_ratelimited(
+			"Aborting suspend, an interrupt was detected while suspending\n");
 		return -EBUSY;
 	}
 	return 0;
-
 }
-
 
 static int bq_fg_resume(struct device *dev)
 {
@@ -1043,8 +1047,6 @@ static int bq_fg_resume(struct device *dev)
 	power_supply_changed(bq->fg_psy);
 
 	return 0;
-
-
 }
 
 static int bq_fg_remove(struct i2c_client *client)
@@ -1062,7 +1064,6 @@ static int bq_fg_remove(struct i2c_client *client)
 	sysfs_remove_group(&bq->dev->kobj, &fg_attr_group);
 
 	return 0;
-
 }
 
 static void bq_fg_shutdown(struct i2c_client *client)
@@ -1071,7 +1072,9 @@ static void bq_fg_shutdown(struct i2c_client *client)
 }
 
 static struct of_device_id bq_fg_match_table[] = {
-	{.compatible = "ti,bq40z50",},
+	{
+		.compatible = "ti,bq40z50",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, bq_fg_match_table);
@@ -1083,9 +1086,9 @@ static const struct i2c_device_id bq_fg_id[] = {
 MODULE_DEVICE_TABLE(i2c, bq_fg_id);
 
 static const struct dev_pm_ops bq_fg_pm_ops = {
-	.resume		= bq_fg_resume,
+	.resume = bq_fg_resume,
 	.suspend_noirq = bq_fg_suspend_noirq,
-	.suspend	= bq_fg_suspend,
+	.suspend = bq_fg_suspend,
 };
 
 static struct i2c_driver bq_fg_driver = {

@@ -62,7 +62,7 @@
 
 	gps:eowi_gps@42 {
 		compatible = "ublox,m8";
-		status = "disabled";
+		status = "okay";
 		reg = <0x42>;
 			interrupt-pin = <&gpio7 12 GPIO_ACTIVE_HIGH>;
 			vin-supply = <&reg_gps_en>;

@@ -731,15 +731,15 @@
 	/* MAGNETOMETER */
 	eoco_bm1422: eoco_bm1422@f {
 		compatible = "rohm,bm1422";
-		reg = <0xf>;
 		status = "disabled";
+		reg = <0xf>;
 		// Remap axes for appcore
-		axis-map-x = <1>;
-		axis-map-y = <0>;
-		axis-map-z = <2>;
+		axis-map-x = <2>; // X = -Z
+		negate-x;
+		axis-map-y = <0>; // Y = X
+		axis-map-z = <1>; // Z = -Y
 		negate-z;
 	};
-
 };
 
 &iomuxc {
