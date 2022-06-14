@@ -14,7 +14,6 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 
-
 /*FLIR i2c1 bus*/
 &i2c1 {
 
@@ -35,4 +34,4 @@
 		axis-map-z = <1>;
 		negate-y;
 	};
-}
+};

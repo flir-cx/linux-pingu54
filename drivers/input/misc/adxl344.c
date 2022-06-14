@@ -137,10 +137,10 @@ static struct adxl344_platform_data *adxl344_parse_dt(struct device *dev)
 	of_property_read_u32(np, "axis-map-z", &mapz);
 	pdata->axis_map_z = (u8)mapz;
 
-	// Check if mapping is korrekt
-	if ((mapx * mapy * mapz) == 0 && (mapx + mapy + mapz) == 3) {
+	// Check if mapping is correct
+	if (!((mapx * mapy * mapz) == 0 && (mapx + mapy + mapz) == 3)) {
 		dev_err(dev, "x,y,z, mapping incorrect.");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	pdata->negate_x = of_property_read_bool(np, "negate-x");
@@ -199,7 +199,7 @@ static int adxl344_get_acc(struct adxl344_data *adxl344,
 	axis->y = adxl344->pdata.negate_y ? -y : y;
 	axis->z = adxl344->pdata.negate_z ? -z : z;
 
-	dev_err(&adxl344->client->dev, " %d %d %d ", axis->x, axis->y, axis->z);
+	dev_dbg(&adxl344->client->dev, " %d %d %d ", axis->x, axis->y, axis->z);
 
 	return ret;
 }
@@ -385,8 +385,6 @@ static int adxl344_probe(struct i2c_client *client,
 		}
 	}
 
-	dev_err(&client->dev, "adxl1344 test2");
-
 	adxl344 = devm_kzalloc(&client->dev, sizeof(*adxl344), GFP_KERNEL);
 	if (!adxl344) {
 		dev_err(&client->dev,
@@ -399,9 +397,9 @@ static int adxl344_probe(struct i2c_client *client,
 	strcpy(adxl344->name, ADXL344_NAME);
 
 	if (pdata->is_sensor_accel)
-		adxl344->miscdev.name = "sensor_adxl344";
+		adxl344->miscdev.name = "adxl344SensorAccel";
 	else
-		adxl344->miscdev.name = "lcd_adxl344";
+		adxl344->miscdev.name = "adxl344LCDAccel";
 
 	adxl344->miscdev.minor = MISC_DYNAMIC_MINOR;
 	adxl344->miscdev.fops = &adxl344_fops;
