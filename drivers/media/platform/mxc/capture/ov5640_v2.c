@@ -2613,6 +2613,14 @@ static int ov5640_probe(struct i2c_client *client,
 	msleep(20);
 
 	retval = ov5640_read_reg(OV5640_CHIP_ID_HIGH_BYTE, &chip_id_high);
+
+	if (retval < 0)
+	{
+		msleep(100);
+		pr_warning("camera ov5640 retry\n");
+		retval = ov5640_read_reg(OV5640_CHIP_ID_HIGH_BYTE, &chip_id_high);
+	}
+
 	if (retval < 0 || chip_id_high != 0x56) {
 		ov5640_regualtor_disable();
 		clk_disable_unprepare(ov5640_data.sensor_clk);
