@@ -741,15 +741,24 @@ static int max7_runtime_resume(struct device *dev)
 static int max7_enable(bool runtime)
 {
 	int ret = 0;
-	if (atomic_read(&(max7->runtimesuspend)) == 1) {
-		if (runtime) {
+	if (runtime) {
+		if (atomic_read(&(max7->runtimesuspend)) == 1) {
 			atomic_set(&(max7->runtimesuspend), 0);
+			if (max7->resetpin >= 0) {
+				gpio_direction_input(max7->resetpin);
+			}
+			ret = regulator_enable(max7->supply);
+			usleep_range(200000, 300000);
 		}
-		if (max7->resetpin >= 0) {
-			gpio_direction_input(max7->resetpin);
+	}
+	else {
+		if(atomic_read(&(max7->runtimesuspend)) == 0){
+			if (max7->resetpin >= 0) {
+				gpio_direction_input(max7->resetpin);
+			}
+			ret = regulator_enable(max7->supply);
+			usleep_range(200000, 300000);
 		}
-		ret = regulator_enable(max7->supply);
-		usleep_range(200000, 300000);
 	}
 	return ret;
 }
