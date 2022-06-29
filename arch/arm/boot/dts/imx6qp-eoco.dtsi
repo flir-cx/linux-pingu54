@@ -66,10 +66,18 @@
 	fad {
 		compatible = "flir,fad";
 		hasLaser = <1>;
-		hasGPS = <1>;
-//		laser_on-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
-//		laser_soft-gpios = <&rori_pca9534 5 GPIO_ACTIVE_LOW>;
-//		laser_switch-gpios = <&rori_pca9534 2 GPIO_ACTIVE_LOW>;
+		HasSoftwareControlledLaser = <1>;
+		HasGPS = <1>;
+		// "Laser_on" corresponds to "laser_on_time" and acts as input for
+		// Reading current state of laser
+		laser_on-gpios = <&gpio6 21 GPIO_ACTIVE_LOW>;
+		// "Laser_switch" corresponds to "laser_on" and acts as enable/disable
+		// for laser function
+		laser_switch-gpios = <&gpio6 20 GPIO_ACTIVE_HIGH>;
+		// "Laser_soft" corresponds to "laser_light" and acts as software controlled
+		// laser button override. This differs from roco-design were laser_soft bypass
+		// laser_on.
+		laser_soft-gpios = <&gpio6 22 GPIO_ACTIVE_HIGH>;
 		standbyMinutes = <360>;  // 360 = 6 hours
 	};
 

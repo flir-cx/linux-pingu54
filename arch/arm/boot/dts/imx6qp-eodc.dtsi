@@ -13,7 +13,6 @@
 
 / {
 
-
 	clocks{
 	eodc_clk24m: VCM_MCLK_0{
 			compatible = "fixed-clock";
@@ -30,7 +29,7 @@
 		vcam_pwdn-gpio = <&eodc_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
 		vcam_reset-gpio = <&eodc_pca9534_0x46 4 GPIO_ACTIVE_HIGH>;
 		vcam_clk_en-gpio = <&eodc_pca9534_0x46 6 GPIO_ACTIVE_LOW>;
-		dvdd-supply = <&reg_eodc_dvdd>;
+		dvdd-supply = <&reg_eodc_dovdd>;
 		avdd-supply = <&reg_eodc_avdd>;
 		flipped_sensor = <0>;
 
@@ -52,11 +51,10 @@
 			regulator-name = "EODC_I2C_ENABLE";
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
+			startup-delay-us = <1000>;
 			gpio = <&eodc_pca9534_0x46 7 GPIO_ACTIVE_HIGH>;
-			vin-supply = <&reg_eodc_3v0d>;
+			vin-supply = <&reg_eodc_dovdd>;
 			enable-active-high;
-			regulator-always-on; //Always enable..
-			regulator-boot-on; //Always enable..
 		};
 
 	reg_eodc_3v0d: reg_eodc_3v0d {
@@ -83,10 +81,12 @@
 			regulator-name = "eodc_dovdd";
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
+			startup-delay-us = <1000>;
 			gpio = <&eodc_pca9534_0x46 1 GPIO_ACTIVE_HIGH>;
 			vin-supply = <&reg_eodc_3v6_godc>;
 			enable-active-high;
 			regulator-always-on;
+			regulator-boot-on; //Always enable..
 		};
 
 	reg_eodc_avdd: reg_eodc_avdd {
