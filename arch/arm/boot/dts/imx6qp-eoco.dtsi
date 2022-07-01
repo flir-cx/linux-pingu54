@@ -280,22 +280,22 @@
 		pinctrl-0 = <&pinctrl_pwr>;
 		cooler-disable {
 			label = "cooler-disable";
-			gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 		power-off {
 			label = "power-off";
-			gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 		aduc-reset {
 			label = "aduc-reset";
-			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 		aduc-psen {
 			label = "aduc-psen";
-			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
