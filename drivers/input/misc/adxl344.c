@@ -423,11 +423,15 @@ static int adxl344_probe(struct i2c_client *client,
 	default:
 		dev_err(&client->dev, "Failed to probe %s\n",
 			adxl344->miscdev.name);
-		return -ENODEV;
+		goto deregister_misc;
 	}
 
 	adxl344_setup(client);
 	return err;
+
+deregister_misc:
+	misc_deregister(&adxl344->miscdev);
+	return -ENODEV;
 }
 
 static int adxl344_suspend(struct device *dev)
