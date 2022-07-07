@@ -24,7 +24,7 @@
 
 	vcam {
 		compatible = "flir,vcam";
-		vcam_paralell_interface = <1>;
+		vcam_parallell_interface = <1>;
 		vcam_i2c_bus = <0>;
 		vcam_pwdn-gpio = <&eodc_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
 		vcam_reset-gpio = <&eodc_pca9534_0x46 4 GPIO_ACTIVE_HIGH>;
