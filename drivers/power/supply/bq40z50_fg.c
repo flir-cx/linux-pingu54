@@ -601,7 +601,7 @@ static int fg_get_property(struct power_supply *psy,
 
 		// If there is no battery we return an error.
 		if (ret < 0) {
-			return -ENXIO;
+			return -ENODATA;
 		}
 	}
 
