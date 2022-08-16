@@ -103,7 +103,7 @@
 	pinctrl-0 = <&pinctrl_uart3>;
 	pinctrl-1 = <&pinctrl_uart3_sleep>;
 	uart-has-rtscts;
-	status = "disabled";
+	status = "okay";
 	dma-names = "rx","";
 
 	bluetooth {
