@@ -896,13 +896,17 @@ static int device_pca95xx_init(struct pca953x_chip *chip, u32 invert)
 
 	ret = regcache_sync_region(chip->regmap, chip->regs->output,
 				   chip->regs->output + NBANK(chip));
-	if (ret)
+	if (ret) {
+		dev_err(&chip->client->dev, "sync pin-output failed, %d\n", ret);
 		goto out;
+	}
 
 	ret = regcache_sync_region(chip->regmap, chip->regs->direction,
 				   chip->regs->direction + NBANK(chip));
-	if (ret)
+	if (ret) {
+		dev_err(&chip->client->dev, "sync pin-direction failed, %d\n", ret);
 		goto out;
+	}
 
 	/* set platform specific polarity inversion */
 	if (invert)
@@ -910,7 +914,11 @@ static int device_pca95xx_init(struct pca953x_chip *chip, u32 invert)
 	else
 		bitmap_zero(val, MAX_LINE);
 
-	ret = pca953x_write_regs(chip, chip->regs->invert, val);
+	ret = regcache_sync_region(chip->regmap, chip->regs->invert,
+				   chip->regs->invert + NBANK(chip));
+	if (ret)
+		dev_err(&chip->client->dev, "sync pin-invert failed, %d\n", ret);
+
 out:
 	return ret;
 }
@@ -961,7 +969,6 @@ static int pca953x_probe(struct i2c_client *client,
 		chip->names = pdata->names;
 	} else {
 		struct gpio_desc *reset_gpio;
-
 		chip->gpio_start = -1;
 		irq_base = 0;
 
@@ -1195,8 +1202,10 @@ static int pca953x_resume(struct device *dev)
 
 	regcache_mark_dirty(chip->regmap);
 	ret = pca953x_regcache_sync(dev);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "Failed to sync registers at resume: %d\n", ret);
 		return ret;
+	}
 
 	ret = regcache_sync(chip->regmap);
 	if (ret) {
