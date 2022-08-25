@@ -757,7 +757,7 @@ static int fg_psy_register(struct bq_fg_chip *bq)
 {
 	struct power_supply_config fg_psy_cfg = {};
 
-	bq->fg_psy_d.name = "bms";
+	bq->fg_psy_d.name = device2str[bq->chip];
 	bq->fg_psy_d.type = POWER_SUPPLY_TYPE_BATTERY;
 	bq->fg_psy_d.properties = fg_props;
 	bq->fg_psy_d.num_properties = ARRAY_SIZE(fg_props);
