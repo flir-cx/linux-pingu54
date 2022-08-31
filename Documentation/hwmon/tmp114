@@ -1,0 +1,23 @@
+Kernel driver tmp102
+====================
+
+Supported chips:
+  * Texas Instruments TMP114
+    Prefix: 'tmp114'
+    Addresses scanned: none
+    Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp114.html
+
+Author:
+	Steven King <sfking@fdwdc.com>
+	Mathias Båge <mathias.bage@teledyneflir.com>
+
+Description
+-----------
+
+The Texas Instruments TMP114 implements one temperature sensor.  The
+TMP114Nxxx sensor sensor is accurate to 1.0 degree from -40 to
++125°C. The 16-bit resolution of the sensor is 0.0078125 degree.  The
+operating temperature has a minimum of -55°C and a maximum of +125°C.
+
+The driver provides the common sysfs-interface for temperatures (see
+Documentation/hwmon/sysfs-interface under Temperatures).
