@@ -122,7 +122,7 @@ static const struct regmap_config tmp114_regmap_config = {
 	.val_bits = 16,
 	.max_register = TMP114_TEMP_REG,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_NONE,
 	.use_single_rw = true,
 };
 
