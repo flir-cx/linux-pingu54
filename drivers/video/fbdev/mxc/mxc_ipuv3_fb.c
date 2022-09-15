@@ -67,6 +67,14 @@ static int swap_disp_panel(struct fb_info *fbi, int panel);
 #define MXCFB_PORT_NUM	2
 #define MAX_FB_NO	8
 
+#define RGB565_16bpp_to_24bpp(pxl) ((((pxl >> 11) & 0x1f) << (16+3)) |	\
+				    (((pxl >>  5) & 0x3f) <<  (8+2)) |	\
+				    ( (pxl        & 0x1f) <<     3))
+struct splash_info {
+	u32 addr;
+	u32 size;
+};
+
 /*!
  * Structure containing the MXC specific framebuffer information.
  */
@@ -131,6 +139,8 @@ struct mxcfb_info {
 	spinlock_t spin_lock;	/* for PRE small yres cases */
 	struct ipu_pre_context *pre_config;
 	struct backlight_device * bd;
+
+	struct splash_info bootlogo;
 };
 
 struct mxcfb_pfmt {
@@ -1145,6 +1155,20 @@ static void mxcfb_check_yuv(struct fb_info *fbi)
 	}
 }
 
+static void mxcfb_display_splash(struct fb_info *fbi, struct splash_info *splash)
+{
+	u16 *src  = (u16 *)phys_to_virt(splash->addr);
+	u32 *dest = (u32 *)fbi->screen_base;
+	int i;
+
+	if (!splash->addr) {
+		return;
+	}
+	for (i = 0; i < splash->size; i++) {
+		dest[i] = RGB565_16bpp_to_24bpp(src[i]);
+	}
+}
+
 /*
  * Set framebuffer parameters and change the operating mode.
  *
@@ -1267,24 +1291,7 @@ static int mxcfb_set_par(struct fb_info *fbi)
 
 		mxc_fbi->first_set_par = false;
 	}
-/*
-	//only write bootlogo to lcd
-	if(mxc_fbi->ipu_id==0 && mxc_fbi->ipu_di == 1 && mxc_fbi->bootlogo)
-	{
-		uint16_t *src  = (uint16_t *)mxc_fbi->bootlogo;
-		uint32_t *dest = (uint32_t *)fbi->screen_base;
-		int i; char r,g,b;
-		for(i=0;i<fbi->var.xres * fbi->var.yres;i++)
-		{
-			b = (src[i] & 0x1f);
-			g = ((src[i]>>5) & 0x3f);
-			r = ((src[i]>>11) & 0x1f);
-			dest[i]= r<<(16+3) | g<<(8+2) | b<<3;
-		}
-		kfree(mxc_fbi->bootlogo);
-		mxc_fbi->bootlogo=0;
-	}
-*/
+
 	if (mxc_fbi->alpha_chan_en) {
 		alpha_mem_len = fbi->var.xres * fbi->var.yres;
 		if ((!mxc_fbi->alpha_phy_addr0 && !mxc_fbi->alpha_phy_addr1) ||
@@ -3959,6 +3966,16 @@ static int mxcfb_probe(struct platform_device *pdev)
 	mxcfbi->first_set_par = true;
 	mxcfbi->prefetch = plat_data->prefetch;
 	mxcfbi->pre_num = -1;
+	ret = of_property_read_u32_array(pdev->dev.of_node, "bootlogo",
+					 (u32*)&mxcfbi->bootlogo, 2);
+	if (ret) {
+		dev_dbg(&pdev->dev, "Invalid bootlogo properties\n");
+		mxcfbi->bootlogo.addr = 0;
+	} else {
+		pr_debug("bootlogo addr 0x%08x size %d\n",
+			 mxcfbi->bootlogo.addr, mxcfbi->bootlogo.size);
+	}
+
 	spin_lock_init(&mxcfbi->spin_lock);
 
 	ret = mxcfb_dispdrv_init(pdev, fbi);
@@ -4091,7 +4108,7 @@ static int mxcfb_probe(struct platform_device *pdev)
 	mxcfb_blank(FB_BLANK_NORMAL, fbi);
 	mxcfb_blank(FB_BLANK_UNBLANK, fbi);
 	console_unlock();
-
+	mxcfb_display_splash(fbi, &mxcfbi->bootlogo);
 
 	return 0;
 
