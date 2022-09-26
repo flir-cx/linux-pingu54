@@ -134,7 +134,7 @@ struct ov5640 {
  * Maintains the information on the current state of the sesor.
  */
 static struct ov5640 ov5640_data;
-static int pwn_gpio, rst_gpio, clk_gpio;
+static int pwn_gpio, rst_gpio;
 #if 0
 static int prev_sysclk;
 static int AE_Target = 52, night_mode;
@@ -1259,9 +1259,6 @@ static int ov5640_suspend(struct device *dev)
 	pr_info("ov5640_suspend\n");
 
 	gpio_set_value_cansleep(pwn_gpio, 1);
-	msleep(1);
-	gpio_set_value_cansleep(clk_gpio, 0);
-
 	return 0;
 }
 
@@ -1269,8 +1266,6 @@ static int ov5640_resume(struct device *dev)
 {
 	pr_info("ov5640_resume\n");
 
-	gpio_set_value_cansleep(clk_gpio, 1);
-	msleep(1);
 	gpio_set_value_cansleep(pwn_gpio, 0);
 	return 0;
 }
@@ -1278,7 +1273,6 @@ static int ov5640_resume(struct device *dev)
 static inline void ov5640_reset(void)
 {
 	/* camera reset */
-	gpio_set_value_cansleep(clk_gpio, 1);
 	gpio_set_value_cansleep(rst_gpio, 1);
 
 	/* camera power down */
@@ -1293,64 +1287,24 @@ static inline void ov5640_reset(void)
 	gpio_set_value_cansleep(pwn_gpio, 1);
 }
 
-static int ov5640_regulator_enable(struct device *dev)
+static int ov5640_get_regulators(struct device *dev)
 {
-	int ret = 0;
 
 	io_regulator = devm_regulator_get(dev, "DOVDD");
-	if (!IS_ERR(io_regulator)) {
-		regulator_set_voltage(io_regulator,
-				      OV5640_VOLTAGE_DIGITAL_IO,
-				      OV5640_VOLTAGE_DIGITAL_IO);
-		ret = regulator_enable(io_regulator);
-		if (ret) {
-			dev_err(dev, "set io voltage failed\n");
-			return ret;
-		} else {
-			dev_dbg(dev, "set io voltage ok\n");
-		}
-	} else {
+	if (IS_ERR(io_regulator)) {
 		io_regulator = NULL;
-		dev_warn(dev, "cannot get io voltage\n");
+		dev_err(dev, "cannot get io voltage\n");
+		return -1;
 	}
-
-	core_regulator = devm_regulator_get(dev, "DVDD");
-	if (!IS_ERR(core_regulator)) {
-		regulator_set_voltage(core_regulator,
-				      OV5640_VOLTAGE_DIGITAL_CORE,
-				      OV5640_VOLTAGE_DIGITAL_CORE);
-		ret = regulator_enable(core_regulator);
-		if (ret) {
-			dev_err(dev, "set core voltage failed\n");
-			return ret;
-		} else {
-			dev_dbg(dev, "set core voltage ok\n");
-		}
-	} else {
-		core_regulator = NULL;
-		dev_warn(dev, "cannot get core voltage\n");
-	}
-
-	msleep(1); /* make sure DOVDD has stabilized before turning on AVDD */
 
 	analog_regulator = devm_regulator_get(dev, "AVDD");
-	if (!IS_ERR(analog_regulator)) {
-		regulator_set_voltage(analog_regulator,
-				      OV5640_VOLTAGE_ANALOG,
-				      OV5640_VOLTAGE_ANALOG);
-		ret = regulator_enable(analog_regulator);
-		if (ret) {
-			dev_err(dev, "set analog voltage failed\n");
-			return ret;
-		} else {
-			dev_dbg(dev, "set analog voltage ok\n");
-		}
-	} else {
+	if (IS_ERR(analog_regulator)) {
 		analog_regulator = NULL;
-		dev_warn(dev, "cannot get analog voltage\n");
+		dev_err(dev, "cannot get analog voltage\n");
+		return -1;
 	}
 
-	return ret;
+	return 0;
 }
 
 static void ov5640_regualtor_disable(void)
@@ -1781,8 +1735,10 @@ static int ov5640_download_firmware(struct reg_value *pModeSetting, s32 ArySize)
 
 		if (Mask) {
 			retval = ov5640_read_reg(RegAddr, &RegVal);
-			if (retval < 0)
+			if (retval < 0) {
+				pr_err("ov5640: Failed to read reg 0x%x: 0x%x\n", RegAddr, RegVal);
 				goto err;
+			}
 
 			RegVal &= ~(u8)Mask;
 			Val &= Mask;
@@ -1790,11 +1746,14 @@ static int ov5640_download_firmware(struct reg_value *pModeSetting, s32 ArySize)
 		}
 
 		retval = ov5640_write_reg(RegAddr, Val);
-		if (retval < 0)
+		if (retval < 0) {
+			pr_err("ov5640: Failed to write reg 0x%x: 0x%x\n", RegAddr, Val);
 			goto err;
-
-		if (Delay_ms)
+		}
+		
+		if (Delay_ms) {
 			msleep(Delay_ms);
+		}
 	}
 err:
 	return retval;
@@ -1845,11 +1804,10 @@ static int ov5640_get_sensor_model(u8 *sensor_model, int n)
 	msleep(1);
 	for (i = 0; i < n && retval >= 0; i++) {
 		retval = ov5640_read_reg(OV5640_OTP_START_ADDR + i, &sensor_model[i]);
-	}
-
-	if (retval < 0) {
-		pr_err("ov5640: failed to read sensor model\n");
-		return -1;
+		if (retval < 0) {
+			pr_err("ov5640: failed to read OTP memory 0x%x\n", OV5640_OTP_START_ADDR + i);
+			return -1;
+		}
 	}
 
 	/* delay 10ms according to datasheet*/
@@ -1885,24 +1843,12 @@ static int ov5640_init_mode(void)
 	int ArySize = 0, retval = 0;
 	char sensor_model[OV5640_SENSOR_MODEL_MAX_LEN + 1];
 
+	ov5640_data.on = true;
+
 	ov5640_soft_reset();
-
-#if 0
-	pModeSetting = ov5640_global_init_setting;
-	ArySize = ARRAY_SIZE(ov5640_global_init_setting);
-	retval = ov5640_download_firmware(pModeSetting, ArySize);
-	if (retval < 0)
-		goto err;
-#endif
-
-#if 0
-	pModeSetting = ov5640_init_setting_30fps_VGA;
-	ArySize = ARRAY_SIZE(ov5640_init_setting_30fps_VGA);
-#else
 
 	pModeSetting = ov5640_init_setting_30fps_BT656;
 	ArySize = ARRAY_SIZE(ov5640_init_setting_30fps_BT656);
-#endif
 
 	/* There are multiple sensor models and some of them needs
 	 * different settings. */
@@ -1925,13 +1871,6 @@ static int ov5640_init_mode(void)
 	}
 
 	pr_info("%s: config bt656 success\n", __func__);
-	/* change driver capability to 2x according to validation board.
-	 * if the image is not stable, please increase the driver strength.
-	 */
-//	ov5640_driver_capability(2);
-//	ov5640_set_bandingfilter();
-//	ov5640_set_AE_target(AE_Target);
-//	ov5640_set_night_mode(night_mode);
 
 	/* skip 9 vysnc: start capture at 10th vsync */
 	msleep(300);
@@ -2167,12 +2106,69 @@ static int ov5640_change_mode(enum ov5640_frame_rate frame_rate,
 static int ov5640_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct device *dev = &client->dev;
 	struct ov5640 *sensor = to_ov5640(client);
+	u8 chip_id_high, chip_id_low;
+	int retval = 0;
 
-	if (on)
-		clk_enable(ov5640_data.sensor_clk);
-	else
+	if (on) {
+		clk_prepare_enable(ov5640_data.sensor_clk);
+
+		regulator_set_voltage(io_regulator,
+				      OV5640_VOLTAGE_DIGITAL_IO,
+				      OV5640_VOLTAGE_DIGITAL_IO);
+		retval = regulator_enable(io_regulator);
+		if (retval) {
+			dev_err(dev, "set io voltage failed\n");
+			return retval;
+		}
+
+		usleep_range(1000, 2000);
+
+		regulator_set_voltage(analog_regulator,
+				      OV5640_VOLTAGE_ANALOG,
+				      OV5640_VOLTAGE_ANALOG);
+		retval = regulator_enable(analog_regulator);
+		if (retval) {
+			dev_err(dev, "set analog voltage failed\n");
+			return retval;
+		}
+
+		usleep_range(5000, 6000);
+		gpio_set_value(pwn_gpio, 0);
+		usleep_range(1000, 2000);
+		gpio_set_value(rst_gpio, 1);
+
+		/* Wait 20ms after reset pulled high before accessing sensor's
+		 * registers */
+		usleep_range(20000, 21000);
+
+		retval = ov5640_read_reg(OV5640_CHIP_ID_HIGH_BYTE, &chip_id_high);
+		if (retval < 0 || chip_id_high != 0x56) {
+			clk_disable_unprepare(ov5640_data.sensor_clk);
+			dev_err(dev, "camera ov5640 is not found\n");
+			return -ENODEV;
+		}
+		retval = ov5640_read_reg(OV5640_CHIP_ID_LOW_BYTE, &chip_id_low);
+		if (retval < 0 || chip_id_low != 0x40) {
+			clk_disable_unprepare(ov5640_data.sensor_clk);
+			dev_err(dev, "camera ov5640 is not found\n");
+			return -ENODEV;
+		}
+
+		retval = ov5640_init_mode();
+		if (retval < 0) {
+			clk_disable_unprepare(ov5640_data.sensor_clk);
+			dev_err(dev, "camera ov5640 init failed\n");
+			ov5640_power_down(1);
+			return retval;
+		}
+
+		dev_info(dev, "camera ov5640 powered on\n");
+	} else {
 		clk_disable(ov5640_data.sensor_clk);
+		dev_info(dev, "camera ov5640 powered off\n");
+	}
 
 	sensor->on = on;
 
@@ -2453,39 +2449,6 @@ static int ov5640_set_clk_rate(void)
 	return ret;
 }
 
-/*!
- * dev_init - V4L2 sensor init
- * @s: pointer to standard V4L2 device structure
- *
- */
-static int init_device(void)
-{
-	u32 tgt_xclk;	/* target xclk */
-	u32 tgt_fps;	/* target frames per secound */
-	enum ov5640_frame_rate frame_rate;
-	int ret;
-
-	ov5640_data.on = true;
-
-	/* mclk */
-	tgt_xclk = ov5640_data.mclk;
-
-	/* Default camera frame rate is set in probe */
-	tgt_fps = ov5640_data.streamcap.timeperframe.denominator /
-		  ov5640_data.streamcap.timeperframe.numerator;
-
-	if (tgt_fps == 15)
-		frame_rate = ov5640_15_fps;
-	else if (tgt_fps == 30)
-		frame_rate = ov5640_30_fps;
-	else
-		return -EINVAL; /* Only support 15fps or 30fps now. */
-
-	ret = ov5640_init_mode();
-
-	return ret;
-}
-
 static struct v4l2_subdev_video_ops ov5640_subdev_video_ops = {
 	.g_parm = ov5640_g_parm,
 	.s_parm = ov5640_s_parm,
@@ -2524,7 +2487,6 @@ static int ov5640_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	int retval;
-	u8 chip_id_high, chip_id_low;
 
 	/* request power down pin */
 	pwn_gpio = of_get_named_gpio(dev->of_node, "pwn-gpios", 0);
@@ -2532,10 +2494,12 @@ static int ov5640_probe(struct i2c_client *client,
 		dev_err(dev, "no sensor pwdn pin available\n");
 		return -ENODEV;
 	}
-	retval = devm_gpio_request_one(dev, pwn_gpio, GPIOF_OUT_INIT_HIGH,
-					"ov5640_pwdn");
-	if (retval < 0)
+
+	retval = devm_gpio_request_one(dev, pwn_gpio, GPIOF_OUT_INIT_HIGH, "ov5640_pwdn");
+	if (retval < 0) {
+		dev_err(dev, "Failed to request PWDN pin\n");
 		return retval;
+	}
 
 	/* request reset pin */
 	rst_gpio = of_get_named_gpio(dev->of_node, "rst-gpios", 0);
@@ -2543,22 +2507,15 @@ static int ov5640_probe(struct i2c_client *client,
 		dev_err(dev, "no sensor reset pin available\n");
 		return -EINVAL;
 	}
-	retval = devm_gpio_request_one(dev, rst_gpio, GPIOF_OUT_INIT_HIGH,
-					"ov5640_reset");
-	if (retval < 0)
-		return retval;
 
-	/* request clock enable pin */
-	clk_gpio = of_get_named_gpio(dev->of_node, "clk-gpios", 0);
-	if (!gpio_is_valid(clk_gpio)) {
-		dev_err(dev, "no sensor clk pin available\n");
-		return -ENODEV;
+	retval = devm_gpio_request_one(dev, rst_gpio, GPIOF_OUT_INIT_LOW, "ov5640_reset");
+	if (retval < 0) {
+		dev_err(dev, "Failed to request RESET pin\n");
+		return retval;
 	}
-	retval = devm_gpio_request_one(dev, clk_gpio, GPIOF_OUT_INIT_HIGH,
-					"ov5640_clk_en");
-	if (retval < 0)
-		return retval;
 
+	mdelay(5);
+	
 	/* Set initial values for the sensor struct. */
 	memset(&ov5640_data, 0, sizeof(ov5640_data));
 	ov5640_data.sensor_clk = devm_clk_get(dev, "csi_mclk");
@@ -2567,22 +2524,19 @@ static int ov5640_probe(struct i2c_client *client,
 		return PTR_ERR(ov5640_data.sensor_clk);
 	}
 
-	retval = of_property_read_u32(dev->of_node, "mclk",
-					&ov5640_data.mclk);
+	retval = of_property_read_u32(dev->of_node, "mclk", &ov5640_data.mclk);
 	if (retval) {
 		dev_err(dev, "mclk frequency is invalid\n");
 		return retval;
 	}
 
-	retval = of_property_read_u32(dev->of_node, "mclk_source",
-					(u32 *) &(ov5640_data.mclk_source));
+	retval = of_property_read_u32(dev->of_node, "mclk_source", (u32 *) &(ov5640_data.mclk_source));
 	if (retval) {
 		dev_err(dev, "mclk_source invalid\n");
 		return retval;
 	}
 
-	retval = of_property_read_u32(dev->of_node, "csi_id",
-					&(ov5640_data.csi));
+	retval = of_property_read_u32(dev->of_node, "csi_id", &(ov5640_data.csi));
 	if (retval) {
 		dev_err(dev, "csi_id invalid\n");
 		return retval;
@@ -2591,69 +2545,29 @@ static int ov5640_probe(struct i2c_client *client,
 	/* Set mclk rate before clk on */
 	ov5640_set_clk_rate();
 
-	clk_prepare_enable(ov5640_data.sensor_clk);
-
 	ov5640_data.io_init = ov5640_reset;
 	ov5640_data.i2c_client = client;
 	ov5640_data.pix.pixelformat = V4L2_PIX_FMT_YUYV;
 	ov5640_data.pix.width = 640;
 	ov5640_data.pix.height = 480;
-	ov5640_data.streamcap.capability = V4L2_MODE_HIGHQUALITY |
-					   V4L2_CAP_TIMEPERFRAME;
+	ov5640_data.streamcap.capability = V4L2_MODE_HIGHQUALITY | V4L2_CAP_TIMEPERFRAME;
 	ov5640_data.streamcap.capturemode = 0;
 	ov5640_data.streamcap.timeperframe.denominator = DEFAULT_FPS;
 	ov5640_data.streamcap.timeperframe.numerator = 1;
 
-	ov5640_regulator_enable(&client->dev);
-
-	ov5640_reset();
-
-	ov5640_power_down(0);
-
-	msleep(20);
-
-	retval = ov5640_read_reg(OV5640_CHIP_ID_HIGH_BYTE, &chip_id_high);
-
-	if (retval < 0)
-	{
-		msleep(100);
-		pr_warning("camera ov5640 retry\n");
-		retval = ov5640_read_reg(OV5640_CHIP_ID_HIGH_BYTE, &chip_id_high);
+	if (ov5640_get_regulators(&client->dev)) {
+		dev_err(dev, "Failed to enable regulators\n");
+		return -1;
 	}
-
-	if (retval < 0 || chip_id_high != 0x56) {
-		ov5640_regualtor_disable();
-		clk_disable_unprepare(ov5640_data.sensor_clk);
-		pr_warn("camera ov5640 is not found\n");
-		return -ENODEV;
-	}
-	retval = ov5640_read_reg(OV5640_CHIP_ID_LOW_BYTE, &chip_id_low);
-	if (retval < 0 || chip_id_low != 0x40) {
-		ov5640_regualtor_disable();
-		clk_disable_unprepare(ov5640_data.sensor_clk);
-		pr_warn("camera ov5640 is not found\n");
-		return -ENODEV;
-	}
-
-	retval = init_device();
-	if (retval < 0) {
-		ov5640_regualtor_disable();
-		clk_disable_unprepare(ov5640_data.sensor_clk);
-		pr_warn("camera ov5640 init failed\n");
-		ov5640_power_down(1);
-		return retval;
-	}
-
-	clk_disable(ov5640_data.sensor_clk);
 
 	v4l2_i2c_subdev_init(&ov5640_data.subdev, client, &ov5640_subdev_ops);
-
+	
 	retval = v4l2_async_register_subdev(&ov5640_data.subdev);
-	if (retval < 0)
-		dev_err(&client->dev,
-					"%s--Async register failed, ret=%d\n", __func__, retval);
+	if (retval < 0) {
+		dev_err(dev, "%s--Async register failed, ret=%d\n", __func__, retval);
+	}
 
-	pr_info("camera ov5640, is found\n");
+	dev_info(dev, "camera ov5640, is found\n");
 	return retval;
 }
 
