@@ -1247,6 +1247,7 @@ static int imx_viu_subdev_bound(struct v4l2_async_notifier *notifier,
 
 	/* TODO support multiple subdevs */
 	viu_dev->v4l2_sd = subdev;
+	subdev->ops->core->s_power(subdev, 1);
 
 	dev_info(viu_dev->dev, "subdev %s bound success\n", subdev->name);
 
