@@ -4017,7 +4017,8 @@ static int mxcfb_probe(struct platform_device *pdev)
 	}
 
 	/* first user uses DP with alpha feature */
-	if (!g_dp_in_use[mxcfbi->ipu_id]) {
+	/* Don't setup alph channel for second ipu */
+	if (!g_dp_in_use[mxcfbi->ipu_id] && !mxcfbi->ipu_id) {
 		mxcfbi->ipu_ch_irq = IPU_IRQ_BG_SYNC_EOF;
 		mxcfbi->ipu_ch_nf_irq = IPU_IRQ_BG_SYNC_NFACK;
 		mxcfbi->ipu_alp_ch_irq = IPU_IRQ_BG_ALPHA_SYNC_EOF;
