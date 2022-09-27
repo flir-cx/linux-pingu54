@@ -18,6 +18,7 @@
 		mxcfb0 = &mxcfb1;
 		mxcfb1 = &mxcfb2;
 		mxcfb2 = &mxcfb3;
+		mxcfb3 = &mxcfb4;
 
 		/* FLIR - overwrite imx6qdl standard. Compatible with ROCO  */
 		mmc0 = &usdhc4;
@@ -61,6 +62,14 @@
 			regulator-name = "fpa_i2c";
 			enable-active-high;
 		};
+
+		/* Done with IC22 TPS2553DBV on eoco */
+		reg_hdmi: regulator-hdmi {
+			compatible = "regulator-fixed";
+			regulator-name = "hdmi-5v-supply";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+		};
 	};
 
 	fad {
@@ -97,7 +106,6 @@
 		reset-cause = "Unkown";
 	};
 
-
 	mxcfb1: fb@0 {
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "mipi_dsi";
@@ -130,6 +138,17 @@
 		status = "okay";
 		disp_dev = "lcd";
 		mode_str ="FLIR-VF";
+	};
+
+	mxcfb4: fb@3 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "hdmi";
+		interface_pix_fmt = "RGB24";
+		mode_str ="640x480M@60";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
 	};
 
 	backlight_lcd: backlight_lcd {
@@ -704,6 +723,19 @@
 
 };
 
+
+&i2c2 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+
+	hdmi_edid: edid@50 {
+		compatible = "fsl,imx6-hdmi-i2c";
+		reg = <0x50>;
+	};
+};
+
 &i2c3 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
@@ -803,13 +835,19 @@
 			>;
 		};
 
+		pinctrl_i2c2: i2c2grp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL3__I2C2_SCL  0x4001b8b1
+				MX6QDL_PAD_KEY_ROW3__I2C2_SDA  0x4001b8b1
+			>;
+		};
+
 		pinctrl_i2c3: i2c3grp {
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_5__I2C3_SCL  0x4001b8b1
 				MX6QDL_PAD_GPIO_6__I2C3_SDA  0x4001b8b1
 			>;
 		};
-
 
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
@@ -974,7 +1012,6 @@
 				MX6QDL_PAD_EIM_WAIT__GPIO5_IO00 0x00009030
 			>;
 		};
-
 	};
 };
 
@@ -1064,6 +1101,12 @@
 	axi-id = <&gpr 0x18 0x024F024F>;
 };
 
+&ipu2 {
+	bypass_reset = <1>;
+	// IOMUX_GPR7: ID0 = 4 (high prio)
+	axi-id = <&gpr 0x1C 0x00040004>;
+};
+
 &reg_arm {
 	vin-supply = <&DA9063_BCORE1>;
 };
@@ -1075,4 +1118,17 @@
 &fec {
 	/delete-property/ assigned-clocks;
 	/delete-property/ assigned-clock-rates;
+};
+
+&hdmi_core {
+	ipu_id = <1>;
+	disp_id = <0>;
+	status = "okay";
+};
+
+&hdmi_video {
+	fsl,phy_reg_vlev = <0x294>;
+	fsl,phy_reg_cksymtx = <0x800d>;
+	HDMI-supply = <&reg_hdmi>;
+	status = "okay";
 };

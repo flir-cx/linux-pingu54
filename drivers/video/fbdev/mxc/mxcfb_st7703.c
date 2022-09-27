@@ -32,7 +32,7 @@
 #include <video/mipi_display.h>
 #include "mipi_dsi.h"
 
-#define ST7703_MAX_DPHY_CLK					(300)
+#define ST7703_MAX_DPHY_CLK					(360)
 #define ST7703_ONE_DATA_LANE					(0x1)
 #define ST7703_TWO_DATA_LANE					(0x2)
 //#define ST7703_CMD_SWRESET					(0x1)
@@ -226,15 +226,15 @@ static struct reg_value lcd_setup[] =
 static struct fb_videomode otm_lcd_modedb[] = {
 	{
 		.name = "TRULY-VGA",
-		.refresh = 51,		/* refresh */
+		.refresh = 60,		/* refresh */
 		.xres = 640,
 		.yres = 480,
-		.pixclock = 24950,
-		.left_margin = 475,
-		.right_margin = 400,
+		.pixclock = 33000,
+		.left_margin = 150,
+		.right_margin = 100,
 		.upper_margin = 16,
 		.lower_margin = 16,
-		.hsync_len = 20,
+		.hsync_len = 90,
 		.vsync_len = 4,
 		.sync = FB_SYNC_OE_LOW_ACT,
 		.vmode =FB_VMODE_NONINTERLACED,
