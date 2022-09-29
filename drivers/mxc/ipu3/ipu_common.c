@@ -1179,9 +1179,6 @@ int32_t ipu_init_channel_bg(struct ipu_soc *ipu, ipu_channel_t channel, ipu_chan
 
 	dev_dbg(ipu->dev, "init channel = %d\n", IPU_CHAN_ID(channel));
 
-	if ((channel == MEM_FG_FAKE) || (channel == MEM_BG_FAKE))
-		return 0;
-
 	ret = pm_runtime_get_sync(ipu->dev);
 	if (ret < 0) {
 		dev_err(ipu->dev, "ch = %d, pm_runtime_get failed:%d!\n",
