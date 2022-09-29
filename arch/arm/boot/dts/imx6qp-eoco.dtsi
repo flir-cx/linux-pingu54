@@ -18,7 +18,6 @@
 		mxcfb0 = &mxcfb1;
 		mxcfb1 = &mxcfb2;
 		mxcfb2 = &mxcfb3;
-		mxcfb3 = &mxcfb4;
 
 		/* FLIR - overwrite imx6qdl standard. Compatible with ROCO  */
 		mmc0 = &usdhc4;
@@ -120,17 +119,6 @@
 
 	mxcfb2: fb@1 {
 		compatible = "fsl,mxc_sdc_fb";
-		disp_dev = "fake";
-		interface_pix_fmt = "RGB24";
-		mode_str ="640x480M@60";
-		default_bpp = <32>;
-		int_clk = <0>;
-		late_init = <0>;
-		status = "okay";
-	};
-
-	mxcfb3: fb@2 {
-		compatible = "fsl,mxc_sdc_fb";
 		interface_pix_fmt = "RGB24";
 		default_bpp = <32>;
 		int_clk = <0>;
@@ -140,7 +128,7 @@
 		mode_str ="FLIR-VF";
 	};
 
-	mxcfb4: fb@3 {
+	mxcfb3: fb@2 {
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "hdmi";
 		interface_pix_fmt = "RGB24";
@@ -198,30 +186,6 @@
 		spi-mosi-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>;
 		spi-miso-gpio = <&gpio5 24 GPIO_ACTIVE_HIGH>;
 		spi-cs-gpio = <&gpio5 28 GPIO_ACTIVE_HIGH>;
-	};
-
-	fake {
-		compatible = "fsl,imx6q-fake";
-		display = <&fakedisp>;
-		ipu_id = <0>;
-		disp_id = <2>;
-		status = "okay";
-	};
-
-	fakedisp: fake-vga {
-		display-timings {
-			timing {
-				clock-frequency = <40000000>;
-				hactive = <640>;
-				vactive = <480>;
-				hfront-porch = <40>;
-				hback-porch = <88>;
-				hsync-len = <128>;
-				vback-porch = <23>;
-				vfront-porch = <1>;
-				vsync-len = <40>;
-			};
-		};
 	};
 
 	lcd@0 {

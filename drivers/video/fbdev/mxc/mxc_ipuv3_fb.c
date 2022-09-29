@@ -65,6 +65,7 @@ static int swap_disp_panel(struct fb_info *fbi, int panel);
 
 /* Display port number */
 #define MXCFB_PORT_NUM	2
+#define MAX_FB_NO	8
 
 #define RGB565_16bpp_to_24bpp(pxl) ((((pxl >> 11) & 0x1f) << (16+3)) |	\
 				    (((pxl >>  5) & 0x3f) <<  (8+2)) |	\
@@ -2003,8 +2004,6 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 					ipu_ch = MEM_BG_SYNC;
 				else if (mxc_fbi->ipu_ch == MEM_BG_SYNC)
 					ipu_ch = MEM_FG_SYNC;
-				else if (mxc_fbi->ipu_ch == MEM_BG_FAKE)
-					ipu_ch = 0;
 				else {
 					retval = -EINVAL;
 					break;
