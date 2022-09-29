@@ -85,10 +85,6 @@ typedef enum {
 	/* fake channel for vdoa to link with IPU */
 	MEM_VDOA_MEM =  _MAKE_CHAN(27, NO_DMA, NO_DMA, NO_DMA, NO_DMA),
 
-	/* fake channel for frame buffer memories without IPU connection */
-	MEM_BG_FAKE = _MAKE_CHAN(28, NO_DMA, NO_DMA, NO_DMA, NO_DMA),
-	MEM_FG_FAKE = _MAKE_CHAN(29, NO_DMA, NO_DMA, NO_DMA, NO_DMA),
-
 	MEM_PP_ADC = CHAN_NONE,
 	ADC_SYS2 = CHAN_NONE,
 
@@ -757,9 +753,11 @@ struct ipuv3_fb_platform_data {
 	char				*mode_str;
 	int				default_bpp;
 	bool				int_clk;
+
 	/* reserved mem */
 	resource_size_t 		res_base[2];
 	resource_size_t 		res_size[2];
+
 	/*
 	 * Late init to avoid display channel being
 	 * re-initialized as we've probably setup the
