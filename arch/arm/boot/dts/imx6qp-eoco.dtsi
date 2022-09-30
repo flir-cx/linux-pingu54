@@ -618,6 +618,7 @@
 		pinctrl-0 = <&pinctrl_viewfinder>;
 
 		eoco-fvm-psave-gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+		eoco-fvm-pwr-en-gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
 
 		reg = <0x32>;
 		// These were taken from old ce driver. It is essentially SVGA_60, from page 45 in the eMagin 100080 datasheet
@@ -684,7 +685,6 @@
 		format = "UYVY";
 		status = "okay";
 	};
-
 };
 
 
@@ -891,6 +891,7 @@
 		pinctrl_viewfinder: vfgrp {
 			fsl,pins = <
 				MX6QDL_PAD_DI0_PIN15__GPIO4_IO17	0x100b1
+				MX6QDL_PAD_DI0_PIN4__GPIO4_IO20     0x100b1
 			>;
 		};
 
