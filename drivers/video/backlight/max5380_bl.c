@@ -56,7 +56,7 @@ static u32 max5380_read_of_u32(struct device *dev, const char *prop,
 			default_val);
 		return default_val;
 	} else {
-		dev_err(dev, "%s: %s read to %u\n", __func__, prop, v);
+		dev_dbg(dev, "%s: %s read to %u\n", __func__, prop, v);
 		return v;
 	}
 }
@@ -73,7 +73,7 @@ static int max5380_parse_dt(struct device *dev, struct max5380_data *bld)
 {
 	const struct of_device_id *match;
 
-	dev_err(dev, "%s\n", __func__);
+	dev_dbg(dev, "%s\n", __func__);
 	match = of_match_device(max5380_match_table, dev);
 	if (!match) {
 		dev_err(dev, "no device tree match for platform device!\n");
@@ -143,7 +143,7 @@ static int max5380_probe(struct i2c_client *client,
 	struct backlight_properties props;
 	struct max5380_data *bld;
 	int ret;
-	dev_err(&client->dev, "%s: probing\n", __func__);
+	dev_dbg(&client->dev, "%s: probing\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "fail : i2c functionality check\n");
