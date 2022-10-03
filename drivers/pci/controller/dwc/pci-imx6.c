@@ -2039,6 +2039,9 @@ int imx6_pcie_pltfm_reinit(struct device *dev)
 	return ret;
 }
 
+static int imx6_pcie_suspend(struct device *dev);
+static int imx6_pcie_resume(struct device *dev);
+
 static ssize_t imx_pcie_reinit_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
@@ -2048,8 +2051,9 @@ static ssize_t imx_pcie_reinit_store(struct device *dev,
 		return -EINVAL;
 
 	if (val) {
-		dev_err(dev, "PCI: Re-initializing i.MX6 PCIe hardware1\n");
-		imx6_pcie_pltfm_reinit(dev);
+		dev_err(dev, "Re-initializing i.MX6 PCIe hardware\n");
+		imx6_pcie_suspend(dev);
+		imx6_pcie_resume(dev);
 	}
 
 	return count;
@@ -2245,16 +2249,6 @@ static ssize_t bus_freq_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(bus_freq);
 
-static struct attribute *imx_pcie_rc_attrs[] = {
-	&dev_attr_bus_freq.attr,
-	&dev_attr_imx_pcie_reinit.attr,
-	NULL
-};
-
-static struct attribute_group imx_pcie_attrgroup = {
-	.attrs = imx_pcie_rc_attrs,
-};
-
 static void imx6_pcie_clkreq_enable(struct imx6_pcie *imx6_pcie)
 {
 	/*
@@ -2390,6 +2384,23 @@ static int imx6_pcie_suspend(struct device *dev)
 	return 0;
 }
 
+static ssize_t suspend_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val)
+		imx6_pcie_suspend(dev);
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(suspend);
+
 static int imx6_pcie_resume(struct device *dev)
 {
 	int ret;
@@ -2432,7 +2443,37 @@ static int imx6_pcie_resume(struct device *dev)
 
 	return 0;
 }
+
+static ssize_t resume_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val)
+		imx6_pcie_resume(dev);
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(resume);
+
 #endif
+
+static struct attribute *imx_pcie_rc_attrs[] = {
+	&dev_attr_bus_freq.attr,
+	&dev_attr_imx_pcie_reinit.attr,
+	&dev_attr_suspend.attr,
+	&dev_attr_resume.attr,
+	NULL
+};
+
+static struct attribute_group imx_pcie_attrgroup = {
+	.attrs = imx_pcie_rc_attrs,
+};
 
 static const struct dev_pm_ops imx6_pcie_pm_ops = {
 	.suspend = imx6_pcie_suspend,
