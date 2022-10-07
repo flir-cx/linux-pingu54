@@ -35,6 +35,15 @@
 
 	};
 
+	pwmleds {
+		compatible = "pwm-leds";
+		torch {
+			label = "torch";
+			pwms = <&pwm2 0 7812500>;
+			max-brightness = <255>;
+		};
+	};
+
 	regulators {
 		compatible = "simple-bus";
 
@@ -158,4 +167,21 @@ eodc_pca9534_0x46: eodc_pca9534_0x46@23 {
 /* 	}; */
 
 
+};
+
+&iomuxc {
+	imx6qp-eoco {
+		pinctrl_pwm2: pwm2grp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_1__PWM2_OUT		0x1b0b1
+			>;
+		};
+	};
+};
+
+&pwm2 {
+	#pwm-cells = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
+	status = "okay";
 };
