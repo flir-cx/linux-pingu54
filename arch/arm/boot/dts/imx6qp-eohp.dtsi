@@ -69,7 +69,7 @@
 			label = "joystick_b"; // TJ_B_REAR
 			gpio-key;
 			gpios = <&eohp_pcf8574_0x72 0 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_LEFT_DOWN>;
+			linux,code = <KEY_END>;
 		};
         joystick_c {
 			label = "joystick_c"; // TJ_C_REAR
@@ -81,7 +81,7 @@
 			label = "joystick_d"; // TJ_D_REAR
 			gpio-key;
 			gpios = <&eohp_pcf8574_0x72 6 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_RIGHT_DOWN>; 
+			linux,code = <KEY_PAGEDOWN>; 
 		};
         joystick_e {
 			label = "joystick_e"; //TJ_E_REAR
@@ -93,7 +93,7 @@
 			label = "joystick_f"; // TJ_F_REAR
 			gpio-key;
 			gpios = <&eohp_pcf8574_0x72 4 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_RIGHT_UP>;
+			linux,code = <KEY_PAGEUP>;
 		};
         joystick_g {
 			label = "joystick_g"; // TJ_G_REAR
@@ -105,7 +105,7 @@
 			label = "joystick_h"; // TJ_H_REAR
 			gpio-key;
 			gpios = <&eohp_pcf8574_0x72 1 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_LEFT_UP>;
+			linux,code = <KEY_HOME>;
 		};
         joystick_push {
 			label = "joystick_push"; // TJ_PUSH_TOP
