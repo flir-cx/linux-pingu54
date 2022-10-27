@@ -130,27 +130,12 @@ static void da9063_poll_on(struct work_struct *work)
 		dev_warn(&onkey->input->dev,
 			 "Cannot read FAULT_LOG: %d\n", error);
 	} else if (fault_log & config->onkey_key_reset_mask) {
-		error = regmap_write(onkey->regmap,
-				     config->onkey_fault_log,
-				     config->onkey_key_reset_mask);
-		if (error) {
-			dev_warn(&onkey->input->dev,
-				 "Cannot reset KEY_RESET fault log: %d\n",
-				 error);
-		} else {
-			/* at this point we do any S/W housekeeping
-			 * and then send shutdown command
-			 */
-			dev_dbg(&onkey->input->dev,
-				"Sending SHUTDOWN to PMIC ...\n");
-			error = regmap_write(onkey->regmap,
-					     config->onkey_shutdown,
-					     config->onkey_shutdown_mask);
-			if (error)
-				dev_err(&onkey->input->dev,
-					"Cannot SHUTDOWN PMIC: %d\n",
-					error);
-		}
+		dev_dbg(&onkey->input->dev, "Sending SHUTDOWN to PMIC ...\n");
+		error = regmap_write(onkey->regmap, config->onkey_shutdown,
+				     config->onkey_shutdown_mask);
+		if (error)
+			dev_err(&onkey->input->dev,
+				"Cannot SHUTDOWN PMIC: %d\n", error);
 	}
 
 err_poll:
