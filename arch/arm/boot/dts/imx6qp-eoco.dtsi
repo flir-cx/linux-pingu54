@@ -234,13 +234,13 @@
 			label = "p_button";
 			gpio-key;
 			gpios = <&eoco_pca9534_0x46 0 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_F4>;
+			linux,code = <KEY_F9>;
 		};
 		temp_range {
 			label = "temp_range";
 			gpio-key;
 			gpios = <&eoco_pca9534_0x46 6 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_F9>;
+			linux,code = <KEY_F4>;
 		};
 	};
 
