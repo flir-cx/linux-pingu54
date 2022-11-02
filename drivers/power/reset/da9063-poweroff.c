@@ -19,38 +19,83 @@
 #include <linux/regmap.h>
 #include <linux/mfd/da9063/registers.h>
 #include <linux/mfd/da9063/core.h>
+#include <linux/gpio/consumer.h>
+
+/* This driver uses either a GPIO based shutdown or by writing to a control register 
+ on the da9063 chip. If the optional GPIO-pin is assigned in DT it will use it.*/
+
+struct da9063_poweroff {
+	struct da9063 *hw;
+	struct device *dev;
+	struct gpio_desc *pwroff_gpio;
+};
 
 /*
  * Hold configuration here, cannot be more than one instance of the driver
  * since pm_power_off itself is global.
  */
-struct da9063 *da9063;
+struct da9063_poweroff *pwroff_data;
 
-static void da9063_poweroff_do_poweroff(void)
+static void da9063_poweroff_do_reg_poweroff(void)
 {
-	regmap_update_bits(da9063->regmap, DA9063_REG_CONTROL_A,
+	regmap_update_bits(pwroff_data->hw->regmap, DA9063_REG_CONTROL_A,
 				 DA9063_SYSTEM_EN, 0);
 
 	mdelay(2000);
 	WARN_ON(1);
 }
 
+static void da9063_poweroff_do_gpio_poweroff(void)
+{
+	int ret = gpiod_direction_output(pwroff_data->pwroff_gpio, 1);
+	if (ret) {
+		dev_err(pwroff_data->dev, "Could not set pwroff gpio (%d)\n",
+			ret);
+	}
+	mdelay(2000);
+	WARN_ON(1);
+}
+
 static int da9063_poweroff_probe(struct platform_device *pdev)
 {
-	da9063 = dev_get_drvdata(pdev->dev.parent);
+
+	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
+	struct device *dev = &pdev->dev;
+
+	pwroff_data = devm_kzalloc(&pdev->dev, sizeof(struct da9063_poweroff),
+			     GFP_KERNEL);
+	if (!pwroff_data) {
+		dev_err(&pdev->dev, "Failed to allocate memory.\n");
+		return -ENOMEM;
+	}
+
+	pwroff_data->dev = dev;
+	pwroff_data->hw = da9063;
+
 	/* If a pm_power_off function has already been added, leave it alone */
 	if (pm_power_off != NULL) {
 		pr_err("%s: pm_power_off function already registered",
 		       __func__);
 		return -EBUSY;
 	}
- 	pm_power_off = &da9063_poweroff_do_poweroff; 
+
+	pwroff_data->pwroff_gpio = devm_gpiod_get_optional(dev, "pwroff", GPIOD_OUT_LOW);
+
+	if (IS_ERR(pwroff_data->pwroff_gpio)) {
+		// If not set we do shutdown by writing a register. 
+		pm_power_off = &da9063_poweroff_do_reg_poweroff; 
+	} else {
+		// Use gpio based shutdown. 
+		pm_power_off = &da9063_poweroff_do_gpio_poweroff; 
+	}
+
 	return 0;
 }
 
 static int da9063_poweroff_remove(struct platform_device *pdev)
 {
-	if (pm_power_off == &da9063_poweroff_do_poweroff)
+	if (pm_power_off == &da9063_poweroff_do_reg_poweroff || 
+		pm_power_off == &da9063_poweroff_do_gpio_poweroff)
 		pm_power_off = NULL;
 
 	return 0;

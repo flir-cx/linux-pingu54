@@ -264,11 +264,6 @@
 			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		power-off {
-			label = "power-off";
-			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-		};
 		aduc-reset {
 			label = "aduc-reset";
 			gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
@@ -378,6 +373,8 @@
 
 		poweroff {
 			compatible = "dlg,da9063-poweroff";
+			/* Optional gpio-based shutdown used by EOCO*/
+			pwroff-gpio = <&gpio2 30 GPIO_ACTIVE_HIGH>;
 		};
 
 		rtc {
