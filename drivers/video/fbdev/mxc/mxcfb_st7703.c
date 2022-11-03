@@ -259,6 +259,7 @@ void mipid_st7703_get_lcd_videomode(struct fb_videomode **mode, int *size,
 	*size = ARRAY_SIZE(otm_lcd_modedb);
 	*data = &lcd_config;
 }
+
 #if 0 /* Left for use when reading panel later */
 static int st7703_write_reg(struct mipi_dsi_info *mipi_dsi, u32 reg, u32 data)
 {
@@ -282,9 +283,27 @@ static int st7703_write_cmd(struct mipi_dsi_info *mipi_dsi, u32 cmd)
 	return err;
 }
 #endif
-int mipid_st7703_lcd_setup(struct mipi_dsi_info *mipi_dsi)
+
+static int st7703_write_reg(struct mipi_dsi_info *mipi_dsi, struct reg_value *reg)
 {
 	int ret;
+	dev_dbg(&mipi_dsi->pdev->dev, "st7703_lcd_setup write type=0x%02X cmd=0x%02X size %u \n",
+				reg->dsi_data_type, reg->buf[0] , reg->buf_size);
+
+	ret = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, reg->dsi_data_type,
+					(u32 *)&reg->buf, reg->buf_size);
+	if (reg->delay_after_write)
+		msleep(reg->delay_after_write);
+	if (ret)
+		dev_err(&mipi_dsi->pdev->dev, "st7703_lcd_setup Error writing %u\n", ret);
+	else
+		dev_dbg(&mipi_dsi->pdev->dev, "st7703_lcd_setup wrote OK type=0x%02X cmd=0x%02X size %u \n",
+				reg->dsi_data_type, reg->buf[0] , reg->buf_size);
+	return ret;
+}
+
+int mipid_st7703_lcd_setup(struct mipi_dsi_info *mipi_dsi)
+{
 	int i;
 	//u8 buf[MIPI_DSI_MAX_RET_PACK_SIZE * 4];
 	dev_err(&mipi_dsi->pdev->dev, "mipid_st7703_lcd_setup enter\n");
@@ -313,20 +332,7 @@ int mipid_st7703_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 #endif
 	for (i = 0; i < ARRAY_SIZE(lcd_setup); i++)
 	{
-		dev_dbg(&mipi_dsi->pdev->dev, "st7703_lcd_setup write type=0x%02X cmd=0x%02X size %u \n",
-					lcd_setup[i].dsi_data_type, lcd_setup[i].buf[0] , lcd_setup[i].buf_size);
-
-		ret = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, lcd_setup[i].dsi_data_type,
-					 (u32 *)&lcd_setup[i].buf, lcd_setup[i].buf_size);
-		if (lcd_setup[i].delay_after_write)
-			msleep(lcd_setup[i].delay_after_write);
-		if (ret)
-			dev_err(&mipi_dsi->pdev->dev, "st7703_lcd_setup Error %i writing %u\n", ret, i);
-		else
-			dev_dbg(&mipi_dsi->pdev->dev, "st7703_lcd_setup wrote OK type=0x%02X cmd=0x%02X size %u \n",
-					lcd_setup[i].dsi_data_type, lcd_setup[i].buf[0] , lcd_setup[i].buf_size);
-
-
+		st7703_write_reg(mipi_dsi, &lcd_setup[i]);
 	}
 	return 0;
 }
@@ -335,7 +341,7 @@ int mipid_st7703_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state)
 {
 	struct device *dev = &mipi_dsi->pdev->dev;
 
-	dev_err(&mipi_dsi->pdev->dev, "mipid_st7703_lcd_power_set %i\n", state);
+	dev_dbg(&mipi_dsi->pdev->dev, "mipid_st7703_lcd_power_set %i\n", state);
 	if (state) {
 		dev_dbg(dev, "Power on LCD\n");
 		if (mipi_dsi->lcd_power_gpio){
@@ -366,7 +372,7 @@ int mipid_st7703_lcd_power_get(struct mipi_dsi_info *mipi_dsi)
 	struct device *dev = &mipi_dsi->pdev->dev;
 	int power = 0;
 	int lcd_mipi_sel, lcd_power;
-	dev_err(&mipi_dsi->pdev->dev, "mipid_st7703_lcd_power_get\n");
+	dev_dbg(&mipi_dsi->pdev->dev, "mipid_st7703_lcd_power_get\n");
 	if (mipi_dsi->lcd_mipi_sel_gpio)
 		lcd_mipi_sel=gpio_get_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio);
 	if (mipi_dsi->lcd_power_gpio){
@@ -380,5 +386,32 @@ int mipid_st7703_lcd_power_get(struct mipi_dsi_info *mipi_dsi)
 	power = lcd_mipi_sel && lcd_power;
 	return power;
 
+	return 0;
+}
+
+struct reg_value *st7703_find_reg(int cmd)
+{
+	int i;
+	struct reg_value *reg;
+	for (i = 0; i < ARRAY_SIZE(lcd_setup); i++) {
+		if (lcd_setup[i].buf[0] == cmd)
+			reg = &lcd_setup[i];
+	}
+	return reg;
+}
+
+int mipid_st7703_lcd_rotation_set(struct mipi_dsi_info *mipi_dsi, int state)
+{
+	struct reg_value config =
+		state ? (struct reg_value){ 0x39, 0, 2, { 0x36, 0xC0 } } :
+			(struct reg_value){ 0x39, 0, 2, { 0x36, 0x00 } };
+
+	dev_dbg(&mipi_dsi->pdev->dev,
+		"mipid_st7703_lcd_rotation_set  writing %u\n", state);
+
+	msleep(20);
+	st7703_write_reg(mipi_dsi, &config);
+	st7703_write_reg(mipi_dsi, st7703_find_reg(ST7703_CMD_SLPOUT));
+	st7703_write_reg(mipi_dsi, st7703_find_reg(ST7703_CMD_DISPON));
 	return 0;
 }

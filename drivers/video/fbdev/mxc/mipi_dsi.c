@@ -34,8 +34,8 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <video/mipi_display.h>
-
 #include "mipi_dsi.h"
+#include <linux/string.h>
 
 #define DISPDRV_MIPI			"mipi_dsi"
 #define ROUND_UP(x)			((x)+1)
@@ -55,54 +55,46 @@
 
 static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 #ifdef CONFIG_FB_MXC_TRULY_WVGA_SYNC_PANEL
-	{
-		"TRULY-WVGA", {
-			mipid_hx8369_get_lcd_videomode, mipid_hx8369_lcd_setup,
-			NULL,
-			NULL
-		}
-	},
+	{ .panel = "TRULY-WVGA",
+	  .cb = { .get_mipi_lcd_videomode = mipid_hx8369_get_lcd_videomode,
+		  .mipi_lcd_setup = mipid_hx8369_lcd_setup,
+		  .mipi_lcd_power_set = NULL,
+		  .mipi_lcd_power_get = NULL,
+		  .mipi_lcd_rotation_set = NULL } },
 #endif
 #ifdef CONFIG_FB_MXC_ORISE_OTM1287A
-	{
-		"ORISE-VGA", {
-			mipid_otm1287a_get_lcd_videomode, mipid_otm1287a_lcd_setup,
-			mipid_otm1287a_lcd_power_set,
-			mipid_otm1287a_lcd_power_get
-		}
-	},
+	{ .panel = "ORISE-VGA",
+	  .cb = { .get_mipi_lcd_videomode = mipid_otm1287a_get_lcd_videomode,
+		  .mipi_lcd_setup = mipid_otm1287a_lcd_setup,
+		  .mipi_lcd_power_set = mipid_otm1287a_lcd_power_set,
+		  .mipi_lcd_power_get = mipid_otm1287a_lcd_power_get,
+		  .mipi_lcd_rotation_set = NULL } },
 #endif
 #ifdef CONFIG_FB_MXC_TRULY_ST7703
-	{
-		"TRULY-VGA", {
-			mipid_st7703_get_lcd_videomode, mipid_st7703_lcd_setup,
-			mipid_st7703_lcd_power_set,
-			mipid_st7703_lcd_power_get
-		}
-	},
+	{ .panel = "TRULY-VGA",
+	  .cb = { .get_mipi_lcd_videomode = mipid_st7703_get_lcd_videomode,
+		  .mipi_lcd_setup = mipid_st7703_lcd_setup,
+		  .mipi_lcd_power_set = mipid_st7703_lcd_power_set,
+		  .mipi_lcd_power_get = mipid_st7703_lcd_power_get,
+		  .mipi_lcd_rotation_set = mipid_st7703_lcd_rotation_set } },
 #endif
 #ifdef CONFIG_FB_MXC_KOPIN_KCDA914
-	{
-		"KOPIN-VGA", {
-			mipid_kcda914_get_lcd_videomode, mipid_kcda914_lcd_setup,
-			mipid_kcda914_lcd_power_set,
-			mipid_kcda914_lcd_power_get
-		}
-	},
+	{ .panel = "KOPIN-VGA",
+	  .cb = { .get_mipi_lcd_videomode = mipid_kcda914_get_lcd_videomode,
+		  .mipi_lcd_setup = mipid_kcda914_lcd_setup,
+		  .mipi_lcd_power_set = mipid_kcda914_lcd_power_set,
+		  .mipi_lcd_power_get = mipid_kcda914_lcd_power_get,
+		  .mipi_lcd_rotation_set = NULL } },
 #endif
-	{
-		"", {
-			NULL, NULL,
-			NULL,
-			NULL
-		}
-	}
+	{ "", { NULL, NULL, NULL, NULL, NULL } }
 };
 
 struct _mipi_dsi_phy_pll_clk {
 	u32		max_phy_clk;
 	u32		config;
 };
+
+static int primary_disp_rotation = 0;
 
 /* configure data for DPHY PLL 27M reference clk out */
 static const struct _mipi_dsi_phy_pll_clk mipi_dsi_phy_pll_clk_table[] = {
@@ -172,6 +164,7 @@ static ssize_t power_show(struct device *dev,
 	dev_dbg(dev, "primary %u secondary %u\n", primary,secondary);
 	return sprintf(buf, "%s\n", tmpbuf);
 }
+
 static ssize_t power_store(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
@@ -189,10 +182,44 @@ static ssize_t power_store(struct device *dev, struct device_attribute *attr,
 
 	return strlen(buf);
 }
+
+/**
+ * Handles writes on
+ * /sys/devices/platform/soc/2100000.bus/21e0000.mipi/control/rotate
+ * or similar
+ *
+ * @param dev device
+ * @param attr device attributes
+ * @param buf the input written to the file
+ * @param count number of bytes in buf
+ * @return ssize_t
+ */
+static ssize_t rotate_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
+	bool rotate;
+	if (kstrtobool(buf, &rotate) == 0) {
+		mipi_rotate_primary(mipi_dsi, rotate);
+	} else {
+		dev_err(dev, "Unknown command\n");
+	}
+	
+	return strlen(buf);
+}
+
+static ssize_t rotate_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", primary_disp_rotation);
+}
+
 static DEVICE_ATTR(power, 0644, power_show, power_store);
+static DEVICE_ATTR(rotate, 0644, rotate_show, rotate_store);
 
 static struct attribute *mipidsi_sysfs_attrs[] = {
 	&dev_attr_power.attr,
+	&dev_attr_rotate.attr,
 	NULL
 };
 
@@ -608,16 +635,37 @@ static irqreturn_t mipi_dsi_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+int mipi_rotate_primary(struct mipi_dsi_info *mipi_dsi, int rotation)
+{
+	// Check if rotation is availible
+	if (mipi_dsi->primary_cb &&
+	    mipi_dsi->primary_cb->mipi_lcd_rotation_set) {
+		primary_disp_rotation = rotation;
+		mipi_dsi_set_mode(mipi_dsi, 1);
+		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+		mipi_dsi->primary_cb->mipi_lcd_rotation_set(mipi_dsi, rotation);
+		mipi_dsi_set_mode(mipi_dsi, 0);
+		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+	} else {
+		return -EINVAL;
+	}
+	return 0;
+}
+
 int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi,
 				 int panel)
 {
 	if (panel == 0) {
 		dev_err(&mipi_dsi->pdev->dev, "Shut off all displays\n");
-		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
 		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-	} else  if (panel == 1) {
+		if(mipi_dsi->secondary_cb){
+			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		}
+	} else if (panel == 1) {
 		dev_err(&mipi_dsi->pdev->dev, "Power on primary display\n");
-		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		if (mipi_dsi->secondary_cb) {
+			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		}
 		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
 		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
 
@@ -626,18 +674,20 @@ int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi,
 		mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
 		mipi_dsi_set_mode(mipi_dsi, 0);
 		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+	} else if (panel == 2) {
+		if (mipi_dsi->secondary_cb) {
+			dev_err(&mipi_dsi->pdev->dev,
+				"Power on secondary display\n");
+			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
 
-	} else  if (panel == 2) {
-		dev_err(&mipi_dsi->pdev->dev, "Power on secondary display\n");
-		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
-
-		mipi_dsi_set_mode(mipi_dsi, 1);
-		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-		mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
-		mipi_dsi_set_mode(mipi_dsi, 0);
-		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+			mipi_dsi_set_mode(mipi_dsi, 1);
+			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+			mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
+			mipi_dsi_set_mode(mipi_dsi, 0);
+			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+		}
 	} else {
 		dev_err(&mipi_dsi->pdev->dev, "Unknown panel selected\n");
 		return -EIO;
