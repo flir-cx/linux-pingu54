@@ -303,15 +303,17 @@ config TOUCHSCREEN_CYTTSP4_SPI
 
 config TOUCHSCREEN_CYTTSP5
 	tristate "Cypress TrueTouch Gen5 Touchscreen Driver"
-	depends on OF
+	depends on I2C
 	select REGMAP_I2C
 	select CRC_ITU_T
 	help
-	  Driver for Parade TrueTouch Standard Product
-	  Generation 5 touchscreen controllers.
-	  I2C bus interface support only.
+	  Driver for Parade TrueTouch Standard Product Generation 5
+	  touchscreen controllers. I2C bus interface support only.
+
 	  Say Y here if you have a Cypress Gen5 touchscreen.
+
 	  If unsure, say N.
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyttsp5.
 
