@@ -11,7 +11,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/dlg,da9063-regulator.h>
-/*This file represents ec101-d and later*/
 
 / {
 	aliases {
@@ -19,7 +18,6 @@
 		mxcfb1 = &mxcfb2;
 		mxcfb2 = &mxcfb3;
 
-		/* FLIR - overwrite imx6qdl standard. Compatible with ROCO  */
 		mmc0 = &usdhc4;
 		mmc1 = &usdhc1;
 		mmc2 = &usdhc2;
@@ -48,15 +46,15 @@
 			regulator-name = "lcd_dummy";
 		};
 
-		reg_ec101_4v0_fpa: ec101_4v0_fpa {
+		reg_eoco_4v0_fpa: eoco_4v0_fpa {
 			compatible = "regulator-fixed";
 			regulator-name = "4V0_fpa";
 			gpio = <&gpio2 1 0>;
 			enable-active-high;
 		};
 
-		/*Removed on ec101-d but required by fvdk*/
-		reg_ec101_fpa_i2c: ec101_fpa_i2c {
+		/*Removed on eoco-d but required by fvdk*/
+		reg_eoco_fpa_i2c: eoco_fpa_i2c {
 			compatible = "regulator-fixed";
 			regulator-name = "fpa_i2c";
 			enable-active-high;
@@ -141,7 +139,7 @@
 
 	backlight_lcd: backlight_lcd {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 500000>; //500us=2KHz
+		pwms = <&pwm1 0 50000>; //50us=20KHz 
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <7>;
 		status = "okay";

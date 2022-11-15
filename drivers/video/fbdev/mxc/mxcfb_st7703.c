@@ -342,6 +342,12 @@ int mipid_st7703_lcd_power_set(struct mipi_dsi_info *mipi_dsi, int state)
 	struct device *dev = &mipi_dsi->pdev->dev;
 
 	dev_dbg(&mipi_dsi->pdev->dev, "mipid_st7703_lcd_power_set %i\n", state);
+
+	if (!mipi_dsi->lcd_power_gpio){
+		dev_err(dev, "No power interface\n");
+		return -ENXIO;
+	}
+
 	if (state) {
 		dev_dbg(dev, "Power on LCD\n");
 		if (mipi_dsi->lcd_power_gpio){
@@ -377,16 +383,15 @@ int mipid_st7703_lcd_power_get(struct mipi_dsi_info *mipi_dsi)
 		lcd_mipi_sel=gpio_get_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio);
 	if (mipi_dsi->lcd_power_gpio){
 		lcd_power=gpio_get_value_cansleep(mipi_dsi->lcd_power_gpio);
-		}
+	}
 
-	if (lcd_mipi_sel < 0 ||
-	    lcd_power < 0)
+	if (lcd_mipi_sel < 0 || lcd_power < 0) {
 		dev_err(dev, "failed to get gpio in %s\n", __func__);
+		return -ENXIO;
+	}
 
 	power = lcd_mipi_sel && lcd_power;
 	return power;
-
-	return 0;
 }
 
 struct reg_value *st7703_find_reg(int cmd)
