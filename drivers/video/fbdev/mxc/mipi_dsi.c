@@ -131,38 +131,17 @@ static ssize_t power_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
-	char tmpbuf[100];
-	int tmpbufi=0;
-	int primary,secondary;
-	primary=mipi_dsi->primary_cb->mipi_lcd_power_get(mipi_dsi);
-	secondary=mipi_dsi->secondary_cb->mipi_lcd_power_get(mipi_dsi);
+	int primary=-1,secondary=-1;
 
-	if (primary==0 && secondary==0) {
-		strcpy(&tmpbuf[tmpbufi], "off*");
-		tmpbufi+=strlen("off*");
-	} else {
-		strcpy(&tmpbuf[tmpbufi], "off");
-		tmpbufi+=strlen("off");
-	}		
-
-	if (primary==1) {
-		strcpy(&tmpbuf[tmpbufi], " primary*");
-		tmpbufi+=strlen(" primary*");
-	} else {
-		strcpy(&tmpbuf[tmpbufi], " primary");
-		tmpbufi+=strlen(" primary");
+	if(mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_get){
+		primary=mipi_dsi->primary_cb->mipi_lcd_power_get(mipi_dsi);
+	}
+	
+	if(mipi_dsi->secondary_cb && mipi_dsi->secondary_cb->mipi_lcd_power_get){
+		secondary=mipi_dsi->secondary_cb->mipi_lcd_power_get(mipi_dsi);
 	}
 
-	if (secondary==1) {
-		strcpy(&tmpbuf[tmpbufi], " secondary*");
-		tmpbufi+=strlen(" secondary*");
-	} else {
-		strcpy(&tmpbuf[tmpbufi], " secondary");
-		tmpbufi+=strlen(" secondary");
-	}
-
-	dev_dbg(dev, "primary %u secondary %u\n", primary,secondary);
-	return sprintf(buf, "%s\n", tmpbuf);
+	return sprintf(buf, "Primary: %d , Secondary: %d \n", primary, secondary);
 }
 
 static ssize_t power_store(struct device *dev, struct device_attribute *attr,
@@ -656,32 +635,45 @@ int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi,
 				 int panel)
 {
 	if (panel == 0) {
-		dev_err(&mipi_dsi->pdev->dev, "Shut off all displays\n");
-		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		if(mipi_dsi->secondary_cb){
+		dev_dbg(&mipi_dsi->pdev->dev, "Shut off all displays\n");
+		if(mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_set){
+			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		}
+		if(mipi_dsi->secondary_cb && mipi_dsi->secondary_cb->mipi_lcd_power_set){
 			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
 		}
 	} else if (panel == 1) {
-		dev_err(&mipi_dsi->pdev->dev, "Power on primary display\n");
-		if (mipi_dsi->secondary_cb) {
+		dev_dbg(&mipi_dsi->pdev->dev, "Power on primary display\n");
+		if (mipi_dsi->secondary_cb && mipi_dsi->secondary_cb->mipi_lcd_power_set) {
 			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
 		}
-		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
-
-		mipi_dsi_set_mode(mipi_dsi, 1);
-		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-		mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
-		mipi_dsi_set_mode(mipi_dsi, 0);
-		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-	} else if (panel == 2) {
-		if (mipi_dsi->secondary_cb) {
-			dev_err(&mipi_dsi->pdev->dev,
-				"Power on secondary display\n");
+		if(mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_set){
 			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
+		}
+
+		if(mipi_dsi->primary_cb){
+			mipi_dsi_set_mode(mipi_dsi, 1);
+			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+			mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
+			mipi_dsi_set_mode(mipi_dsi, 0);
+			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
+		}
+	} else if (panel == 2) {
+		
+		dev_dbg(&mipi_dsi->pdev->dev,
+			"Power on secondary display\n");
+		
+		if(mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_set){
+			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
+		}
+
+		if (mipi_dsi->secondary_cb && mipi_dsi->secondary_cb->mipi_lcd_power_set) {
 			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
 			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
+		}
 
+		if(mipi_dsi->secondary_cb){
 			mipi_dsi_set_mode(mipi_dsi, 1);
 			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
 			mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);

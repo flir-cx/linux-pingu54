@@ -534,7 +534,7 @@ static int flir_ema100080_set_pwr_off(struct flir_ema100080_data *vf)
 {
 	int ret = 0;
 
-	dev_err(vf->dev, "Set psave to input\n");
+	dev_dbg(vf->dev, "Set psave to input\n");
 	if (!gpiod_get_direction(vf->fvm_psave_gpiod)) {
 		if (gpiod_direction_input(vf->fvm_psave_gpiod)) {
 			dev_err(vf->dev, "Could not set psave gpio to input\n");
@@ -542,7 +542,7 @@ static int flir_ema100080_set_pwr_off(struct flir_ema100080_data *vf)
 		}
 	}
 
-	dev_err(vf->dev, "Set pwr en to low\n");
+	dev_dbg(vf->dev, "Set pwr en to low\n");
 	ret = gpiod_direction_output(vf->fvm_pwr_en_gpiod, 0);
 	if (ret) {
 		dev_err(vf->dev, "Could not set pwr en gpio (%d)\n",

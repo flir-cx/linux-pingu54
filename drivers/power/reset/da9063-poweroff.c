@@ -81,12 +81,12 @@ static int da9063_poweroff_probe(struct platform_device *pdev)
 
 	pwroff_data->pwroff_gpio = devm_gpiod_get_optional(dev, "pwroff", GPIOD_OUT_LOW);
 
-	if (IS_ERR(pwroff_data->pwroff_gpio)) {
-		// If not set we do shutdown by writing a register. 
-		pm_power_off = &da9063_poweroff_do_reg_poweroff; 
-	} else {
+	if (pwroff_data->pwroff_gpio) {
 		// Use gpio based shutdown. 
 		pm_power_off = &da9063_poweroff_do_gpio_poweroff; 
+	} else {
+		// If not set we do shutdown by writing a register. 
+		pm_power_off = &da9063_poweroff_do_reg_poweroff; 
 	}
 
 	return 0;
