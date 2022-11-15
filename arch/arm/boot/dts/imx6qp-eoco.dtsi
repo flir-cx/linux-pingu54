@@ -75,7 +75,7 @@
 		compatible = "flir,fad";
 		hasLaser = <1>;
 		HasSoftwareControlledLaser = <1>;
-		HasGPS = <1>;
+		hasGPS = <1>;
 		// "Laser_on" corresponds to "laser_on_time" and acts as input for
 		// Reading current state of laser
 		laser_on-gpios = <&gpio6 21 GPIO_ACTIVE_LOW>;
