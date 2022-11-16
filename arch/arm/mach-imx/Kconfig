@@ -33,6 +33,9 @@ config MXC_DEBUG_BOARD
 	  data/address de-multiplexing and decode, signal level shift,
 	  interrupt control and various board functions.
 
+config MXC_EPIT_BOOTTIME
+	bool "Use EPIT to show boot time"
+
 config HAVE_IMX_ANATOP
 	bool
 
