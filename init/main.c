@@ -114,6 +114,9 @@ static int kernel_init(void *);
 
 extern void init_IRQ(void);
 extern void radix_tree_init(void);
+#ifdef CONFIG_MXC_EPIT_BOOTTIME
+extern u32 board_get_time(void);
+#endif
 
 /*
  * Debug helper: via this flag we know that we are in 'early bootup code'
@@ -987,6 +990,9 @@ asmlinkage __visible void __init __no_sanitize_address start_kernel(void)
 		      panic_param);
 
 	lockdep_init();
+#ifdef CONFIG_MXC_EPIT_BOOTTIME
+	pr_info("%s boottime %d\n", __func__, board_get_time());
+#endif
 
 	/*
 	 * Need to run this when irqs are enabled, because it wants
@@ -1429,6 +1435,9 @@ static int __ref kernel_init(void *unused)
 	rcu_end_inkernel_boot();
 
 	do_sysctl_args();
+#ifdef CONFIG_MXC_EPIT_BOOTTIME
+	pr_info("%s boottime %d\n", __func__, board_get_time());
+#endif
 
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);
