@@ -332,6 +332,11 @@ int mipid_st7703_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 #endif
 	for (i = 0; i < ARRAY_SIZE(lcd_setup); i++)
 	{
+		// Check if we should apply rotation
+		if (lcd_setup[i].buf[0] == ST7703_CMD_MADCTL){
+			lcd_setup[i].buf[1] = mipi_dsi->rotate_primary_180 ? 0xC0 : 0x0;
+		}
+
 		st7703_write_reg(mipi_dsi, &lcd_setup[i]);
 	}
 	return 0;

@@ -112,6 +112,7 @@ struct mipi_dsi_info {
 	int				vf_4v5_en_gpio;
 	int				vf_1v8_en_gpio;
 	int				vf_rst_gpio;
+	bool			rotate_primary_180;
 
 	uint32_t			phy_ref_clkfreq;
 #ifdef CONFIG_FB_IMX64
