@@ -285,7 +285,7 @@ static int csi_enc_disabling_tasks(void *private)
 	int csi_id;
 #endif
 
-	err = ipu_disable_channel(cam->ipu, chan, true);
+	err = ipu_disable_channel(cam->ipu, chan, false);
 
 	ipu_uninit_channel(cam->ipu, chan);
 
