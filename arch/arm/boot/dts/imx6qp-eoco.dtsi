@@ -600,6 +600,8 @@
 		reset-gpios = <&eoco_pca9534_0x46 7 GPIO_ACTIVE_HIGH>;
 		touchscreen-size-x = <640>;
 		touchscreen-size-y = <480>;
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
 	};
 
 	/* EEPROM */
