@@ -207,6 +207,42 @@ struct cyttsp5 {
 	struct regulator *vdd;
 };
 
+static ssize_t cyttsp5_rotate_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct cyttsp5 *ts = dev_get_drvdata(dev);
+	bool rotate;
+	if (kstrtobool(buf, &rotate) == 0) {
+		ts->prop.invert_x = rotate;
+		ts->prop.invert_y = rotate;
+	} else {
+		dev_err(dev, "Unknown command\n");
+	}
+
+	return strlen(buf);
+}
+
+static ssize_t cyttsp5_rotate_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct cyttsp5 *ts = dev_get_drvdata(dev);
+	return sprintf(buf, "Invert X: %d Invert Y: %d\n", ts->prop.invert_x,
+		       ts->prop.invert_y);
+}
+
+static DEVICE_ATTR(rotate_180, 0644, cyttsp5_rotate_show, cyttsp5_rotate_store);
+
+static struct attribute *cyttsp5_sysfs_attrs[] = {
+	&dev_attr_rotate_180.attr,
+	NULL
+};
+
+static struct attribute_group cyttsp5_attr_control_grp = {
+	.name = "control",
+	.attrs = cyttsp5_sysfs_attrs,
+};
+
 /*
  * For what understood in the datasheet, the register does not
  * matter. For consistency, used the Input Register address
@@ -353,11 +389,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5 *ts,
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 		__set_bit(t, ids);
 
-		/* position and pressure fields */
-		input_report_abs(ts->input, ABS_MT_POSITION_X,
-				 tch->abs[CY_TCH_X]);
-		input_report_abs(ts->input, ABS_MT_POSITION_Y,
-				 tch->abs[CY_TCH_Y]);
+		/* Report pressure */
 		input_report_abs(ts->input, ABS_MT_PRESSURE,
 				 tch->abs[CY_TCH_P]);
 
@@ -367,6 +399,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5 *ts,
 		input_report_abs(ts->input, ABS_MT_TOUCH_MINOR,
 				 tch->abs[CY_TCH_MIN]);
 
+		/* Report position */
 		touchscreen_report_pos(ts->input, &ts->prop,
 				       tch->abs[CY_TCH_X], tch->abs[CY_TCH_Y],
 				       true);
@@ -1022,6 +1055,11 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 		return rc;
 	}
 
+	rc = sysfs_create_group(&dev->kobj, &cyttsp5_attr_control_grp);
+	if (rc) {
+		dev_err(dev, "Error creating sysfs grp control %d\n", rc);
+	}
+
 	/* Reset the gpio to be in a reset state */
 	ts->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ts->reset_gpio)) {
@@ -1066,14 +1104,20 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 	ts->input->dev.parent = ts->dev;
 	input_set_drvdata(ts->input, ts);
 
-	touchscreen_parse_properties(ts->input, true, &ts->prop);
 
 	__set_bit(EV_KEY, ts->input->evbit);
 	__set_bit(BTN_TOUCH, ts->input->keybit);
 	for (i = 0; i < si->num_btns; i++)
 		__set_bit(si->key_code[i], ts->input->keybit);
 
-	return cyttsp5_setup_input_device(dev);
+	rc = cyttsp5_setup_input_device(dev);
+	if (rc) {
+		dev_err(ts->dev, "Fail to setup input device r=%d\n", rc);
+		return rc;
+	}
+
+	touchscreen_parse_properties(ts->input, true, &ts->prop);
+	return rc;
 }
 
 static int cyttsp5_i2c_probe(struct i2c_client *client,
