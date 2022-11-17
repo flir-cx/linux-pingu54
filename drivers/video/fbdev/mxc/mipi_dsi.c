@@ -94,8 +94,6 @@ struct _mipi_dsi_phy_pll_clk {
 	u32		config;
 };
 
-static int primary_disp_rotation = 0;
-
 /* configure data for DPHY PLL 27M reference clk out */
 static const struct _mipi_dsi_phy_pll_clk mipi_dsi_phy_pll_clk_table[] = {
 	{1000, 0x74}, /*  950-1000MHz	*/
@@ -164,7 +162,7 @@ static ssize_t power_store(struct device *dev, struct device_attribute *attr,
 
 /**
  * Handles writes on
- * /sys/devices/platform/soc/2100000.bus/21e0000.mipi/control/rotate
+ * /sys/devices/platform/soc/2100000.bus/21e0000.mipi/control/rotate_180
  * or similar
  *
  * @param dev device
@@ -190,15 +188,16 @@ static ssize_t rotate_store(struct device *dev, struct device_attribute *attr,
 static ssize_t rotate_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", primary_disp_rotation);
+	struct mipi_dsi_info *mipi_dsi = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", mipi_dsi->rotate_primary_180);
 }
 
 static DEVICE_ATTR(power, 0644, power_show, power_store);
-static DEVICE_ATTR(rotate, 0644, rotate_show, rotate_store);
+static DEVICE_ATTR(rotate_180, 0644, rotate_show, rotate_store);
 
 static struct attribute *mipidsi_sysfs_attrs[] = {
 	&dev_attr_power.attr,
-	&dev_attr_rotate.attr,
+	&dev_attr_rotate_180.attr,
 	NULL
 };
 
@@ -619,7 +618,7 @@ int mipi_rotate_primary(struct mipi_dsi_info *mipi_dsi, int rotation)
 	// Check if rotation is availible
 	if (mipi_dsi->primary_cb &&
 	    mipi_dsi->primary_cb->mipi_lcd_rotation_set) {
-		primary_disp_rotation = rotation;
+		mipi_dsi->rotate_primary_180 = rotation;
 		mipi_dsi_set_mode(mipi_dsi, 1);
 		msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
 		mipi_dsi->primary_cb->mipi_lcd_rotation_set(mipi_dsi, rotation);
@@ -1280,6 +1279,10 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	}
 	else
 		mipi_dsi->vf_rst_gpio = 0;
+
+	// Check optional rotation primary rotation
+	mipi_dsi->rotate_primary_180 = 
+		device_property_read_bool(&pdev->dev, "rotate-primary-180");
 
 	if (of_id)
 		mipi_dsi->bus_mux = of_id->data;

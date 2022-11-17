@@ -294,6 +294,7 @@
 	lcd_panel = "TRULY-VGA";
 	disp-power-on-supply = <&reg_eoco_lcd_dummy>;
 	status = "okay";
+	rotate-primary-180;
 };
 
 &ssi1 {
