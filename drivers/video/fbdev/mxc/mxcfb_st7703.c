@@ -295,7 +295,7 @@ static int st7703_write_reg(struct mipi_dsi_info *mipi_dsi, struct reg_value *re
 	if (reg->delay_after_write)
 		msleep(reg->delay_after_write);
 	if (ret)
-		dev_err(&mipi_dsi->pdev->dev, "st7703_lcd_setup Error writing %u\n", ret);
+		dev_err(&mipi_dsi->pdev->dev, "st7703_lcd_setup Error writing %d\n", ret);
 	else
 		dev_dbg(&mipi_dsi->pdev->dev, "st7703_lcd_setup wrote OK type=0x%02X cmd=0x%02X size %u \n",
 				reg->dsi_data_type, reg->buf[0] , reg->buf_size);
