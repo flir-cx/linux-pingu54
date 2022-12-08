@@ -244,10 +244,10 @@ err0:
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mipi_dsi_lcd_db); i++) {
-		if (!strcmp(mipi_dsi->lcd_panel,
-					mipi_dsi_lcd_db[i].lcd_panel)) {
-			mipi_dsi->lcd_callback =
-				&mipi_dsi_lcd_db[i].lcd_callback;
+		if (!strcmp(mipi_dsi->primary_panel,
+					mipi_dsi_lcd_db[i].panel)) {
+			mipi_dsi->primary_cb =
+				&mipi_dsi_lcd_db[i].cb;
 			break;
 		}
 	}
@@ -260,7 +260,7 @@ err0:
 	if (!setting->default_bpp)
 		setting->default_bpp = 32;
 
-	mipi_dsi->lcd_callback->get_mipi_lcd_videomode(&mipi_lcd_modedb, &size,
+	mipi_dsi->primary_cb->get_mipi_lcd_videomode(&mipi_lcd_modedb, &size,
 			&mipi_dsi->lcd_config);
 
 	err = fb_find_mode(&setting->fbi->var, setting->fbi,
@@ -896,7 +896,7 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 
 			mipi_dsi_init_interrupt(mipi_dsi);
 
-			ret = mipi_dsi->lcd_callback->mipi_lcd_setup(mipi_dsi);
+			ret = mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
 			if (ret < 0) {
 				dev_err(&mipi_dsi->pdev->dev,
 						"failed to init mipi lcd.\n");
@@ -1370,8 +1370,8 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 
 		/* mipi VDDA is sw1 in PMIC which is always on */
 
-		mipi_dsi->lcd_panel = kstrdup(lcd_panel, GFP_KERNEL);
-		if (!mipi_dsi->lcd_panel) {
+		mipi_dsi->primary_panel = kstrdup(lcd_panel, GFP_KERNEL);
+		if (!mipi_dsi->primary_panel) {
 			dev_err(&pdev->dev, "failed to allocate lcd panel\n");
 			ret = -ENOMEM;
 		}
@@ -1398,8 +1398,8 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	return ret;
 
 dispdrv_reg_fail:
-	if (mipi_dsi->lcd_panel)
-		kfree(mipi_dsi->lcd_panel);
+	if (mipi_dsi->primary_panel)
+		kfree(mipi_dsi->primary_panel);
 	return ret;
 }
 
@@ -1410,7 +1410,7 @@ static int mipi_dsi_remove(struct platform_device *pdev)
 	mxc_dispdrv_puthandle(mipi_dsi->disp_mipi);
 	mxc_dispdrv_unregister(mipi_dsi->disp_mipi);
 
-	kfree(mipi_dsi->lcd_panel);
+	kfree(mipi_dsi->primary_panel);
 	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
