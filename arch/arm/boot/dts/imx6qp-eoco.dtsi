@@ -253,27 +253,6 @@
 		};
 	};
 
-	outputs { // Temporary handling of power signals.
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pwr>;
-		cooler-disable {
-			label = "cooler-disable";
-			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-		};
-		aduc-reset {
-			label = "aduc-reset";
-			gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-		};
-		aduc-psen {
-			label = "aduc-psen";
-			gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-		};
-	};
-
 	rotary: rotary-encoder {
 		compatible = "rotary-encoder";
 		pinctrl-names = "default";
