@@ -1055,10 +1055,7 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 		return rc;
 	}
 
-	rc = sysfs_create_group(&dev->kobj, &cyttsp5_attr_control_grp);
-	if (rc) {
-		dev_err(dev, "Error creating sysfs grp control %d\n", rc);
-	}
+
 
 	/* Reset the gpio to be in a reset state */
 	ts->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
@@ -1080,22 +1077,28 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 		return rc;
 	}
 
+	rc = sysfs_create_group(&dev->kobj, &cyttsp5_attr_control_grp);
+	if (rc) {
+		dev_err(dev, "Error creating sysfs grp control %d\n", rc);
+		return rc;
+	}
+
 	rc = cyttsp5_startup(ts);
 	if (rc) {
 		dev_err(ts->dev, "Fail initial startup r=%d\n", rc);
-		return rc;
+		goto out;
 	}
 
 	rc = cyttsp5_parse_dt_key_code(dev);
 	if (rc < 0) {
 		dev_err(ts->dev, "Error while parsing dts %d\n", rc);
-		return rc;
+		goto out;
 	}
 
 	ts->input = devm_input_allocate_device(dev);
 	if (!ts->input) {
 		dev_err(dev, "Error, failed to allocate input device\n");
-		return -ENODEV;
+		goto out;
 	}
 
 	ts->input->name = "cyttsp5";
@@ -1113,10 +1116,14 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 	rc = cyttsp5_setup_input_device(dev);
 	if (rc) {
 		dev_err(ts->dev, "Fail to setup input device r=%d\n", rc);
-		return rc;
+		goto out;
 	}
 
 	touchscreen_parse_properties(ts->input, true, &ts->prop);
+	return rc;
+
+out:
+	sysfs_remove_group(&dev->kobj, &cyttsp5_attr_control_grp);
 	return rc;
 }
 
