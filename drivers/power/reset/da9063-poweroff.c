@@ -52,8 +52,7 @@ static void da9063_poweroff_do_gpio_poweroff(void)
 		dev_err(pwroff_data->dev, "Could not set pwroff gpio (%d)\n",
 			ret);
 	}
-	mdelay(2000);
-	WARN_ON(1);
+	da9063_poweroff_do_reg_poweroff();
 }
 
 static int da9063_poweroff_probe(struct platform_device *pdev)

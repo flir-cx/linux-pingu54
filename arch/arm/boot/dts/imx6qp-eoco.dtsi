@@ -331,6 +331,11 @@
 	cs-gpios = <&gpio2 27 0>;	// Fake pin not used
 };
 
+&wdog1 {
+	//Disable internal watchdog in favor of da9063-wdt
+	status = "disable";
+};
+
 &ecspi4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
@@ -384,6 +389,11 @@
 			compatible = "dlg,da9063-gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
+		};
+
+		watchdog {
+			compatible = "dlg,da9063-watchdog";
+			timeout-sec = <30>;
 		};
 
 		charge_wake: charge_wake {
