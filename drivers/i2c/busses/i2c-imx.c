@@ -1078,7 +1078,10 @@ static int i2c_imx_xfer_common(struct i2c_adapter *adapter,
 		 * allowed within atomic context.
 		 */
 		if (!atomic && i2c_imx->adapter.bus_recovery_info) {
-			i2c_recover_bus(&i2c_imx->adapter);
+			if (!i2c_recover_bus(&i2c_imx->adapter)) {
+				dev_info(&i2c_imx->adapter.dev,
+					 "i2c bus-recovery completed.");
+			}
 			result = i2c_imx_start(i2c_imx, atomic);
 		}
 	}
