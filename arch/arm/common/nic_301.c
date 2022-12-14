@@ -38,8 +38,8 @@ static int nic_301_probe(struct platform_device *dev)
 		err = of_property_read_u32(dev->dev.of_node, name, &prio);
 
 		if (!err) {
-			writel(prio, ((uint32_t)base + 0x42000 + 0x1000 * i + 0x100));	// Read prio
-			writel(prio, ((uint32_t)base + 0x42000 + 0x1000 * i + 0x104));	// Write prio
+			writel(prio, (void*)((uint32_t)base + 0x42000 + 0x1000 * i + 0x100));   // Read prio
+			writel(prio, (void*)((uint32_t)base + 0x42000 + 0x1000 * i + 0x104));   // Write prio
 			dev_info(&dev->dev, "m%d has prio %d\n", i, prio);
 		}
 	}
