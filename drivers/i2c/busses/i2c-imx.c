@@ -258,7 +258,7 @@ struct imx_i2c_struct {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pinctrl_pins_default;
 	struct pinctrl_state *pinctrl_pins_gpio;
-
+	struct gpio_desc *device_reset_gpio;
 	struct imx_i2c_dma	*dma;
 	int			layerscape_bus_recover;
 	int 			gpio;
@@ -342,6 +342,15 @@ MODULE_DEVICE_TABLE(acpi, i2c_imx_acpi_ids);
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 static int i2c_imx_slave_init(struct imx_i2c_struct *i2c_imx);
 #endif
+
+static void i2c_imx_reset_slave(struct imx_i2c_struct *i2c_imx)
+{
+	dev_info(&i2c_imx->adapter.dev,
+		 "Busrecovery failed. Attempting slave reset.");
+	gpiod_direction_output(i2c_imx->device_reset_gpio, 0);
+	mdelay(300);
+	gpiod_direction_output(i2c_imx->device_reset_gpio, 1);
+}
 
 static inline int is_imx1_i2c(struct imx_i2c_struct *i2c_imx)
 {
@@ -1081,6 +1090,11 @@ static int i2c_imx_xfer_common(struct i2c_adapter *adapter,
 			if (!i2c_recover_bus(&i2c_imx->adapter)) {
 				dev_info(&i2c_imx->adapter.dev,
 					 "i2c bus-recovery completed.");
+			} else { // bus recovery has failed.
+				if (i2c_imx->device_reset_gpio) {
+					// Attempt to reset slave
+					i2c_imx_reset_slave(i2c_imx);
+				}
 			}
 			result = i2c_imx_start(i2c_imx, atomic);
 		}
@@ -1345,8 +1359,16 @@ static int i2c_imx_init_recovery_info(struct imx_i2c_struct *i2c_imx,
 		return 0;
 	}
 
-	dev_dbg(&pdev->dev, "using scl%s for recovery\n",
+	dev_info(&pdev->dev, "using scl%s for recovery\n",
 		rinfo->sda_gpiod ? ",sda" : "");
+
+	// This is an additional recovery feature that pulls a
+	// gpio reset pin on slave device when the bus recovery fails.
+	i2c_imx->device_reset_gpio =
+		devm_gpiod_get_optional(&pdev->dev, "slave-reset", GPIOD_ASIS);
+	if (i2c_imx->device_reset_gpio) {
+		dev_info(&pdev->dev, "using optional slave reset\n");
+	}
 
 	rinfo->prepare_recovery = i2c_imx_prepare_recovery;
 	rinfo->unprepare_recovery = i2c_imx_unprepare_recovery;
