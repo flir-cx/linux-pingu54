@@ -135,23 +135,23 @@
 //		};
 //	};
 //
-//	// Change memory access priorites (QoS) for AXI switches
-//	// Refer to chapter 13.2.1 (NIC-301 block diagram) and
-//	// chapter 13.4.2.3 (ASIB default values) of iMX7ULP reference manual
-//
-//	nic0: nic0@41c00000 {
-//		compatible = "arm,nic-301";
-//		reg = <0x41c00000 0x100000>;
-//		m3_prio = <4>;		// Reduce 3D GPU prio from 5 to 4
-//		m4_prio = <4>;		// Reduce 2D GPU prio from 5 to 4
-//	};
-//
-//	nic1: nic1@41d00000 {
-//		compatible = "arm,nic-301";
-//		reg = <0x41d00000 0x100000>;
-//		m2_prio = <5>;		// Raise Cortex-M4 prio from 1 to 5
-//		m5_prio = <5>;		// Raise VIU prio from 4 to 5
-//	};
+	// Change memory access priorites (QoS) for AXI switches
+	// Refer to chapter 13.2.1 (NIC-301 block diagram) and
+	// chapter 13.4.2.3 (ASIB default values) of iMX7ULP reference manual
+
+	nic0: nic0@41c00000 {
+		compatible = "arm,nic-301";
+		reg = <0x41c00000 0x100000>;
+		m3_prio = <4>;		// Reduce 3D GPU prio from 5 to 4
+		m4_prio = <4>;		// Reduce 2D GPU prio from 5 to 4
+	};
+
+	nic1: nic1@41d00000 {
+		compatible = "arm,nic-301";
+		reg = <0x41d00000 0x100000>;
+		m2_prio = <5>;		// Raise Cortex-M4 prio from 1 to 5
+		m5_prio = <5>;		// Raise VIU prio from 4 to 5
+	};
 //
 //	snvs: snvs@41070000 {
 //		compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
