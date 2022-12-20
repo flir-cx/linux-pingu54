@@ -195,6 +195,8 @@ static void mipi_dsi_set_mode(struct mipi_dsi_info *mipi_dsi,
 			      uint8_t mode);
 static int mipi_dsi_dcs_cmd(struct mipi_dsi_info *mipi_dsi,
 			    u8 cmd, const u32 *param, int num);
+static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
+			      u8 data_type, const u32 *buf, int len);
 
 static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 			     struct mxc_dispdrv_setting *setting)
@@ -772,6 +774,9 @@ static void mipi_dsi_init_interrupt(struct mipi_dsi_info *mipi_dsi)
 static int mipi_display_enter_sleep(struct mxc_dispdrv_handle *disp)
 {
 	int err;
+	char setpower[] = {
+		0xB1, 0x49, 0x14, 0x74, 0x09, 0x33,
+		0x54, 0x71, 0x31, 0x4D, 0x2F};
 	struct mipi_dsi_info *mipi_dsi = mxc_dispdrv_getdata(disp);
 
 	err = mipi_dsi_dcs_cmd(mipi_dsi, MIPI_DCS_SET_DISPLAY_OFF,
@@ -788,6 +793,9 @@ static int mipi_display_enter_sleep(struct mxc_dispdrv_handle *disp)
 	}
 	msleep(MIPI_LCD_SLEEP_MODE_DELAY);
 
+	//Enter Deep Standby, DSTB=1
+	err = mipi_dsi_pkt_write(mipi_dsi, 0x29, (u32 *)setpower, 11);
+	mipi_dsi->lcd_inited = 0;
 	return err;
 }
 
@@ -1516,8 +1524,8 @@ static int mipi_dsi_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops mipi_dsi_pm_ops = {
-	.suspend = mipi_dsi_suspend,
-	.resume  = mipi_dsi_resume,
+	.suspend_late = mipi_dsi_suspend,
+	.resume_early  = mipi_dsi_resume,
 	.runtime_suspend = mipi_dsi_runtime_suspend,
 	.runtime_resume  = mipi_dsi_runtime_resume,
 	.runtime_idle	 = NULL,
