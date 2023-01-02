@@ -627,7 +627,7 @@ static int fg_get_property(struct power_supply *psy,
 		if (ret < 0)
 			return -ENXIO;
 		mutex_lock(&bq->data_lock);
-		val->intval = -bq->batt_curr * 1000;
+		val->intval = bq->batt_curr * 1000;
 		mutex_unlock(&bq->data_lock);
 		break;
 
