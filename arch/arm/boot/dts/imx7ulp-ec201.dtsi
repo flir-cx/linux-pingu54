@@ -7,6 +7,8 @@
 //  * published by the Free Software Foundation.
 //  */
 
+#include <dt-bindings/leds/common.h>
+
 / {
 
 	aliases {
@@ -572,24 +574,32 @@
 			led-cur = /bits/ 8 <0x32>;
 			max-cur = /bits/ 8 <0x32>;
 			linux,default-trigger = "none";
+			reg = <0>;
+			color = <LED_COLOR_ID_WHITE>;
 		};
 		tp_led2 {
 			chan-name = "tp-settings";
 			led-cur = /bits/ 8 <0x32>;
 			max-cur = /bits/ 8 <0x32>;
 			linux,default-trigger = "none";
+			reg = <1>;
+			color = <LED_COLOR_ID_WHITE>;
 		};
 		tp_led3 {
 			chan-name = "tp-gallery";
 			led-cur = /bits/ 8 <0x32>;
 			max-cur = /bits/ 8 <0x32>;
 			linux,default-trigger = "none";
+			reg = <2>;
+			color = <LED_COLOR_ID_WHITE>;
 		};
 		tp_led4 {
 			chan-name = "tp-NA";
 			led-cur = /bits/ 8 <0x32>;
 			max-cur = /bits/ 8 <0x32>;
 			linux,default-trigger = "none";
+			reg = <3>;
+			color = <LED_COLOR_ID_WHITE>;
 		};
 	};
 };
