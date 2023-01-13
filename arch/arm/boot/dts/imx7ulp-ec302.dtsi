@@ -99,7 +99,7 @@
 			label = "TRIG";
 			linux,input-type = <1>; /* EV_KEY */
 			linux,code = <KEY_F6>;
-			gpios = <&gpio_ptc 12 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio_ptf 0 GPIO_ACTIVE_LOW>;
 			debounce-interval = <5>;
 		};
 
@@ -107,7 +107,15 @@
 			label = "SW_ON";
 			linux,input-type = <1>; /* EV_KEY */
 			linux,code = <KEY_F8>;
-			gpios = <&gpio_ptc 13 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio_ptf 4 GPIO_ACTIVE_LOW>;
+			debounce-interval = <5>;
+		};
+
+		SPI_IRQ {
+			label = "SPI_IRQ";
+			linux,input-type = <1>; /* EV_KEY */
+			linux,code = <KEY_F7>;
+			gpios = <&gpio_ptc 11 GPIO_ACTIVE_LOW>;
 			debounce-interval = <5>;
 		};
 	};
@@ -121,7 +129,7 @@
 
 	emmc_reset: emmc_reset {
 		compatible = "gpio-reset";
-		reset-gpios =  <&gpio_ptd 0 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio_ptd 0 GPIO_ACTIVE_LOW>;
 		reset-delay-us = <1000>;
 		#reset-cells = <0>;
 	};
@@ -223,17 +231,17 @@
 		fsl,pins = <
 			IMX7ULP_PAD_PTC4__LPI2C5_SCL    0x27
 			IMX7ULP_PAD_PTC5__LPI2C5_SDA    0x27
-			IMX7ULP_PAD_PTC19__PTC19        0x3  /* PMIC_INT */
-			IMX7ULP_PAD_PTC18__PTC18        0x27 /* PMIC_WD */
+			IMX7ULP_PAD_PTC1__PTC1          0x3  /* PMIC_INT */
+			IMX7ULP_PAD_PTC0__PTC0          0x27 /* PMIC_WD */
 			>;
 	};
 
 	pinctrl_lpi2c5_sleep: lpi2c5grp_sleep {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC4__PTC4          0x0
-	IMX7ULP_PAD_PTC5__PTC5          0x0
-			IMX7ULP_PAD_PTC19__PTC19        0x3  /* PMIC_INT */
-			IMX7ULP_PAD_PTC18__PTC18        0x27 /* PMIC_WD */
+			IMX7ULP_PAD_PTC5__PTC5          0x0
+			IMX7ULP_PAD_PTC1__PTC1          0x3  /* PMIC_INT */
+			IMX7ULP_PAD_PTC0__PTC0          0x27 /* PMIC_WD */
 			>;
 	};
 
@@ -242,9 +250,8 @@
 			IMX7ULP_PAD_PTC8__LPI2C6_SCL    0x27
 			IMX7ULP_PAD_PTC9__LPI2C6_SDA    0x27
 			IMX7ULP_PAD_PTC10__PTC10        0x2 /* ACC_INT_n */
-			IMX7ULP_PAD_PTC11__PTC11        0x20000 /* TP_LED_EN */
-			IMX7ULP_PAD_PTC15__PTC15	    0x20000 /* TORCH */
-			IMX7ULP_PAD_PTC16__PTC16	    0x20000 /* STROBE */
+			IMX7ULP_PAD_PTC15__PTC15        0x20000 /* TORCH */
+			IMX7ULP_PAD_PTC16__PTC16        0x20000 /* STROBE */
 			>;
 	};
 
@@ -253,9 +260,8 @@
 			IMX7ULP_PAD_PTC8__PTC8          0x0
 			IMX7ULP_PAD_PTC9__PTC9          0x0
 			IMX7ULP_PAD_PTC10__PTC10        0x0 /* ACC_INT_n */
-			IMX7ULP_PAD_PTC11__PTC11        0x0 /* TP_LED_EN */
-			IMX7ULP_PAD_PTC15__PTC15	    0x0 /* TORCH */
-			IMX7ULP_PAD_PTC16__PTC16	    0x0 /* STROBE */
+			IMX7ULP_PAD_PTC15__PTC15        0x0 /* TORCH */
+			IMX7ULP_PAD_PTC16__PTC16        0x0 /* STROBE */
 			>;
 	};
 
@@ -263,7 +269,7 @@
 		fsl,pins = <
 			IMX7ULP_PAD_PTE12__LPI2C7_SCL   0x27
 			IMX7ULP_PAD_PTE13__LPI2C7_SDA   0x27
-			IMX7ULP_PAD_PTE14__PTE14		0x3 /* PCAPINT_n */
+			IMX7ULP_PAD_PTE14__PTE14        0x3 /* PCAPINT_n */
 			IMX7ULP_PAD_PTF5__PTF5          0x20043 /* TP_RESET_n */
 			>;
 	};
@@ -272,7 +278,7 @@
 		fsl,pins = <
 			IMX7ULP_PAD_PTE12__PTE12        0x0
 			IMX7ULP_PAD_PTE13__PTE13        0x0
-			IMX7ULP_PAD_PTE14__PTE14		0x0 /* PCAPINT_n */
+			IMX7ULP_PAD_PTE14__PTE14        0x0 /* PCAPINT_n */
 			IMX7ULP_PAD_PTF5__PTF5          0x3 /* TP_RESET_n */
 			>;
 	};
@@ -380,7 +386,6 @@
 			IMX7ULP_PAD_PTF15__PTF15    0x20043  /* CAMERA PWDN */
 			IMX7ULP_PAD_PTF16__PTF16    0x20043  /* CAMERA 1V8 ENABLE*/
 			IMX7ULP_PAD_PTF17__PTF17    0x20043  /* CAMERA 2V8 ENABLE */
-			IMX7ULP_PAD_PTC0__PTC0		0x0	 /* CAMERA DUMMY CLK ENABLE */
 			>;
 	};
 
@@ -399,7 +404,6 @@
 			IMX7ULP_PAD_PTF15__PTF15    0x20043  /* CAMERA PWDN */
 			IMX7ULP_PAD_PTF16__PTF16    0x20043  /* CAMERA 1V8 ENABLE*/
 			IMX7ULP_PAD_PTF17__PTF17    0x20043  /* CAMERA 2V8 ENABLE */
-			IMX7ULP_PAD_PTC0__PTC0		0x0	 /* CAMERA DUMMY CLK ENABLE */
 			>;
 	};
 };
@@ -416,7 +420,7 @@
 	pmic: pf1550@08 {
 		compatible = "fsl,pf1550";
 		interrupt-parent = <&gpio_ptc>;
-		interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
 		reg = <0x08>;
 
 		onkey {
@@ -537,9 +541,9 @@
 		interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	lm73: lm73@48 {
-		compatible = "national,lm73";
-		reg = <0x48>;
+	tmp114: tmp114@4d {
+		compatible = "ti,tmp114";
+		reg = <0x4d>;
 	};
 
 	eeprom_24c02: eeprom_24c02@57 {
@@ -559,48 +563,6 @@
 		torch-ramp = <5>;	/* 101b = 512 ms */
 		torch-gpios = <&gpio_ptc 15 GPIO_ACTIVE_HIGH>;
 		strobe-gpios = <&gpio_ptc 16 GPIO_ACTIVE_HIGH>;
-	};
-
-	touchpad_leds: touchpad_leds@30 {
-		compatible = "national,lp5562";
-		reg = <0x30>;
-
-		label = "touchpad-leds";
-		clock-mode = <1>;	/* Internal clock */
-		enable-gpio = <&gpio_ptc 11 GPIO_ACTIVE_HIGH>;
-
-		tp_led1 {
-			chan-name = "tp-camera";
-			led-cur = /bits/ 8 <0x32>;
-			max-cur = /bits/ 8 <0x32>;
-			linux,default-trigger = "none";
-			reg = <0>;
-			color = <LED_COLOR_ID_WHITE>;
-		};
-		tp_led2 {
-			chan-name = "tp-settings";
-			led-cur = /bits/ 8 <0x32>;
-			max-cur = /bits/ 8 <0x32>;
-			linux,default-trigger = "none";
-			reg = <1>;
-			color = <LED_COLOR_ID_WHITE>;
-		};
-		tp_led3 {
-			chan-name = "tp-gallery";
-			led-cur = /bits/ 8 <0x32>;
-			max-cur = /bits/ 8 <0x32>;
-			linux,default-trigger = "none";
-			reg = <2>;
-			color = <LED_COLOR_ID_WHITE>;
-		};
-		tp_led4 {
-			chan-name = "tp-NA";
-			led-cur = /bits/ 8 <0x32>;
-			max-cur = /bits/ 8 <0x32>;
-			linux,default-trigger = "none";
-			reg = <3>;
-			color = <LED_COLOR_ID_WHITE>;
-		};
 	};
 };
 
@@ -631,11 +593,6 @@
 			cy,flags = <4>;
 			/* CY_CORE_EWG_NONE */
 			cy,easy_wakeup_gesture = <0>;
-
-			cy,btn_keys = < KEY_F11		/*Camera*/
-							KEY_F7		/*Archive*/
-							KEY_F12>;	/*Settings*/
-			cy,btn_keys-tag = <0>;
 
 			cy,mt {
 				cy,name = "cyttsp5_mt";
