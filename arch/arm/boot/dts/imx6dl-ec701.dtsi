@@ -16,7 +16,7 @@
 / {
 	aliases {
 		mxcfb0 = &mxcfb1;
-		//mxcfb1 = &mxcfb2;
+		mxcfb1 = &mxcfb2;
 
 		i2c3 = &i2c4;
 
@@ -159,16 +159,16 @@
 		status = "okay";
 	};
 
-	//mxcfb2: fb@1 {
-	//	compatible = "fsl,mxc_sdc_fb";
-	//	interface_pix_fmt = "RGB24";
-	//	default_bpp = <32>;
-	//	int_clk = <0>;
-	//	late_init = <0>;
-	//	status = "okay";
-	//	disp_dev = "lcd";
-	//	mode_str ="FLIR-DP";
-	//};
+	mxcfb2: fb@1 {
+		compatible = "fsl,mxc_sdc_fb";
+		interface_pix_fmt = "RGB24";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "disabled";
+		disp_dev = "lcd";
+		mode_str ="FLIR-DP";
+	};
 
 	backlight_lcd: backlight_lcd {
 		compatible = "pwm-backlight";
@@ -187,14 +187,14 @@
 		status = "okay";
 	};
 
-	//v4l2_cap_1 {
-	//	compatible = "fsl,imx6q-v4l2-capture";
-	//	ipu_id = <0>;
-	//	csi_id = <1>;
-	//	videoflow_method = <1>;
-	//	mclk_source = <0>;
-	//	status = "okay";
-	//};
+	v4l2_cap_1 {
+		compatible = "fsl,imx6q-v4l2-capture";
+		ipu_id = <0>;
+		csi_id = <1>;
+		videoflow_method = <1>;
+		mclk_source = <0>;
+		status = "disabled";
+	};
 
 	v4l2_out {
 		compatible = "fsl,mxc_v4l2_output";
@@ -537,13 +537,19 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
+	/*Battery fuel gauge*/
+	battery: bq27520g4@55 {
+		compatible = "ti,bq27520g4";
+		reg = <0x55>;
+	};
+	
 	/*Battery charger*/
 	bq24298@6b {
 		compatible = "ti,bq24298";
 		reg = <0x6b>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <15 2>;
-		ti,usb-charger-detection = <&usbotg>;
+		//ti,usb-charger-detection = <&usbotg>;
 		status = "okay";
 	};
 
@@ -592,21 +598,21 @@
 		status = "okay";
 	};
 
-	//sensor_flir_csi1: csi1@3d {
-	//	compatible = "flir,flir_csi";
-	//	reg = <0x3d>;
-	//	pinctrl-names = "default";
-	//	pinctrl-0 = <&pinctrl_ec701_csi1>;
-	//	clocks = <&clks 201>;
-	//	clock-names = "csi_mclk";
-	//	ipu_id = <0>;
-	//	csi_id = <1>;
-	//	mclk = <24000000>;
-	//	mclk_source = <0>;
-	//	capturemode = <5>;
-	//	format = "UYVY";
-	//	status = "okay";
-	//};
+	sensor_flir_csi1: csi1@3d {
+		compatible = "flir,flir_csi";
+		reg = <0x3d>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ec701_csi1>;
+		clocks = <&clks 201>;
+		clock-names = "csi_mclk";
+		ipu_id = <0>;
+		csi_id = <1>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+		capturemode = <5>;
+		format = "UYVY";
+		status = "disabled";
+	};
 
 	/*Accelerometer*/
 	acc_kxtj3: acc_kxtj3@0E {
@@ -628,12 +634,6 @@
 	pinctrl-0 = <&pinctrl_i2c4>;
 	status = "okay";
 
-	/*Battery fuel gauge - no fuel gauge in K22 battery*/
-	//battery: bq27542@55 {
-	//	compatible = "ti,bq27542";
-	//	reg = <0x55>;
-	//};
-	
 	gps:ec701_gps@42 {
 		compatible = "ublox,m8";
 		reg = <0x42>;
@@ -913,11 +913,6 @@
 	};
 };
 
-&pcie {
-	status = "okay";
-	reset-gpio = <&gpio2 3 0>;
-};
-
 &pwm1 {
 	#pwm-cells = <2>;
 	pinctrl-names = "default";
@@ -956,7 +951,7 @@
 	pinctrl-0 = <&pinctrl_usbotg>;
 	disable-over-current;
 	status = "okay";
-	imx6-usb-charger-detection;
+//	imx6-usb-charger-detection;
 	fsl,anatop = <&anatop>;
 //	dr_mode = "host";
 //	dr_mode = "peripheral";
