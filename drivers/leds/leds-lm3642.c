@@ -122,10 +122,11 @@ static int lm3642_control(struct lm3642_chip_data *chip,
 	if (chip->last_flag)
 		dev_info(chip->dev, "Last FLAG is 0x%x\n", chip->last_flag);
 
+	/* always clear mode bits */
+	chip->opmode &= EX_PIN_ENABLE_MASK;	/* Set standby mode */
+
 	/* brightness 0 means off-state */
 	if (!brightness) {
-		chip->opmode &= EX_PIN_ENABLE_MASK;	/* Set standby mode */
-
 		switch (opmode) {
 		case MODES_TORCH:
 			chip->opmode &= ~(TORCH_PIN_EN_MASK << TORCH_PIN_EN_SHIFT);
@@ -149,13 +150,16 @@ static int lm3642_control(struct lm3642_chip_data *chip,
 			return -EINVAL;
 		}
 	} else {
+		/* enable selected mode */
+		chip->opmode |= opmode;
+
 		switch (opmode) {
 		case MODES_TORCH:
 			ret = regmap_update_bits(chip->regmap, REG_I_CTRL,
 						 TORCH_I_MASK << TORCH_I_SHIFT,
 						 (brightness - 1) << TORCH_I_SHIFT);
 			if (chip->torch_pin)
-				chip->opmode |= (TORCH_PIN_EN_MASK << TORCH_PIN_EN_SHIFT) | opmode;
+				chip->opmode |= (TORCH_PIN_EN_MASK << TORCH_PIN_EN_SHIFT);
 			if (chip->torch_gpio)
 				gpio_set_value(chip->torch_gpio, 1);
 			break;
@@ -165,7 +169,7 @@ static int lm3642_control(struct lm3642_chip_data *chip,
 						 FLASH_I_MASK << FLASH_I_SHIFT,
 						 (brightness - 1) << FLASH_I_SHIFT);
 			if (chip->strobe_pin)
-				chip->opmode |= (STROBE_PIN_EN_MASK << STROBE_PIN_EN_SHIFT) | opmode;
+				chip->opmode |= (STROBE_PIN_EN_MASK << STROBE_PIN_EN_SHIFT);
 			if (chip->strobe_gpio)
 				gpio_set_value(chip->strobe_gpio, 1);
 			break;
@@ -175,7 +179,7 @@ static int lm3642_control(struct lm3642_chip_data *chip,
 						 TORCH_I_MASK << TORCH_I_SHIFT,
 						 (brightness - 1) << TORCH_I_SHIFT);
 			if (chip->tx_pin)
-				chip->opmode |= (TX_PIN_EN_MASK << TX_PIN_EN_SHIFT) | opmode;
+				chip->opmode |= (TX_PIN_EN_MASK << TX_PIN_EN_SHIFT);
 			if (chip->tx_gpio)
 				gpio_set_value(chip->tx_gpio, 1);
 			break;
