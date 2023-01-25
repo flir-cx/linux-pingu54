@@ -547,7 +547,7 @@
 			compatible = "fsl,imx7ulp-viu";
 			reg = <0x40a80000 0x10000>;
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clks IMX7ULP_CLK_VIU>;
+			clocks = <&pcc3 IMX7ULP_CLK_VIU>;
 			clock-names = "ipg";
 			status = "disabled";
 		};

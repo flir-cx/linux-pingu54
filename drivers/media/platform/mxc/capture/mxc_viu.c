@@ -23,6 +23,7 @@
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/string.h>
@@ -252,8 +253,6 @@ struct imx_viu_device {
 	u32 mbus_code;
 
 	/* async subdevs */
-	struct v4l2_async_subdev subdevs[IMX_VIU_MAX_SUBDEV_NUM];
-	struct v4l2_async_subdev *async_subdevs[IMX_VIU_MAX_SUBDEV_NUM];
 	struct v4l2_async_notifier notifier;
 };
 
@@ -1265,13 +1264,17 @@ static void imx_viu_subdev_unbind(struct v4l2_async_notifier *notifier,
 	dev_info(viu_dev->dev, "subdev %s unbind\n", subdev->name);
 }
 
+static const struct v4l2_async_notifier_operations imx_viu_async_ops = {
+	.bound = imx_viu_subdev_bound,
+	.unbind = imx_viu_subdev_unbind,
+};
+
 static int imx_viu_async_subdevs_register(struct imx_viu_device *viu_dev)
 {
 	int ret;
 	unsigned int num_subdevs = 0;
 	struct fwnode_handle *endpoint = NULL;
 	struct fwnode_handle *np = dev_fwnode(viu_dev->dev);
-	struct fwnode_handle *remote = NULL;
 	struct v4l2_async_notifier *notifier = &viu_dev->notifier;
 	struct v4l2_async_subdev *asd;
 
@@ -1280,33 +1283,22 @@ static int imx_viu_async_subdevs_register(struct imx_viu_device *viu_dev)
 		if (!endpoint)
 			break;
 
-		remote = fwnode_graph_get_remote_port_parent(endpoint);
+		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
+			notifier, endpoint, sizeof(struct v4l2_subdev));
+		fwnode_handle_put(endpoint);
 
-		fwnode_handle_put(remote);
-		if (!remote)
-			continue;
-
-		asd = &viu_dev->subdevs[num_subdevs];
-		asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		asd->match.fwnode.fwnode = remote;
-		viu_dev->async_subdevs[num_subdevs] = asd;
+		if (IS_ERR(asd))
+			return PTR_ERR(asd);
 
 		num_subdevs++;
 	}
-
-	if (unlikely(endpoint))
-		fwnode_handle_put(endpoint);
 
 	if (!num_subdevs) {
 		dev_err(viu_dev->dev, "no subdev found for viu\n");
 		return -ENODEV;
 	}
 
-	notifier->subdevs = viu_dev->async_subdevs;
-	notifier->num_subdevs = num_subdevs;
-	notifier->bound  = imx_viu_subdev_bound;
-	notifier->unbind = imx_viu_subdev_unbind;
-
+	notifier->ops = &imx_viu_async_ops;
 	ret = v4l2_async_notifier_register(&viu_dev->v4l2_dev, notifier);
 	if (ret) {
 		dev_err(viu_dev->dev, "register async notifier failed\n");
@@ -1410,15 +1402,16 @@ static int imx_viu_probe(struct platform_device *pdev)
 
 	video_set_drvdata(viu_dev->vdev, viu_dev);
 
-	ret = video_register_device(viu_dev->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(viu_dev->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret)
 		goto release_video_device;
 
 	/* Register async subdevs */
+	v4l2_async_notifier_init(&viu_dev->notifier);
 	ret = imx_viu_async_subdevs_register(viu_dev);
 	if (ret) {
 		dev_err(viu_dev->dev, "register async subdevs failed\n");
-		goto release_video_device;
+		goto notifier_cleanup;
 	}
 
 	/* Pre-allocate discard buffer with room for 5MP YUYV */
@@ -1431,7 +1424,7 @@ static int imx_viu_probe(struct platform_device *pdev)
 	if (!viu_dev->discard_buffer) {
 		ret = -ENOMEM;
 		dev_err(viu_dev->dev, "failed to allocate discard buffer\n");
-		goto release_video_device;
+		goto notifier_unregister;
 	}
 
 	pm_runtime_enable(viu_dev->dev);
@@ -1453,6 +1446,10 @@ static int imx_viu_probe(struct platform_device *pdev)
 
 	return 0;
 
+notifier_unregister:
+	v4l2_async_notifier_unregister(&viu_dev->notifier);
+notifier_cleanup:
+	v4l2_async_notifier_cleanup(&viu_dev->notifier);
 release_video_device:
 	video_device_release(viu_dev->vdev);
 unregister_v4l2_dev:
@@ -1466,6 +1463,8 @@ static int imx_viu_remove(struct platform_device *pdev)
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
 	struct imx_viu_device *viu_dev = v4l2_dev_to_viu_dev(v4l2_dev);
 
+	v4l2_async_notifier_unregister(&viu_dev->notifier);
+	v4l2_async_notifier_cleanup(&viu_dev->notifier);
 	video_device_release(viu_dev->vdev);
 	v4l2_device_unregister(&viu_dev->v4l2_dev);
 
