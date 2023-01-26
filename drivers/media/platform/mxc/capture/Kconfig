@@ -32,7 +32,7 @@ config VIDEO_MXC_IPU_CAMERA
 	tristate "MXC IPU Camera"
 	select VIDEO_V4L2_MXC_INT_DEVICE
 	depends on VIDEO_MXC_CAPTURE && MXC_IPU
-	default n
+	default y
 
 config MXC_CAMERA_FLIR
 	tristate "FLIR CSI FPGA camera support"
