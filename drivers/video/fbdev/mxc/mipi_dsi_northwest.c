@@ -1391,6 +1391,10 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		}
 	}
 
+	// Check optional rotation setting for primary display
+	mipi_dsi->rotate_primary_180 =
+		device_property_read_bool(&pdev->dev, "rotate-primary-180");
+
 	mipi_dsi->disp_mipi = mxc_dispdrv_register(&mipi_dsi_drv);
 	if (IS_ERR(mipi_dsi->disp_mipi)) {
 		dev_err(&pdev->dev, "mxc_dispdrv_register error\n");
