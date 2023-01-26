@@ -200,6 +200,7 @@
 	lcd_panel = "TRULY-VGA-SHERLOCK";
 	status = "okay";
 	resets = <&mipi_dsi_reset>;
+	rotate-primary-180;
 };
 
 &lcdif {

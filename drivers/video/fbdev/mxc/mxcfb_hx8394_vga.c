@@ -31,12 +31,12 @@
 
 struct reg_value {
 	u8	command; // mipi command
-	u8  delay; //delay in ms
+	u8	delay; //delay in ms
 	u8	buf_size; //buffer size for long commands, for short set it to 0
 	u8	buf[60];
 };
 
-static struct reg_value lcd_setup[] = {
+static struct reg_value lcd_setup_begin[] = {
 	{0x05, 150, 0, {0x11}}, //Sleep out
 	{0x29, 0, 4, {0xB9, 0xFF, 0x83, 0x94}}, //SETEXTC  extended command set access enable
 	{0x29, 0, 11, {
@@ -96,10 +96,11 @@ static struct reg_value lcd_setup[] = {
 	{0x15,  0, 0, {0xD4, 0x02}}, //SETIOOPT Set I/O Option
 	{0x15,  0, 0, {0xD2, 0x77}}, //SETOFFSET
 	{0x15,  0, 0, {0xC6, 0xED}}, //??
-	{0x05, 50, 0, {0x29}} //Display on
 };
 
-
+static struct reg_value lcd_setup_end[] = {
+	{0x05, 50, 0, {0x29}} //Display on
+};
 
 static struct fb_videomode otm_lcd_modedb[] = {
 	{
@@ -129,16 +130,36 @@ void mipid_hx8394_get_lcd_videomode(struct fb_videomode **mode, int *size,
 	*data = &lcd_config;
 }
 
+static void mipid_hx8394_write_reg_value(
+	struct mipi_dsi_info *mipi_dsi, struct reg_value *reg_value)
+{
+	mipi_dsi->mipi_dsi_pkt_write(
+		mipi_dsi,
+		reg_value->command,
+		(u32 *) reg_value->buf,
+		reg_value->buf_size);
+	msleep(reg_value->delay);
+}
 
 int mipid_hx8394_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(lcd_setup); i++) {
-		mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, lcd_setup[i].command,
-					(u32 *) lcd_setup[i].buf, lcd_setup[i].buf_size);
-		msleep(lcd_setup[i].delay);
+	/* write initial paremeters */
+	for (i = 0; i < ARRAY_SIZE(lcd_setup_begin); i++)
+		mipid_hx8394_write_reg_value(mipi_dsi, &lcd_setup_begin[i]);
+
+	/* check additional settings */
+	if (mipi_dsi->rotate_primary_180) {
+		static struct reg_value rotate_display_setting = {
+			0x15,  0, 0, {0x36, 0x03} // set_address_mode
+		};
+		mipid_hx8394_write_reg_value(mipi_dsi, &rotate_display_setting);
 	}
+
+	/* write final paremeters */
+	for (i = 0; i < ARRAY_SIZE(lcd_setup_end); i++)
+		mipid_hx8394_write_reg_value(mipi_dsi, &lcd_setup_end[i]);
 
 	return 0;
 }
