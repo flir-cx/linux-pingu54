@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * m4_rpmsg.h
  *
@@ -33,5 +34,12 @@ enum ovRpmsg_format {
 #define IR_RESOLUTION_DEFAULT_WIDTH  IR_RESOLUTION_FULL_WIDTH
 #define IR_RESOLUTION_DEFAULT_HEIGHT IR_RESOLUTION_FULL_HEIGHT
 
+extern int rpmsg_send_buffer(dma_addr_t eba);
+extern int rpmsg_drop_buffers(void);
+extern int rpmsg_set_resolution(uint32_t res_mode);
+extern int rpmsg_set_pixelformat(uint32_t res_format);
+extern int rpmsg_setup_callback(
+	void (*func)(uint32_t addr, uint32_t buf_num, void *ptr),
+	void *ptr);
 
 #endif /* SRC_M4_RPMSG_H_ */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2018 NXP
  *
@@ -50,12 +51,6 @@
 #define REG_MASK(e, s) (((1 << ((e) - (s) + 1)) - 1) << (s))
 #define REG_PUT(x, e, s) (((x) << (s)) & REG_MASK(e, s))
 #define REG_GET(x, e, s) (((x) & REG_MASK(e, s)) >> (s))
-
-extern int rpmsg_send_buffer(dma_addr_t eba);
-extern int rpmsg_drop_buffers(void);
-extern int rpmsg_set_resolution(uint32_t res_mode);
-extern int rpmsg_set_pixelformat(uint32_t res_format);
-extern int rpmsg_setup_callback(void (*func)(uint32_t addr, uint32_t buf_num, void *ptr), void *ptr);
 
 struct imx_rpmsg_input {
 	unsigned int index;
@@ -168,13 +163,6 @@ static const struct imx_rpmsg_fmt *rpmsg_fmt_by_pix_fmt(u32 pixelformat)
 
 	return NULL;
 }
-
-#if 0
-static struct imx_rpmsg_buffer *rpmsg_ibuf_to_buf(struct rpmsg_buf_internal *int_buf)
-{
-	return container_of(int_buf, struct imx_rpmsg_buffer, internal);
-}
-#endif
 
 static int imx_rpmsg_set_fmt(struct imx_rpmsg_device *rpmsg_dev)
 {
@@ -354,10 +342,22 @@ static int imx_rpmsg_vidioc_s_fmt_vid_cap(struct file *filp, void *fh,
 	struct v4l2_pix_format *v4l2_pix_fmt = &f->fmt.pix;
 	const struct imx_rpmsg_fmt *rpmsg_fmt;
 
-	dev_info(rpmsg_dev->dev, "%s width %d  height %d\n", __func__, f->fmt.pix.width, f->fmt.pix.height);
-	dev_info(rpmsg_dev->dev, "%s pixformat %s\n", __func__, v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_YUYV?"YUYV":"Y16");
-	dev_info(rpmsg_dev->dev, "%s field %d  bytesperline: %d sizeimage: %d\n", __func__, f->fmt.pix.field, f->fmt.pix.bytesperline, f->fmt.pix.sizeimage);
-	
+	dev_info(rpmsg_dev->dev,
+		 "%s width %d  height %d\n",
+		 __func__,
+		 f->fmt.pix.width,
+		 f->fmt.pix.height);
+	dev_info(rpmsg_dev->dev,
+		 "%s pixformat %s\n",
+		 __func__,
+		 v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_YUYV?"YUYV":"Y16");
+	dev_info(rpmsg_dev->dev,
+		 "%s field %d  bytesperline: %d sizeimage: %d\n",
+		 __func__,
+		 f->fmt.pix.field,
+		 f->fmt.pix.bytesperline,
+		 f->fmt.pix.sizeimage);
+
 	ret = imx_rpmsg_vidioc_try_fmt_vid_cap(filp, rpmsg_dev, f);
 	if (ret < 0)
 		return ret;
@@ -373,34 +373,28 @@ static int imx_rpmsg_vidioc_s_fmt_vid_cap(struct file *filp, void *fh,
 	rpmsg_dev->v4l2_pix_fmt.field	= V4L2_FIELD_NONE;
 	rpmsg_dev->buf_type		= f->type;
 
-	if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_YUYV)
+	if (v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_YUYV)
 		rpmsg_set_pixelformat(ovRpmsg_format_YUYV);
-	else if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
+	else if (v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
 		rpmsg_set_pixelformat(ovRpmsg_format_Y16);
 
-	if(v4l2_pix_fmt->width == IR_RESOLUTION_FULL_WIDTH)
-	{
-		if(v4l2_pix_fmt->height == IR_RESOLUTION_FULL_HEIGHT)
+	if (v4l2_pix_fmt->width == IR_RESOLUTION_FULL_WIDTH) {
+		if (v4l2_pix_fmt->height == IR_RESOLUTION_FULL_HEIGHT)
 			rpmsg_set_resolution(ovRpmsg_mode_QQVGA_160_120);
-		else if (v4l2_pix_fmt->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT)
-		{
-			if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
+		else if (v4l2_pix_fmt->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT) {
+			if (v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
 				rpmsg_set_resolution(ovRpmsg_mode_QQVGA_160_122);
 			else
 				dev_err(rpmsg_dev->dev, "160x122 resolution only available in Y16 pixel format");
 		}
-	}
-	else if(v4l2_pix_fmt->width == IR_RESOLUTION_FULL_WIDTH_VOSPI)
-	{
-		if(v4l2_pix_fmt->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT)
-		{
-			if(v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
+	} else if (v4l2_pix_fmt->width == IR_RESOLUTION_FULL_WIDTH_VOSPI) {
+		if (v4l2_pix_fmt->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT) {
+			if (v4l2_pix_fmt->pixelformat == V4L2_PIX_FMT_Y16)
 				rpmsg_set_resolution(ovRpmsg_mode_QQVGA_164_122);
 			else
 				dev_err(rpmsg_dev->dev, "164x122 resolution (raw vospi) only available in Y16 pixel format");
 		}
-	}
-	else if(v4l2_pix_fmt->width == IR_RESOLUTION_REDUCED_WIDTH)
+	} else if (v4l2_pix_fmt->width == IR_RESOLUTION_REDUCED_WIDTH)
 		rpmsg_set_resolution(ovRpmsg_mode_QQVGA_128_96);
 
 	return 0;
@@ -514,7 +508,6 @@ static int imx_rpmsg_open(struct file *filp)
 
 	rpmsg_fh = kzalloc(sizeof(*rpmsg_fh), GFP_KERNEL);
 	if (!rpmsg_fh) {
-		dev_err(rpmsg_dev->dev, "Cannot allocate 'rpmsg_fh' struct\n");
 		mutex_unlock(&rpmsg_dev->lock);
 		return -ENOMEM;
 	}
@@ -668,7 +661,7 @@ static int imx_rpmsg_start_streaming(struct vb2_queue *q,
 
 	ret = imx_rpmsg_set_fmt(rpmsg_dev);
 	if (ret)
-        return ret;
+		return ret;
 
 	rpmsg_dev->streaming = true;
 
@@ -715,7 +708,7 @@ static void imx_rpmsg_buf_queue(struct vb2_buffer *vb)
 						struct imx_rpmsg_buffer,
 						vb);
 	unsigned long flags;
-    dma_addr_t dma_addr;
+	dma_addr_t dma_addr;
 
 	spin_lock_irqsave(&rpmsg_dev->slock, flags);
 
@@ -833,13 +826,17 @@ static void imx_rpmsg_subdev_unbind(struct v4l2_async_notifier *notifier,
 	dev_info(rpmsg_dev->dev, "subdev %s unbind\n", subdev->name);
 }
 
+static const struct v4l2_async_notifier_operations imx_rpmsg_async_ops = {
+	.bound = imx_rpmsg_subdev_bound,
+	.unbind = imx_rpmsg_subdev_unbind,
+};
+
 static int imx_rpmsg_async_subdevs_register(struct imx_rpmsg_device *rpmsg_dev)
 {
 	int ret;
 	unsigned int num_subdevs = 0;
 	struct fwnode_handle *endpoint = NULL;
 	struct fwnode_handle *np = dev_fwnode(rpmsg_dev->dev);
-	struct fwnode_handle *remote = NULL;
 	struct v4l2_async_notifier *notifier = &rpmsg_dev->notifier;
 	struct v4l2_async_subdev *asd;
 
@@ -848,33 +845,22 @@ static int imx_rpmsg_async_subdevs_register(struct imx_rpmsg_device *rpmsg_dev)
 		if (!endpoint)
 			break;
 
-		remote = fwnode_graph_get_remote_port_parent(endpoint);
+		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
+			notifier, endpoint, sizeof(struct v4l2_subdev));
+		fwnode_handle_put(endpoint);
 
-		fwnode_handle_put(remote);
-		if (!remote)
-			continue;
-
-		asd = &rpmsg_dev->subdevs[num_subdevs];
-		asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		asd->match.fwnode.fwnode = remote;
-		rpmsg_dev->async_subdevs[num_subdevs] = asd;
+		if (IS_ERR(asd))
+			return PTR_ERR(asd);
 
 		num_subdevs++;
 	}
-
-	if (unlikely(endpoint))
-		fwnode_handle_put(endpoint);
 
 	if (!num_subdevs) {
 		dev_err(rpmsg_dev->dev, "no subdev found for rpmsg\n");
 		return -ENODEV;
 	}
 
-	notifier->subdevs = rpmsg_dev->async_subdevs;
-	notifier->num_subdevs = num_subdevs;
-	notifier->bound  = imx_rpmsg_subdev_bound;
-	notifier->unbind = imx_rpmsg_subdev_unbind;
-
+	notifier->ops = &imx_rpmsg_async_ops;
 	ret = v4l2_async_notifier_register(&rpmsg_dev->v4l2_dev, notifier);
 	if (ret) {
 		dev_err(rpmsg_dev->dev, "register async notifier failed\n");
@@ -891,10 +877,8 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 	struct vb2_queue *vb2q;
 
 	rpmsg_dev = devm_kzalloc(&pdev->dev, sizeof(*rpmsg_dev), GFP_KERNEL);
-	if (!rpmsg_dev) {
-		dev_err(&pdev->dev, "Can't allocate 'rpmsg_dev' struct\n");
+	if (!rpmsg_dev)
 		return -ENOMEM;
-	}
 
 	rpmsg_dev->dev = &pdev->dev;
 
@@ -924,7 +908,7 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 	 *	'gfp_flags';
 	 *	'min_buffers_needed';
 	 *	'alloc_devs'
-	 */ 
+	 */
 	ret = vb2_queue_init(vb2q);
 	if (ret)
 		goto unregister_v4l2_dev;
@@ -951,15 +935,16 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 
 	video_set_drvdata(rpmsg_dev->vdev, rpmsg_dev);
 
-	ret = video_register_device(rpmsg_dev->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(rpmsg_dev->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret)
 		goto release_video_device;
 
 	/* Register async subdevs */
+	v4l2_async_notifier_init(&rpmsg_dev->notifier);
 	ret = imx_rpmsg_async_subdevs_register(rpmsg_dev);
 	if (ret) {
 		dev_err(rpmsg_dev->dev, "register async subdevs failed\n");
-		goto release_video_device;
+		goto notifier_cleanup;
 	}
 
 	/* Seems necessary to set up some default parameters */
@@ -986,6 +971,8 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 
 	return 0;
 
+notifier_cleanup:
+	v4l2_async_notifier_cleanup(&rpmsg_dev->notifier);
 release_video_device:
 	video_device_release(rpmsg_dev->vdev);
 unregister_v4l2_dev:
@@ -999,13 +986,15 @@ static int imx_rpmsg_remove(struct platform_device *pdev)
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
 	struct imx_rpmsg_device *rpmsg_dev = v4l2_dev_to_rpmsg_dev(v4l2_dev);
 
+	v4l2_async_notifier_unregister(&rpmsg_dev->notifier);
+	v4l2_async_notifier_cleanup(&rpmsg_dev->notifier);
 	video_device_release(rpmsg_dev->vdev);
 	v4l2_device_unregister(&rpmsg_dev->v4l2_dev);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP 
+#ifdef CONFIG_PM_SLEEP
 static int imx_rpmsg_suspend(struct device *dev)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
