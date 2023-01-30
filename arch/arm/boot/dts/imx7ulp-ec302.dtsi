@@ -184,6 +184,70 @@
 		};
 	};
 
+	spi3 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "spi-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_spi3>;
+		status = "okay";
+		gpio-sck = <&gpio_ptc 18 0>;
+		gpio-mosi = <&gpio_ptc 16 0>;
+		gpio-miso = <&gpio_ptc 17 0>;
+		num-chipselects = <3>;
+		cs-gpios = <&gpio_ptc 19 GPIO_ACTIVE_LOW>,
+			<&gpio_ptc 12 GPIO_ACTIVE_LOW>,
+			<&gpio_ptc 13 GPIO_ACTIVE_LOW>;
+
+		mapcomm_gpio: okeanos@0 {
+			reg = <0>;
+			compatible = "flir,okeanos";
+			status = "okay";
+			// pinctrl-names = "default";
+			// pinctrl-0 = <&okeanos_interrupt>;
+			spi-max-frequency = <2000000>;
+			interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gpio_ptc>;
+			interrupt-name = "okeanos";
+		};
+
+		/* Layer-0 calib flash */
+		calibflash@cs1 {
+			compatible = "micron,n25q256ax1", "jedec,spi-nor";
+			spi-max-frequency = <20000000>;
+			reg = <1>;
+			status = "okay";
+		};
+
+		/* Bootrom on REMI */
+		bootromflash@cs2 {
+			compatible = "winbond,w25q64", "jedec,spi-nor";
+			spi-max-frequency = <20000000>;
+			reg = <2>;
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "fpga";
+				reg = <0x0 0x0>;
+				//reg = <0x0 0x670000>;
+			};
+			partition@670000 {
+				label = "littlefs";
+				reg = <0x670000 0x17c000>;
+			};
+			partition@7ef000 {
+				label = "eeprom";
+				reg = <0x7ef000 0x1000>;
+			};
+			partition@7f0000 {
+				label = "fpgaheader";
+				reg = <0x7f0000 0x10000>;
+			};
+		};
+	};
+
 	rtc_rpmsg: rtc-rpmsg {
 		compatible = "fsl,imx-rpmsg-rtc";
 	};
@@ -230,6 +294,45 @@
 			IMX7ULP_PAD_PTC13__PTC13  0x10003
 			>;
 		};
+
+	pinctrl_lpspi3: lpspi3grp {
+		fsl,pins = <
+			IMX7ULP_PAD_PTC11__PTC11		0x3 /* SPI_IRQ_0 */
+			IMX7ULP_PAD_PTC12__LPSPI3_PCS1	0x0 /* SPI_CS_1 */
+			IMX7ULP_PAD_PTC13__LPSPI3_PCS2	0x0 /* SPI_CS_2 */
+			IMX7ULP_PAD_PTC14__PTC14		0x3 /* SPI_IRQ_1 */
+			IMX7ULP_PAD_PTC16__LPSPI3_SIN	0x0 /* SPI_MISO */
+			IMX7ULP_PAD_PTC17__LPSPI3_SOUT	0x0 /* SPI_MOSI */
+			IMX7ULP_PAD_PTC18__LPSPI3_SCK	0x0 /* SPI_SCK */
+			IMX7ULP_PAD_PTC19__LPSPI3_PCS0	0x0 /* SPI_CS_0 */
+			>;
+	};
+
+	pinctrl_lpspi3_idle: lpspi3grp_idle {
+		fsl,pins = <
+			IMX7ULP_PAD_PTC11__PTC11	0x3
+			IMX7ULP_PAD_PTC12__PTC12	0x3
+			IMX7ULP_PAD_PTC13__PTC13	0x3
+			IMX7ULP_PAD_PTC14__PTC14	0x3
+			IMX7ULP_PAD_PTC16__PTC16	0x3
+			IMX7ULP_PAD_PTC17__PTC17	0x3
+			IMX7ULP_PAD_PTC18__PTC18	0x3
+			IMX7ULP_PAD_PTC19__PTC19	0x3
+			>;
+	};
+
+	pinctrl_spi3: spi3 {
+		fsl,pins = <
+			IMX7ULP_PAD_PTC11__PTC11	0x3
+			IMX7ULP_PAD_PTC12__PTC12	0x3
+			IMX7ULP_PAD_PTC13__PTC13	0x3
+			IMX7ULP_PAD_PTC14__PTC14	0x3
+			IMX7ULP_PAD_PTC16__PTC16	0x3
+			IMX7ULP_PAD_PTC17__PTC17	0x3
+			IMX7ULP_PAD_PTC18__PTC18	0x3
+			IMX7ULP_PAD_PTC19__PTC19	0x3
+			>;
+	};
 
 	pinctrl_lpi2c5: lpi2c5grp {
 		fsl,pins = <
@@ -501,6 +604,44 @@
 		kernel-maximum-soc = <100>;
 		alert-low-rsoc = <0x0>;
 		alert-low-voltage = <0x0>;
+	};
+};
+
+&lpspi2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_lpspi3>;
+	pinctrl-1 = <&pinctrl_lpspi3_idle>;
+	/* lpspi driver has a bug where chip select is released between addressing
+		and reading from spi, this does not work with the flash devices we use .
+		Work around right now is the use spi over gpio instead (spi4) */
+	//status = "okay";
+
+	fsl,spi-num-chipselects = <3>;
+	cs-gpios = <&gpio_ptc 19 GPIO_ACTIVE_LOW>,
+			<&gpio_ptc 12 GPIO_ACTIVE_LOW>,
+			<&gpio_ptc 13 GPIO_ACTIVE_LOW>;
+
+	mapcomm: spidev@0 {
+		reg = <0>;
+		/* just use a device available in spidev.c to get rid of warning in kernel log */
+		compatible = "rohm,dh2228fv";
+		spi-max-frequency = <20000000>;
+	};
+
+	/* Detector flash */
+	detector_flash: m25p80@1 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <20000000>;
+		reg = <1>;
+	};
+
+	/* FPGA Boot flash */
+	fpga_flash: m25p80@2 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <20000000>;
+		reg = <2>;
 	};
 };
 
