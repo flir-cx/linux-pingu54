@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  */
@@ -13,9 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
 
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 /* This file is based on rpmsg_v2.c */
@@ -69,10 +67,10 @@ enum rxtypes {
 	DROP_BUFFERS = 100,
 };
 
-typedef struct {
+struct csi_msg {
 	uint32_t type;
 	uint32_t addr;
-} csi_msg_t;
+};
 
 struct ovRpmsg {
 	struct v4l2_subdev		subdev;
@@ -109,7 +107,8 @@ static const struct ovRpmsg_datafmt
 }
 
 /* change to or back to subsampling mode set the mode directly
- * image size below 1280 * 960 is subsampling mode */
+ * image size below 1280 * 960 is subsampling mode
+ */
 static int rpmsg_change_mode_direct(enum ovRpmsg_frame_rate frame_rate,
 			    enum ovRpmsg_mode mode)
 {
@@ -119,7 +118,11 @@ static int rpmsg_change_mode_direct(enum ovRpmsg_frame_rate frame_rate,
 	pr_info("%s: mode = %d, frame_rate = %d bp2\n", __func__, mode, frame_rate);
 
 
-	if ((mode != ovRpmsg_mode_QQVGA_128_96 && mode != ovRpmsg_mode_QQVGA_160_120 ) || frame_rate != ovRpmsg_9_fps) {
+	if (
+		(mode != ovRpmsg_mode_QQVGA_128_96 && mode != ovRpmsg_mode_QQVGA_160_120)
+		||
+		frame_rate != ovRpmsg_9_fps
+		) {
 		return -EINVAL;
 	}
 
@@ -137,7 +140,8 @@ static int rpmsg_change_mode(enum ovRpmsg_frame_rate frame_rate,
 	}
 
 	/* change back to subsampling modem download firmware directly
-	 * image size below 1280 * 960 is subsampling mode */
+	 * image size below 1280 * 960 is subsampling mode
+	 */
 	retval = rpmsg_change_mode_direct(frame_rate, mode);
 
 	return retval;
@@ -248,8 +252,8 @@ static int rpmsg_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
 	case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
-		pr_debug("   type is not " \
-			"V4L2_BUF_TYPE_VIDEO_CAPTURE but %d\n",
+		pr_debug(
+			"   type is not V4L2_BUF_TYPE_VIDEO_CAPTURE but %d\n",
 			a->type);
 		ret = -EINVAL;
 		break;
@@ -357,15 +361,21 @@ static int rpmsg_enum_frameintervals(struct v4l2_subdev *sd,
 
 	if (fie->width == 0 || fie->height == 0 ||
 	    fie->code == 0) {
-		pr_warning("Please assign pixel format, width and height.\n");
+		pr_warn("Please assign pixel format, width and height.\n");
 		return -EINVAL;
 	}
 
 	fie->interval.numerator = 1;
 
-	if ((fie->width == IR_RESOLUTION_REDUCED_WIDTH && fie->height == IR_RESOLUTION_REDUCED_HEIGHT) || 
-		(fie->width == IR_RESOLUTION_FULL_WIDTH && (fie->height == IR_RESOLUTION_FULL_HEIGHT || fie->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT)) ||
-		(fie->width == IR_RESOLUTION_FULL_WIDTH_VOSPI && fie->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT)) {
+	if ((fie->width == IR_RESOLUTION_REDUCED_WIDTH &&
+	     fie->height == IR_RESOLUTION_REDUCED_HEIGHT) ||
+	    (fie->width == IR_RESOLUTION_FULL_WIDTH &&
+	     (fie->height == IR_RESOLUTION_FULL_HEIGHT ||
+	      fie->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT
+		     )) ||
+	    (fie->width == IR_RESOLUTION_FULL_WIDTH_VOSPI &&
+	     fie->height == IR_RESOLUTION_FULL_TELEMETRY_HEIGHT)
+		) {
 		fie->interval.denominator = 9;
 		return 0;
 	}
@@ -400,7 +410,7 @@ static struct v4l2_subdev_ops ovRpsg_subdev_ops = {
 int rpmsg_send_buffer(dma_addr_t eba)
 {
 	int err = 0;
-	csi_msg_t msg;
+	struct csi_msg msg;
 	static int buffer_num;
 
 	msg.type = RX_BUF_0 + buffer_num;
@@ -423,7 +433,8 @@ EXPORT_SYMBOL(rpmsg_send_buffer);
 int rpmsg_drop_buffers(void)
 {
 	int err = 0;
-	csi_msg_t msg;
+	struct csi_msg msg;
+
 	msg.type = DROP_BUFFERS;
 	msg.addr = 0;
 
@@ -442,10 +453,11 @@ EXPORT_SYMBOL(rpmsg_drop_buffers);
 int rpmsg_set_resolution(uint32_t res_mode)
 {
 	int err = 0;
-	csi_msg_t msg;
+	struct csi_msg msg;
+
 	msg.type = SET_RESOLUTION;
 
-	if(res_mode > ovRpmsg_mode_MAX)
+	if (res_mode > ovRpmsg_mode_MAX)
 		return -1;
 
 	msg.addr = res_mode;
@@ -466,7 +478,8 @@ EXPORT_SYMBOL(rpmsg_set_resolution);
 int rpmsg_set_pixelformat(uint32_t res_format)
 {
 	int err = 0;
-	csi_msg_t msg;
+	struct csi_msg msg;
+
 	msg.type = SET_PIXELFORMAT;
 
 	msg.addr = res_format;
@@ -487,19 +500,17 @@ EXPORT_SYMBOL(rpmsg_set_pixelformat);
 static int rpmsg_lepton_callback(struct rpmsg_device *dev, void *data, int len,
 		void *priv, u32 src)
 {
-	csi_msg_t *msg = (csi_msg_t *)data;
-//	print_hex_dump(KERN_INFO, "incoming message:", DUMP_PREFIX_NONE, 16, 1, data, len, true);
+	struct csi_msg *msg = (struct csi_msg *)data;
 
-//	pr_info("Got %X %d\n", msg->addr, msg->buf_num);
-
-	if (ovRpmsg_data.callback) {
+	if (ovRpmsg_data.callback)
 		ovRpmsg_data.callback(msg->addr, msg->type, ovRpmsg_data.callback_dev);
-	}
 
 	return 0;
 }
 
-int rpmsg_setup_callback(void (*func)(uint32_t addr, uint32_t buf_num, void *ptr), void *callback_dev)
+int rpmsg_setup_callback(
+	void (*func)(uint32_t addr, uint32_t buf_num, void *ptr),
+	void *callback_dev)
 {
 	ovRpmsg_data.callback = func;
 	ovRpmsg_data.callback_dev = callback_dev;
