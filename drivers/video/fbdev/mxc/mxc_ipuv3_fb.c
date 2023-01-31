@@ -132,9 +132,7 @@ struct mxcfb_info {
 	uint32_t cur_fb_pfmt;
 	bool cur_prefetch;
 
-	unsigned long copy_paddr[MAX_FB_NO];
-	bool do_copy[MAX_FB_NO];
-	struct ipu_crop copy_crop[MAX_FB_NO];
+	bool do_clone[MAX_FB_NO];
 
 	spinlock_t spin_lock;	/* for PRE small yres cases */
 	struct ipu_pre_context *pre_config;
@@ -1837,94 +1835,51 @@ static int mxcfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 }
 
 /*
- * Function to copy/scale GUI to another frame buffer
+ * Function to copy/scale to another frame buffer
  */
-static void do_copy_gui (struct fb_info *info, unsigned long base, int fb)
+static void clone_fb(struct fb_info *info, unsigned long src_paddr, int fb)
 {
-	struct mxcfb_info *mxc_fbi = (struct mxcfb_info *)info->par;
 	struct ipu_task task;
-	struct mxcfb_info * mxc_dest_fbi = NULL;
-	struct fb_info * dest_fbi = NULL;
-	char name[16];
-	int i;
+	struct mxcfb_info *mxc_dest_fbi = NULL;
+	struct fb_info *dest_fbi = NULL;
 	int ret;
+	int page_index;
 
 	memset(&task, 0, sizeof(task));
 
-	if (fb > 3) {
-		/* VPU output (RTP or AVI) */
-		strcpy (name, "DISP3 XX");
-		task.output.format  = v4l2_fourcc('Y', 'U', 'Y', 'V');
-	} else {
-		/* HDMI output */
-		strcpy (name, "DISP4 BG");
-		task.output.format  = v4l2_fourcc('R', 'G', 'B', 'P');
-	}
+	// Get target framebuffer from index
+	dest_fbi = registered_fb[fb];
+	mxc_dest_fbi = (struct mxcfb_info *)(registered_fb[fb]->par);
 
-	// Source screen task (RGB copy)
-	task.input.width  = info->var.xres;
+	// Setup source info
+	task.input.width = info->var.xres;
 	task.input.height = info->var.yres;
-	task.input.format = v4l2_fourcc('B', 'G', 'R', '4');
-	task.input.paddr  = base;
+	task.input.format = fbi_to_pixfmt(info, true);
+	task.input.paddr = src_paddr; // This points to current page in buffer
 
-	// Find destination FB
-	mxc_dest_fbi = NULL;
-	for (i = 0; i < num_registered_fb; i++) {
-		if (strcmp(registered_fb[i]->fix.id, name) == 0) {
-			dest_fbi = registered_fb[i];
-			mxc_dest_fbi = (struct mxcfb_info *) (registered_fb[i]->par);
-			break;
-		}
-	}
-	if (!mxc_dest_fbi) {
-		pr_err("Dest not found\n");
-		return;
-	}
+	// Setup target info
+	task.output.width = mxc_dest_fbi->cur_var.xres;
+	task.output.height = mxc_dest_fbi->cur_var.yres;
+	task.output.paddr = dest_fbi->fix.smem_start; // This is the base
+	task.output.format = fbi_to_pixfmt(dest_fbi, false);
 
-	// Target screen task (RGB copy)
-	task.output.width   = mxc_dest_fbi->cur_var.xres;
-	task.output.height  = mxc_dest_fbi->cur_var.yres;
-	task.output.paddr = mxc_fbi->copy_paddr[fb];
-	if (mxc_dest_fbi->cur_var.yoffset)
-		mxc_dest_fbi->cur_var.yoffset = 0;
-	else {
-		mxc_dest_fbi->cur_var.yoffset = mxc_dest_fbi->cur_var.yres;
-		task.output.paddr += mxc_dest_fbi->cur_var.yres * mxc_dest_fbi->cur_var.xres * 2;
-	}
-	if (mxc_fbi->copy_crop[fb].w) {
-		memcpy(&task.output.crop, &mxc_fbi->copy_crop[fb], sizeof(task.output.crop));
-		task.input.crop.w = (task.output.crop.w * task.input.height) / task.output.height;
-		task.input.crop.h = (task.output.crop.h * task.input.height) / task.output.height;
-		task.input.crop.pos.x = (task.output.crop.pos.x * task.input.height) / task.output.height;
-		task.input.crop.pos.y = (task.output.crop.pos.y * task.input.height) / task.output.height;
-		pr_debug("CROP: %d %d %d %d\n", task.input.crop.w, task.input.crop.h,
-				task.input.crop.pos.x, task.input.crop.pos.y);
+	// Check if we can use page flipping if target & destination use multibuffering
+	// check if page numbers match
+	if ((mxc_dest_fbi->cur_var.yres_virtual / mxc_dest_fbi->cur_var.yres) ==
+	    (info->var.yres_virtual / info->var.yres)) {
+		page_index = (info->var.yoffset / info->var.yres);
+		mxc_dest_fbi->cur_var.yoffset =
+			mxc_dest_fbi->cur_var.yres * ((page_index));
+		task.output.paddr += mxc_dest_fbi->cur_var.yres *
+				     dest_fbi->fix.line_length * page_index;
 	}
 
-	pr_debug("Copy %d %d %s %dx%d %X\n", fb, i, registered_fb[i]->fix.id,
-			mxc_dest_fbi->cur_var.xres, mxc_dest_fbi->cur_var.yres,
-			task.output.paddr);
-
-	// Perform the scaling of RGB
+	// Queue the scaling. This could be done on a different ipu via ioctl call to offload.
 	ret = ipu_queue_task(&task);
 	if (ret)
 		printk(KERN_ERR "queue ipu task error\n");
 
-	// Source screen task (Alpha copy)
-	task.input.format   = v4l2_fourcc('A', 'B', 'G', 'R');
-
-	// Target screen task (2)
-	task.output.format  = v4l2_fourcc('A', 'X', 'X', 'X');
-	task.output.paddr = mxc_dest_fbi->cur_ipu_alpha_buf ?
-			mxc_dest_fbi->alpha_phy_addr1 :
-			mxc_dest_fbi->alpha_phy_addr0 ;
-
-	// Perform the scaling of alpha
-	ret = ipu_queue_task(&task);
-	if (ret)
-		printk(KERN_ERR "queue ipu task error\n");
-
-	// Show new image
+	// This pans the destination fb
 	lock_fb_info(dest_fbi);
 	ret = fb_pan_display(dest_fbi, &mxc_dest_fbi->cur_var);
 	unlock_fb_info(dest_fbi);
@@ -2101,16 +2056,7 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			}
 			break;
 		}
-	case MXCFB_GET_LOC_ALP_BUF:
-		{
-			uint32_t buf;
-			buf = mxc_fbi->cur_ipu_alpha_buf ?
-					mxc_fbi->alpha_phy_addr0 :
-					mxc_fbi->alpha_phy_addr1;
-			if (put_user(buf, argp))
-				return -EFAULT;
-			break;
-		}
+
 	case MXCFB_SET_CLR_KEY:
 		{
 			struct mxcfb_color_key key;
@@ -2454,85 +2400,6 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			mxcfb_blank(FB_BLANK_NORMAL, fbi);
 			retval = swap_disp_panel(fbi,panel);
 			mxcfb_blank(FB_BLANK_UNBLANK, fbi);
-			break;
-		}
-	case MXCFB_SET_OVL_COPY:
-		{
-			if (mxc_fbi->ipu_ch != MEM_BG_SYNC) {
-				dev_err(fbi->device, "Should use the overlay FB\n");
-				retval = -EINVAL;
-				break;
-			}
-
-			if (!arg)
-				retval = -EINVAL;
-			else {
-				struct mxcfb_ovl_copy indata;
-				if (copy_from_user(&indata, (void *) arg, sizeof(indata))) {
-					pr_err("Failed to copy indata\n");
-					retval = -EFAULT;
-					break;
-				}
-				if (indata.fbnum >= MAX_FB_NO) {
-					pr_err("Erroneous fb %d\n", indata.fbnum);
-					retval = -EINVAL;
-					break;
-				}
-				if (indata.paddr) {
-					unsigned long base;
-					mxc_fbi->copy_paddr[indata.fbnum] = indata.paddr;
-					mxc_fbi->do_copy[indata.fbnum] = true;
-					memset(&mxc_fbi->copy_crop[indata.fbnum], 0, sizeof(struct ipu_crop));
-
-					base = fbi->fix.smem_start;
-					base += fbi->var.yoffset * fbi->fix.line_length;
-
-					do_copy_gui (fbi, base, indata.fbnum);
-				} else
-					mxc_fbi->do_copy[indata.fbnum] = false;
-				retval = 0;
-			}
-			break;
-		}
-	    case MXCFB_SET_OVL_COPY_EX:
-		{
-			if (mxc_fbi->ipu_ch != MEM_BG_SYNC) {
-				dev_err(fbi->device, "Should use the overlay FB\n");
-				retval = -EINVAL;
-				break;
-			}
-
-			if (!arg)
-				retval = -EINVAL;
-			else {
-				struct mxcfb_ovl_copy_ex indata;
-				if (copy_from_user(&indata, (void *) arg, sizeof(indata))) {
-					pr_err("Failed to copy indata\n");
-					retval = -EFAULT;
-					break;
-				}
-				if (indata.fbnum >= MAX_FB_NO) {
-					pr_err("Erroneous fb %d\n", indata.fbnum);
-					retval = -EINVAL;
-					break;
-				}
-				if (indata.paddr) {
-					unsigned long base;
-					mxc_fbi->copy_paddr[indata.fbnum] = indata.paddr;
-					mxc_fbi->do_copy[indata.fbnum] = true;
-					mxc_fbi->copy_crop[indata.fbnum].w = indata.crop_width;
-					mxc_fbi->copy_crop[indata.fbnum].h = indata.crop_height;
-					mxc_fbi->copy_crop[indata.fbnum].pos.x = indata.crop_x;
-					mxc_fbi->copy_crop[indata.fbnum].pos.y = indata.crop_y;
-
-					base = fbi->fix.smem_start;
-					base += fbi->var.yoffset * fbi->fix.line_length;
-
-					do_copy_gui (fbi, base, indata.fbnum);
-				} else
-					mxc_fbi->do_copy[indata.fbnum] = false;
-				retval = 0;
-			}
 			break;
 		}
 	default:
@@ -2887,12 +2754,10 @@ next:
 		}
 	}
 
-	// Copy overlay graphics from IPU0 to IPU1
-	for (fb = 2; fb < MAX_FB_NO; fb++)
-	{
-		if ((mxc_fbi->do_copy[fb]) && (mxc_fbi->ipu_ch == MEM_BG_SYNC))
-		{
-			do_copy_gui(info, base, fb);
+	// Copy this framebuffer to another
+	for (fb = 2; fb < num_registered_fb; fb++) {
+		if (mxc_fbi->do_clone[fb]) {
+			clone_fb(info, base, fb);
 		}
 	}
 
@@ -3295,6 +3160,83 @@ static ssize_t disp_panel_store(struct device *dev,
 }
 
 static DEVICE_ATTR(disp_panel, S_IWUSR | S_IRUGO, disp_panel_show, disp_panel_store);
+
+
+/**
+ * Handle reads on
+ * /sys/devices/platform/fb@0/graphics/fb0/clone_to
+ * Displays clone status on all framebuffers
+ *
+ * @param dev device
+ * @param attr device attributes
+ * @param buf the resulting value as a string
+ * @return ssize_t number of bytes put in buf
+ */
+static ssize_t clone_to_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct mxcfb_info *mxc_fbi = (struct mxcfb_info *)fbi->par;
+	int fb;
+	for (fb = 2; fb < num_registered_fb; fb++) {
+		sprintf(buf + strlen(buf), "fb%d: %s \n", fb,
+			(mxc_fbi->do_clone[fb] ? "true" : "false"));
+	}
+	return strlen(buf);
+}
+
+/**
+ * Handles writes on
+ * /sys/devices/platform/fb@0/graphics/fb0/clone_to
+ * Usage example:
+ *  "on 2" -> enable cloning for fb2
+ *  "off 3" -> disable cloning for fb3
+ *
+ * @param dev device
+ * @param attr device attributes
+ * @param buf the input written to the file
+ * @param count number of bytes in buf
+ * @return ssize_t
+ */
+static ssize_t clone_to_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	char buf_cpy[10] = { 0 };
+	char *tmp_str, *setting_ptr;
+	unsigned long value_index;
+	bool value_setting;
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct mxcfb_info *mxc_fbi = (struct mxcfb_info *)fbi->par;
+
+	if (count >= sizeof(buf_cpy) || !count)
+		return -EINVAL;
+
+	memcpy(buf_cpy, buf, count + 1);
+	tmp_str = buf_cpy;
+
+	setting_ptr = strsep(&tmp_str, " ");
+
+	if (setting_ptr == NULL)
+		return -EINVAL;
+
+	if (kstrtobool(setting_ptr, &value_setting) < 0)
+		return -EINVAL;
+
+	if (tmp_str == NULL)
+		return -EINVAL;
+
+	if (kstrtoul(tmp_str, 0, &value_index) < 0)
+		return -EINVAL;
+
+	if (value_index >= num_registered_fb)
+		return -EINVAL;
+
+	mxc_fbi->do_clone[value_index] = value_setting;
+
+	return count;
+}
+
+static DEVICE_ATTR(clone_to, S_IWUSR | S_IRUGO, clone_to_show, clone_to_store);
 
 static int mxcfb_get_crtc(struct device *dev, struct mxcfb_info *mxcfbi,
 			  enum crtc crtc)
@@ -3954,10 +3896,14 @@ static int mxcfb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Error %d on creating file for disp "
 				    " device propety\n", ret);
 
-
 	ret = device_create_file(fbi->dev, &dev_attr_disp_panel);
 	if (ret)
 		dev_err(&pdev->dev, "Error %d on creating file for disp "
+				    " device propety\n", ret);
+
+	ret = device_create_file(fbi->dev, &dev_attr_clone_to);
+	if (ret)
+		dev_err(&pdev->dev, "Error %d on creating file for clone "
 				    " device propety\n", ret);
 
 	console_lock();
