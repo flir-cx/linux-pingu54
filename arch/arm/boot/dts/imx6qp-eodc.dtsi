@@ -39,7 +39,7 @@
 		compatible = "pwm-leds";
 		torch {
 			label = "torch";
-			pwms = <&pwm2 0 50000>; //50us=20KHz 
+			pwms = <&pwm2 0 500000>; //500us=2KHz 
 			max-brightness = <255>;
 		};
 	};
