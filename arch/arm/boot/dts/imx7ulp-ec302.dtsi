@@ -798,6 +798,10 @@
 		compatible = "fsl,imx7ulp-rpmsg";
 		memory-region = <&rpmsg_reserved>;
 		status = "disabled";
+		mbox-names = "tx", "rx", "rxdb";
+		mboxes = <&mu 0 1
+			  &mu 1 1
+			  &mu 3 1>;
 	};
 };
 
