@@ -233,8 +233,8 @@
 		pinctrl-0 = <&pinctrl_spi3>;
 		status = "okay";
 		gpio-sck = <&gpio_ptc 18 0>;
-		gpio-mosi = <&gpio_ptc 16 0>;
-		gpio-miso = <&gpio_ptc 17 0>;
+		gpio-mosi = <&gpio_ptc 17 0>;
+		gpio-miso = <&gpio_ptc 16 0>;
 		num-chipselects = <3>;
 		cs-gpios = <&gpio_ptc 19 GPIO_ACTIVE_LOW>,
 			<&gpio_ptc 12 GPIO_ACTIVE_LOW>,
