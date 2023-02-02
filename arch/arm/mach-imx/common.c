@@ -154,7 +154,7 @@ void mx6q_lpddr2_freq_change(u32 freq, void *ddr_settings) {}
 void wfe_smp_freq_change(u32 cpuid, u32 *ddr_freq_change_done) {}
 #endif
 
-#if !defined(CONFIG_SOC_IMX7D)
+#if !defined(CONFIG_SOC_IMX7D) && !defined(CONFIG_SOC_IMX7ULP)
 void imx7_smp_wfe(u32 cpuid, u32 ocram_base) {}
 void imx7d_ddr3_freq_change(u32 freq) {}
 #endif
