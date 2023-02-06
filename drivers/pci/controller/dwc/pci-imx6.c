@@ -2419,7 +2419,7 @@ static int imx6_pcie_resume(struct device *dev)
 		struct pci_bus *b = NULL;
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
 				IMX6Q_GPR1_PCIE_TEST_PD, 0);
-		msleep(30);
+		msleep(50);
 		imx6_pcie_pltfm_reinit(dev);
 		pci_lock_rescan_remove();
 		while ((b = pci_find_next_bus(b)) != NULL)
