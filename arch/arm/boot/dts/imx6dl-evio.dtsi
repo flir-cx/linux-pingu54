@@ -223,7 +223,7 @@
 		pinctrl_names = "default";
 		interrupt-parent = <&gpio7>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
-		reset-gpios = <&evio_pca9534_0x46 7 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&evio_pca9534_0x46 7 GPIO_ACTIVE_LOW>;
 		touchscreen-size-x = <640>;
 		touchscreen-size-y = <480>;
 	};
