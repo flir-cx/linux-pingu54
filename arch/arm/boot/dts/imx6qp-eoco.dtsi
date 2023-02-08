@@ -576,7 +576,7 @@
 	status = "okay";
 	touchscreen:tsc@70 {
 		status = "okay";
-		compatible = "cypress,cyttsp5";
+		compatible = "cypress,tt21000";
 		reg = <0x70>;
 		vdd-supply = <&DA9063_LDO11>;
 
