@@ -799,15 +799,22 @@ static int pf1550_charger_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id pf1550_charger_dt_match[] = {
+	{ .compatible = "fsl,pf1550-charger" },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, pf1550_charger_dt_match);
+
 static const struct platform_device_id pf1550_charger_id[] = {
 	{ "pf1550-charger", 0, },
-	{ }
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, pf1550_charger_id);
 
 static struct platform_driver pf1550_charger_driver = {
 	.driver = {
 		.name	= "pf1550-charger",
+		.of_match_table = pf1550_charger_dt_match,
 	},
 	.probe		= pf1550_charger_probe,
 	.remove		= pf1550_charger_remove,

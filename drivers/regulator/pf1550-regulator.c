@@ -284,6 +284,34 @@ static irqreturn_t pf1550_regulator_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int pf1550_read_otp(struct pf1550_dev *pf1550, unsigned int index,
+			   unsigned int *val)
+{
+	int ret = 0;
+
+	ret = regmap_write(pf1550->regmap, PF1550_PMIC_REG_KEY, 0x15);
+	if (ret)
+		goto read_err;
+	ret = regmap_write(pf1550->regmap, PF1550_CHARG_REG_CHGR_KEY2, 0x50);
+	if (ret)
+		goto read_err;
+	ret = regmap_write(pf1550->regmap, PF1550_TEST_REG_KEY3, 0xAB);
+	if (ret)
+		goto read_err;
+	ret = regmap_write(pf1550->regmap, PF1550_TEST_REG_FMRADDR, index);
+	if (ret)
+		goto read_err;
+	ret = regmap_read(pf1550->regmap, PF1550_TEST_REG_FMRDATA, val);
+	if (ret)
+		goto read_err;
+
+	return 0;
+
+read_err:
+	dev_err(pf1550->dev, "read otp reg %x found!\n", index);
+	return ret;
+}
+
 static int pf1550_regulator_probe(struct platform_device *pdev)
 {
 	struct pf1550_dev *iodev = dev_get_drvdata(pdev->dev.parent);
@@ -368,16 +396,22 @@ static int pf1550_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id pf1550_regulator_dt_match[] = {
+	{ .compatible = "fsl,pf1550-regulator" },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, pf1550_regulator_dt_match);
+
 static const struct platform_device_id pf1550_regulator_id[] = {
 	{"pf1550-regulator", PF1550},
-	{},
+	{ /* sentinel */ },
 };
-
 MODULE_DEVICE_TABLE(platform, pf1550_regulator_id);
 
 static struct platform_driver pf1550_regulator_driver = {
 	.driver = {
 		   .name = "pf1550-regulator",
+		   .of_match_table = pf1550_regulator_dt_match,
 		   },
 	.probe = pf1550_regulator_probe,
 	.id_table = pf1550_regulator_id,

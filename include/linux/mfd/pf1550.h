@@ -291,7 +291,4 @@ struct pf1550_dev {
 	int irq;
 };
 
-int pf1550_read_otp(struct pf1550_dev *pf1550, unsigned int index,
-			unsigned int *val);
-
 #endif /* __LINUX_MFD_PF1550_H */
