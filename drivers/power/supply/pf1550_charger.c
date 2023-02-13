@@ -27,6 +27,7 @@
 #define PF1550_DEFAULT_CONSTANT_VOLT	4200000
 #define PF1550_DEFAULT_MIN_SYSTEM_VOLT	3500000
 #define PF1550_DEFAULT_THERMAL_TEMP	75
+#define PF1550_DEFAULT_COINCELL_VOLT	0
 
 static const char *pf1550_charger_model		= "PF1550";
 static const char *pf1550_charger_manufacturer	= "Freescale";
@@ -45,6 +46,7 @@ struct pf1550_charger {
 	u32 constant_volt;
 	u32 min_system_volt;
 	u32 thermal_regulation_temp;
+	u32 coincell_volt;
 };
 
 static struct pf1550_irq_info pf1550_charger_irqs[] = {
@@ -350,6 +352,30 @@ static void pf1550_chg_thm_ok_toggle_charging(struct pf1550_charger *chg)
 		dev_err(chg->dev, "Update CHG_OPER error.\n");
 		return;
 	}
+}
+
+static int pf1550_chg_set_coincell_volt(struct pf1550_charger *chg,
+		unsigned int uvolt)
+{
+	unsigned int data;
+
+	if (uvolt == PF1550_DEFAULT_COINCELL_VOLT)
+		return 0; /* Disabled */
+	else if (uvolt >= 1800000 && uvolt <= 3300000)
+		data = (uvolt - 1800000) / 100000;
+	else {
+		dev_err(chg->dev, "Wrong value for coincell voltage\n");
+		return -EINVAL;
+	}
+
+	dev_dbg(chg->dev, "Coincell voltage: %u (0x%x)\n", uvolt,
+			data);
+
+	data |= PF1550_ENABLE_COINCELL_CHARGER;
+
+	return regmap_update_bits(chg->pf1550->regmap,
+			PF1550_PMIC_REG_COINCELL_CONTROL,
+			PF1550_COINCELL_CONTROL_MASK, data);
 }
 
 static void pf1550_chg_thm_isr(struct pf1550_charger *chg)
@@ -681,6 +707,11 @@ static int pf1550_reg_init(struct pf1550_charger *chg)
 	if (ret)
 		return ret;
 
+	ret = pf1550_chg_set_coincell_volt(chg,
+			chg->coincell_volt);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -704,6 +735,10 @@ static int pf1550_dt_init(struct device *dev, struct pf1550_charger *chg)
 	if (of_property_read_u32(np, "fsl,thermal-regulation",
 			&chg->thermal_regulation_temp))
 		chg->thermal_regulation_temp = PF1550_DEFAULT_THERMAL_TEMP;
+
+	if (of_property_read_u32(np, "coincell-microvolt",
+			&chg->coincell_volt))
+		chg->coincell_volt = PF1550_DEFAULT_COINCELL_VOLT;
 
 	return 0;
 }

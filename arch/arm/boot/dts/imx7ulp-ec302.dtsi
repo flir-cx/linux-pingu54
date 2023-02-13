@@ -581,6 +581,7 @@
 		charger {
 			compatible = "fsl,pf1550-charger";
 			fsl,min-system-microvolt = <4300000>;
+			coincell-microvolt = <3100000>;
 		};
 
 		regulators {
