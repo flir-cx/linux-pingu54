@@ -651,6 +651,7 @@
 		kernel-maximum-soc = <100>;
 		alert-low-rsoc = <0x0>;
 		alert-low-voltage = <0x0>;
+		appli-adjustment = <0x4040>;
 	};
 };
 
