@@ -87,7 +87,6 @@ static void da9063_poll_on(struct work_struct *work)
 						work.work);
 	const struct da906x_chip_config *config = onkey->config;
 	unsigned int val;
-	int fault_log = 0;
 	bool poll = true;
 	int error;
 
@@ -117,25 +116,6 @@ static void da9063_poll_on(struct work_struct *work)
 		input_sync(onkey->input);
 
 		poll = false;
-	}
-
-	/*
-	 * If the fault log KEY_RESET is detected, then clear it
-	 * and shut down the system.
-	 */
-	error = regmap_read(onkey->regmap,
-			    config->onkey_fault_log,
-			    &fault_log);
-	if (error) {
-		dev_warn(&onkey->input->dev,
-			 "Cannot read FAULT_LOG: %d\n", error);
-	} else if (fault_log & config->onkey_key_reset_mask) {
-		dev_dbg(&onkey->input->dev, "Sending SHUTDOWN to PMIC ...\n");
-		error = regmap_write(onkey->regmap, config->onkey_shutdown,
-				     config->onkey_shutdown_mask);
-		if (error)
-			dev_err(&onkey->input->dev,
-				"Cannot SHUTDOWN PMIC: %d\n", error);
 	}
 
 err_poll:
