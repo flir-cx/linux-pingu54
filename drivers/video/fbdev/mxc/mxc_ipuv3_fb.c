@@ -3238,6 +3238,77 @@ static ssize_t clone_to_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(clone_to, S_IWUSR | S_IRUGO, clone_to_show, clone_to_store);
 
+/**
+ * Handles writes on
+ * /sys/devices/platform/fb@0/graphics/fb0/overlay_swap
+ *
+ * @param dev device
+ * @param attr device attributes
+ * @param buf the input written to the file
+ * @param count number of bytes in buf
+ * @return ssize_t
+ */
+static ssize_t overlay_swap_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	bool val;
+	struct mxcfb_pos pos;
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct mxcfb_info *mxcfbi = (struct mxcfb_info *)info->par;
+
+	struct fb_info *fbi_fg;
+	struct fb_info *fbi_bg;
+	struct fb_info *fbi_dc;
+
+	if (kstrtobool(buf, &val) < 0)
+		return -EINVAL;
+
+	console_lock();
+
+	fbi_fg = found_registered_fb(MEM_FG_SYNC, mxcfbi->ipu_id);
+	fbi_bg = found_registered_fb(MEM_BG_SYNC, mxcfbi->ipu_id);
+	fbi_dc = found_registered_fb(MEM_DC_SYNC, mxcfbi->ipu_id);
+
+	if (fbi_fg == NULL || fbi_bg == NULL || fbi_dc == NULL) {
+		return -ENOENT;
+	}
+
+	// Stop all channels before swapping
+	mxcfb_blank(FB_BLANK_NORMAL, fbi_bg);
+	mxcfb_blank(FB_BLANK_NORMAL, fbi_fg);
+	mxcfb_blank(FB_BLANK_NORMAL, fbi_dc);
+
+	if (swap_channels(val ? fbi_bg : fbi_dc) < 0)
+		dev_err(dev, "Swap display channel failed.\n");
+
+	// Re-enable channels
+	mxcfb_blank(FB_BLANK_UNBLANK, fbi_bg);
+	mxcfb_blank(FB_BLANK_UNBLANK, fbi_fg);
+	mxcfb_blank(FB_BLANK_UNBLANK, fbi_dc);
+
+	// Check if we should offset the overlay a little to center it
+	// The fbi_dc is the new bg
+	if (fbi_dc->var.xres > fbi_fg->var.xres) {
+		pos.x = (fbi_dc->var.xres - fbi_fg->var.xres) / 2;
+		pos.y = 0;
+		dev_info(dev, "Set overlay to: %d x %d\n", pos.x, pos.y);
+	} else {
+		pos.x = 0;
+		pos.y = 0;
+	}
+
+	if (ipu_disp_set_window_pos(mxcfbi->ipu, MEM_FG_SYNC, pos.x, pos.y)) {
+		dev_err(dev, " IPU set window pos failed \n");
+	}
+
+	console_unlock();
+
+	return count;
+}
+
+static DEVICE_ATTR(overlay_swap, S_IWUSR | S_IRUGO, show_disp_chan, overlay_swap_store);
+
 static int mxcfb_get_crtc(struct device *dev, struct mxcfb_info *mxcfbi,
 			  enum crtc crtc)
 {
@@ -3904,6 +3975,11 @@ static int mxcfb_probe(struct platform_device *pdev)
 	ret = device_create_file(fbi->dev, &dev_attr_clone_to);
 	if (ret)
 		dev_err(&pdev->dev, "Error %d on creating file for clone "
+				    " device propety\n", ret);
+
+	ret = device_create_file(fbi->dev, &dev_attr_overlay_swap);
+	if (ret)
+		dev_err(&pdev->dev, "Error %d on creating file for overlay_swap "
 				    " device propety\n", ret);
 
 	console_lock();
