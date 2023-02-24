@@ -189,6 +189,11 @@
 #define FB_SYNC_OE_LOW_ACT		0x80000000
 #define FB_SYNC_CLK_LAT_FALL	0x40000000
 
+struct splash_info {
+	u32 addr;
+	u32 size;
+};
+
 enum mxsfb_devtype {
 	MXSFB_V3,
 	MXSFB_V4,
@@ -262,11 +267,7 @@ struct mxsfb_info {
 	int id;
 	struct fb_var_screeninfo var;
 	struct pm_qos_request pm_qos_req;
-	//framebuffer address to bootlogo filled in by u-boot
-	struct {
-		int addr;
-		int size;
-	}bootlogo;
+	struct splash_info bootlogo;
 	char disp_videomode[NAME_LEN];
 
 #ifdef CONFIG_FB_MXC_OVERLAY
@@ -823,6 +824,17 @@ static bool mxsfb_par_equal(struct fb_info *fbi, struct mxsfb_info *host)
 	return memcmp(&oldvar, &newvar, sizeof(struct fb_var_screeninfo)) == 0;
 }
 
+static void mxsfb_display_splash(struct fb_info *fbi, struct splash_info *splash)
+{
+	u8 *src  = (u8 *)phys_to_virt(splash->addr);
+	u8 *dest = (u8 *)fbi->screen_base;
+
+	if (!splash->addr)
+		return;
+
+	memcpy(dest, src, splash->size);
+}
+
 static int mxsfb_set_par(struct fb_info *fb_info)
 {
 	struct mxsfb_info *host = fb_info->par;
@@ -1353,9 +1365,10 @@ static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host)
 		goto put_display_node;
 	}
 
-	ret = of_property_read_u32_array(np,"bootlogo", (u32*) &host->bootlogo,2);
+	ret = of_property_read_u32_array(np, "bootlogo", (u32*) &host->bootlogo, 2);
 	if (ret < 0) {
-		memset((void*)&host->bootlogo,2,sizeof(int));
+		host->bootlogo.addr = 0;
+		host->bootlogo.size = 0;
 	}
 
 	ret = of_property_read_u32(display_np, "bits-per-pixel",
@@ -1473,14 +1486,9 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 	if (mxsfb_restore_mode(host))
 		memset((char *)fb_info->screen_base, 0, fb_info->fix.smem_len);
 
-	//reuse bootlogo drawn in bootloader
-	if(host->bootlogo.addr)
-	{
-		void*  bootlogo = phys_to_virt(host->bootlogo.addr);
-		if(bootlogo) {
-			memcpy((char *)fb_info->screen_base,bootlogo ,host->bootlogo.size);
-		}
-	}
+	/* Reuse bootlogo drawn in bootloader */
+	mxsfb_display_splash(fb_info, &host->bootlogo);
+
 	return 0;
 }
 
