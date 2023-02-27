@@ -400,6 +400,31 @@
 		};
 
 
+		/*
+		 * Regulator			"Pre Eowyn"		Eowyn
+		 * -------------------------------------------------------------
+		 * DA9063_BCORE1:bcore1	VCCARM	VCCARM
+		 * DA9063_BCORE2:bcore2	VCCSOC	VCCSOC
+		 * DA9063_BPRO:bpro		1V0_FPGA		1V0D_FPGA2 "Not used"
+		 * DA9063_BMEM:bmem		1V1D_FPGA2		1V1D_FPGA
+		 * DA9063_BIO:bio		1V8D			+1V8D
+		 * DA9063_BPERI:bperi		1V2D			+1V2D
+		 * DA9063_LDO1			*Not defined*		"Not used"
+		 * DA9063_LDO2:ldo2		1V2D_FPGA2              "Not used"
+		 * DA9063_LDO3:ldo3		1V8D_FPGA2              "Not used"
+		 * DA9063_LDO4:ldo4		SD1_VCC			SD1_VCC
+		 * DA9063_LDO5:ldo5		*Not defined*		*3V15_PMIC_LCD
+		 * reg_eoco_3v3a_enable:ldo6	2V5D_FPGA2		*3V3A_EN
+		 * DA9063_LDO7:ldo7		3V15D_SD		3V15D_SDcard
+		 * DA9063_LDO8:ldo8		3V15D_FPGA		3V15D_FPGA
+		 * DA9063_LDO9:ldo9		VCCSNVS			VCCSNVS
+		 * DA9063_LDO10:ldo10		2V5D_FPGA		2V5D_FPGA_ENABLE
+		 * DA9063_LDO11:ldo11		3V15D			+3V15D
+		 * DA9063_CORE_SW:core-sw	1V8D_FPGA		??
+		 * DA9063_PERI_SW:peri-sw	1V2D_FPGA		+1V2D_FPGA
+		 * DA9063_32K_OUT:out_32k	CLK32k768
+		 */
+
 		/* For DA9063 revision AD */
 		regulators {
 			compatible = "dlg,da9063-regulators";
@@ -409,7 +434,6 @@
 			interrupts-names = "LDO_LIM";
 			interrupt-parent = <&da9063>;
 
-			/* VCCARM */
 			DA9063_BCORE1:bcore1  {
 				regulator-name = "DA9063_BCORE1";
 				regulator-boot-on;
@@ -428,7 +452,6 @@
 				};
 			};
 
-			/* VCCSOC */
 			DA9063_BCORE2:bcore2  {
 				regulator-name = "DA9063_BCORE2";
 				regulator-boot-on;
@@ -446,7 +469,6 @@
 				};
 			};
 
-			/* 1V0_FPGA */
 			DA9063_BPRO:bpro  {
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BPRO";
@@ -457,7 +479,6 @@
 				};
 			};
 
-			/* 1V1D_FPGA2 */
 			DA9063_BMEM:bmem  {
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "1V1D_FPGA";
@@ -469,7 +490,6 @@
 				};
 			};
 
-			/* 1V8D */
 			DA9063_BIO:bio  {
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BIO";
@@ -481,7 +501,6 @@
 				};
 			};
 
-			/* 1V2D */
 			DA9063_BPERI:bperi  {
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BPERI";
@@ -493,72 +512,62 @@
 				};
 			};
 
-			/* 1V2D_FPGA2 */
 			DA9063_LDO2:ldo2  {
 				regulator-name = "DA9063_LDO2";
 			};
 
-			/* 1V8D_FPGA2 */
 			DA9063_LDO3:ldo3  {
 				regulator-name = "DA9063_LDO3";
 			};
 
-			/* SD1_VCC */
 			DA9063_LDO4:ldo4  {
 				regulator-name = "DA9063_LDO4";
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <3440000>;
 			};
 
-			/* 2V5D_FPGA2 */
-			DA9063_LDO6:ldo6  {
-				regulator-name = "DA9063_LDO6";
+			reg_eoco_3v3a_enable:ldo6  {
+				regulator-name = "EOCO 3V3A Enable";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 			};
 
-			/* 3V15D_SD */
 			DA9063_LDO7:ldo7  {
 				regulator-name = "DA9063_LDO7";
 			};
 
-			/* 3V15D_FPGA */
 			DA9063_LDO8:ldo8  {
 				regulator-name = "DA9063_LDO8";
 				regulator-boot-on;
 			};
 
-			/* VCCSNVS */
 			DA9063_LDO9:ldo9  {
 				regulator-name = "DA9063_LDO9";
 				regulator-boot-on;
 				regulator-always-on;
 			};
 
-			/* 2V5D_FPGA */
 			DA9063_LDO10:ldo10  {
 				regulator-name = "DA9063_LDO10";
 				regulator-boot-on;
 			};
 
-			/* 3V15D */
 			DA9063_LDO11:ldo11  {
 				regulator-name = "DA9063_LDO11";
 				regulator-boot-on;
 				regulator-always-on;
 			};
 
-			/* 1V8D_FPGA */
 			DA9063_CORE_SW:core-sw  {
 				regulator-name = "DA9063_CORE_SW";
 				regulator-boot-on;
 			};
 
-			/* 1V2D_FPGA */
 			DA9063_PERI_SW:peri-sw  {
 				regulator-name = "DA9063_PERI_SW";
 				regulator-boot-on;
 			};
 
-			/* CLK32k768 */
 			DA9063_32K_OUT:out_32k  {
 				regulator-name = "DA9063_32K_OUT";
 			};
