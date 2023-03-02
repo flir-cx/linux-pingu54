@@ -27,6 +27,8 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/delay.h>
+#include <linux/regulator/of_regulator.h>
+#include <linux/regulator/consumer.h>
 
 struct flir_ema100080_i2c_cmd {
 	u8 reg;
@@ -48,8 +50,7 @@ struct flir_ema100080_data {
 	/* GPIO for enabling psave on dac */
 	struct gpio_desc *fvm_psave_gpiod;
 
-	/* GPIO for disabling power to module */
-	struct gpio_desc *fvm_pwr_en_gpiod;
+	struct regulator *supply;
 
 	/* ioctl */
 	struct miscdevice miscdev;
@@ -190,6 +191,18 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 	vf->dev = &client->dev;
 	vf->client = client;
 	i2c_set_clientdata(client, vf);
+
+	vf->supply = devm_regulator_get(dev, "vin");
+	if (IS_ERR(vf->supply)) {
+		ret = PTR_ERR(vf->supply);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "can't get regulator vin-supply (%i)", ret);
+		else
+			dev_err(dev, "Deferred probe");
+		dev_err(dev, "Got error %i\n", ret);
+		vf->supply = NULL;
+		return ret;
+	}
 
 	ret = misc_register(&vf->miscdev);
 	if (ret) {
@@ -399,12 +412,6 @@ static int flir_ema100080_read_dt_driver_data(struct device *dev, struct flir_em
 		ret = PTR_ERR(vf->fvm_psave_gpiod);
 	}
 
-	vf->fvm_pwr_en_gpiod = devm_gpiod_get(dev, "eoco-fvm-pwr-en", GPIOD_ASIS);
-	if (IS_ERR(vf->fvm_pwr_en_gpiod)) {
-		dev_err(dev, "unable to get eoco-fvm-pwr-en gpio from dt\n");
-		ret = PTR_ERR(vf->fvm_pwr_en_gpiod);
-	}
-
 	ret = flir_ema100080_read_dt_i2c_cmds(dev, vf->i2c_config_cmds);
 	if (ret < 0) {
 		dev_err(dev, "unable to get i2c-bus\n");
@@ -464,12 +471,7 @@ static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf)
 		}
 	}
 
-	dev_dbg(vf->dev, "Set pwr en high\n");
-	ret = gpiod_direction_output(vf->fvm_pwr_en_gpiod, 1);
-	if (ret) {
-		dev_err(vf->dev, "Could not set pwr en gpio (%d)\n", ret);
-		return ret;
-	}
+	ret = regulator_enable(vf->supply);
 
 	// Need to wait for chip to power up
 	mdelay(100);
@@ -511,13 +513,6 @@ static int flir_ema100080_set_pwr_off(struct flir_ema100080_data *vf)
 			dev_err(vf->dev, "Could not set psave gpio to input\n");
 			return -EFAULT;
 		}
-	}
-
-	dev_dbg(vf->dev, "Set pwr en to low\n");
-	ret = gpiod_direction_output(vf->fvm_pwr_en_gpiod, 0);
-	if (ret) {
-		dev_err(vf->dev, "Could not set pwr en gpio (%d)\n", ret);
-		return ret;
 	}
 
 	return 0;
