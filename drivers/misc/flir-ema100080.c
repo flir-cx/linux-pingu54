@@ -222,6 +222,7 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 		goto err_remove_group;
 	}
 	ret = flir_ema100080_on_remove(vf);
+	dev_info(dev, "Viewfinder flir ema100080 found!\n");
 	return ret;
 
 err_remove_group:
@@ -230,6 +231,8 @@ err_remove_group:
 err_misc_deregister:
 	dev_dbg(&client->dev, "deregister misc dev\n");
 	misc_deregister(&vf->miscdev);
+
+	dev_err(dev, "Probing for ema100080 failed!\n");
 	return ret;
 }
 
