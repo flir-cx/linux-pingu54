@@ -67,6 +67,15 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 		};
+		reg_viewfinder: reg_viewfinder {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "reg_viewfinder";
+			gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&reg_eoco_3v3a_enable>;
+		};
 	};
 
 	fad {
@@ -611,7 +620,8 @@
 		pinctrl-0 = <&pinctrl_viewfinder>;
 
 		eoco-fvm-psave-gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
-		eoco-fvm-pwr-en-gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
+		//eoco-fvm-pwr-en-gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&reg_viewfinder>;
 
 		reg = <0x32>;
 		// These were taken from old ce driver. It is essentially SVGA_60, from page 45 in the eMagin 100080 datasheet
