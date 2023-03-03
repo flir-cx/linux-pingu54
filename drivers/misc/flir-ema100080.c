@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2022 TeledyneFlir
  *
@@ -40,41 +41,33 @@ struct flir_ema100080_data {
 
 	struct i2c_client *client;
 
-	/* Commands to run on startup , to init emagin display*/
+	/* Commands to run on startup, to init emagin display */
 	int i2c_config_cmds_size;
-	struct flir_ema100080_i2c_cmd
-		i2c_config_cmds[FLIR_EMA100080_MAX_I2C_CMDS];
+	struct flir_ema100080_i2c_cmd i2c_config_cmds[FLIR_EMA100080_MAX_I2C_CMDS];
 
 	/* GPIO for enabling psave on dac */
 	struct gpio_desc *fvm_psave_gpiod;
 
 	/* GPIO for disabling power to module */
 	struct gpio_desc *fvm_pwr_en_gpiod;
-	
 
 	/* ioctl */
 	struct miscdevice miscdev;
-	struct file_operations miscdev_fops;
 };
 
 /* Forwards for device */
-static int flir_ema100080_probe(struct i2c_client *client,
-				const struct i2c_device_id *id);
+static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_device_id *id);
 static int flir_ema100080_remove(struct i2c_client *client);
 
 /* Forwards for ioctl */
-static long flir_ema100080_ioctl(struct file *filep, unsigned int cmd,
-				 unsigned long arg);
+static long flir_ema100080_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 static int flir_ema100080_dev_open(struct inode *inode, struct file *filp);
-static int flir_ema100080_do_ioctl(struct flir_ema100080_data *vf, u32 cmd,
-				   u8 *buf);
+static int flir_ema100080_do_ioctl(struct flir_ema100080_data *vf, u32 cmd, u8 *buf);
 
 /* Forwards internal */
 static int
-flir_ema100080_read_dt_i2c_cmds(struct device *dev,
-				struct flir_ema100080_i2c_cmd *i2c_cmds);
-static int flir_ema100080_read_dt_driver_data(struct device *dev,
-					      struct flir_ema100080_data *vf);
+flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cmd *i2c_cmds);
+static int flir_ema100080_read_dt_driver_data(struct device *dev, struct flir_ema100080_data *vf);
 
 /* Module loading/unloading responses */
 static int flir_ema100080_on_probe(struct flir_ema100080_data *vf);
@@ -85,6 +78,11 @@ static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf);
 static int flir_ema100080_set_pwr_off(struct flir_ema100080_data *vf);
 static int flir_ema100080_get_pwr_on(struct flir_ema100080_data *vf);
 
+static const struct file_operations miscdev_fops = {
+	.owner = THIS_MODULE,
+	.open = flir_ema100080_dev_open,
+	.unlocked_ioctl = flir_ema100080_ioctl,
+};
 /**
  * Handle reads on
  * /sys/devices/platform/soc/2100000.bus/21a0000.i2c/i2c-0/0-0032/pwr_on
@@ -95,20 +93,14 @@ static int flir_ema100080_get_pwr_on(struct flir_ema100080_data *vf);
  * @param buf the resulting value as a string
  * @return ssize_t number of bytes put in buf
  */
-static ssize_t pwr_on_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static ssize_t pwr_on_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int ret;
-	struct flir_ema100080_data *vf =
-		(struct flir_ema100080_data *)dev_get_drvdata(dev);
+	struct flir_ema100080_data *vf = (struct flir_ema100080_data *)dev_get_drvdata(dev);
 
-	if (IS_ERR_OR_NULL(vf)) {
-		dev_err(dev, "pwr_on_show platform_data not initialized\n");
-		return -EFAULT;
-	}
 	ret = flir_ema100080_get_pwr_on(vf);
 	if (ret < 0) {
-		dev_err(dev, "pwr_on_show failed\n");
+		dev_err(dev, "power on failed\n");
 		return 0;
 	}
 	return sysfs_emit(buf, "%d\n", ret);
@@ -125,19 +117,12 @@ static ssize_t pwr_on_show(struct device *dev, struct device_attribute *attr,
  * @param count number of bytes in buf
  * @return ssize_t
  */
-static ssize_t pwr_on_store(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t pwr_on_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	bool on;
 	int ret;
 
-	struct flir_ema100080_data *vf =
-		(struct flir_ema100080_data *)dev_get_drvdata(dev);
-
-	if (IS_ERR_OR_NULL(vf)) {
-		dev_err(dev, "pwr_on_store platform_data not initialized\n");
-		return -EFAULT;
-	}
+	struct flir_ema100080_data *vf = (struct flir_ema100080_data *)dev_get_drvdata(dev);
 
 	if (kstrtobool(buf, &on) < 0)
 		return -EINVAL;
@@ -148,7 +133,8 @@ static ssize_t pwr_on_store(struct device *dev, struct device_attribute *attr,
 
 	return (ret < 0) ? ret : count;
 }
-static DEVICE_ATTR(pwr_on, 0600, pwr_on_show, pwr_on_store);
+
+static DEVICE_ATTR_RW(pwr_on);
 static struct attribute *flirvf_attrs[] = { &dev_attr_pwr_on.attr, NULL };
 static const struct attribute_group flirvf_attr_groups = {
 	.attrs = flirvf_attrs,
@@ -166,11 +152,10 @@ MODULE_DEVICE_TABLE(of, flir_ema100080_of_match);
  * Probe, called on platform device match
  *
  * @param pdev	platform device as found in device tree
- * @return 	0 - On success
- * 		negative - on error
+ * @return	0 - On success
+ *		negative - on error
  */
-static int flir_ema100080_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret;
 	struct flir_ema100080_data *vf;
@@ -178,12 +163,9 @@ static int flir_ema100080_probe(struct i2c_client *client,
 	const struct of_device_id *match;
 	struct device *dev = &client->dev;
 
-	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_ON_GET IOCTL_R=%u\n",
-		IOCTL_FLIR_VF_PWR_ON_GET);
-	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_ON IOCTL_W=%u\n",
-		IOCTL_FLIR_VF_PWR_ON);
-	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_OFF IOCTL_W=%u\n",
-		IOCTL_FLIR_VF_PWR_OFF);
+	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_ON_GET IOCTL_R=%u\n", IOCTL_FLIR_VF_PWR_ON_GET);
+	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_ON IOCTL_W=%u\n", IOCTL_FLIR_VF_PWR_ON);
+	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_OFF IOCTL_W=%u\n", IOCTL_FLIR_VF_PWR_OFF);
 
 	// sanity check
 	match = of_match_device(flir_ema100080_of_match, &client->dev);
@@ -202,12 +184,9 @@ static int flir_ema100080_probe(struct i2c_client *client,
 		return ret;
 
 	/* Setup ioctl access */
-	vf->miscdev_fops.owner = THIS_MODULE,
-	vf->miscdev_fops.unlocked_ioctl = flir_ema100080_ioctl,
-	vf->miscdev_fops.open = flir_ema100080_dev_open,
 	vf->miscdev.minor = MISC_DYNAMIC_MINOR;
 	vf->miscdev.name = FLIR_EMA100080_NAME;
-	vf->miscdev.fops = &vf->miscdev_fops;
+	vf->miscdev.fops = &miscdev_fops;
 	vf->dev = &client->dev;
 	vf->client = client;
 	i2c_set_clientdata(client, vf);
@@ -223,7 +202,7 @@ static int flir_ema100080_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to add sys fs entry\n");
 		goto err_misc_deregister;
 	}
-	/* Call the prob implementation */
+	/* Call the probe implementation */
 	ret = flir_ema100080_on_probe(vf);
 	if (ret < 0) {
 		dev_err(dev, "Probe vf callback failed %d\n", ret);
@@ -262,10 +241,9 @@ static int flir_ema100080_remove(struct i2c_client *client)
 
 	ret = flir_ema100080_on_remove(vf);
 	vf->dev = 0;
-	if (ret < 0) {
-		dev_err(&client->dev, "%s: remove vf callback failed\n",
-			__func__);
-	}
+	if (ret < 0)
+		dev_err(&client->dev, "%s: remove vf callback failed\n", __func__);
+
 	dev_dbg(&client->dev, "%s: exit\n", __func__);
 
 	return 0;
@@ -276,8 +254,7 @@ static int flir_ema100080_dev_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static long flir_ema100080_ioctl(struct file *file, unsigned int cmd,
-				 unsigned long arg)
+static long flir_ema100080_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct miscdevice *mdev = (struct miscdevice *)file->private_data;
 	struct flir_ema100080_data *vf;
@@ -317,17 +294,16 @@ static long flir_ema100080_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static int flir_ema100080_do_ioctl(struct flir_ema100080_data *vf, u32 cmd,
-				   u8 *buf)
+static int flir_ema100080_do_ioctl(struct flir_ema100080_data *vf, u32 cmd, u8 *buf)
 {
 	int ret = -EINVAL;
 
 	switch (cmd) {
 	case IOCTL_FLIR_VF_PWR_ON_GET:
 		ret = flir_ema100080_get_pwr_on(vf);
-		if (ret < 0) {
+		if (ret < 0)
 			return ret;
-		}
+
 		memcpy(buf, &ret, sizeof(ret));
 		ret = 0;
 		break;
@@ -349,13 +325,12 @@ static int flir_ema100080_do_ioctl(struct flir_ema100080_data *vf, u32 cmd,
 /**
  * Read an initialization array of tuples <8u u8> into i2c_commands
  *
- * @param dev 		Device in which the device tree node lives.
- * @param i2c_cmds 	The command array to fill
- * @return 		Ńumber of tuples read from dt, negative on failure.
+ * @param dev		Device in which the device tree node lives.
+ * @param i2c_cmds	The command array to fill
+ * @return		Ńumber of tuples read from dt, negative on failure.
  */
 static int
-flir_ema100080_read_dt_i2c_cmds(struct device *dev,
-				struct flir_ema100080_i2c_cmd *i2c_cmds)
+flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cmd *i2c_cmds)
 {
 	static const char propname[] = "i2c-config-cmds";
 	int num_args = 2; // tuples of 2
@@ -365,15 +340,13 @@ flir_ema100080_read_dt_i2c_cmds(struct device *dev,
 	struct device_node *np = dev->of_node;
 
 	if (!of_get_property(np, propname, &arr_len)) {
-		dev_err(dev, "%s missing or invalid to be compatible with %s\n",
-			propname, FLIR_EMA100080_COMPATIBLE_STR);
+		dev_err(dev, "%s missing or invalid to be compatible with %s\n", propname, FLIR_EMA100080_COMPATIBLE_STR);
 		return -EINVAL;
 	}
 
 	num_cmds = arr_len / (sizeof(u32) * num_args);
 	if (num_cmds > FLIR_EMA100080_MAX_I2C_CMDS) {
-		dev_err(dev, "%s contains more than max (%d) commands\n",
-			propname, FLIR_EMA100080_MAX_I2C_CMDS);
+		dev_err(dev, "%s contains more than max (%d) commands\n", propname, FLIR_EMA100080_MAX_I2C_CMDS);
 		return -EOVERFLOW;
 	}
 
@@ -381,26 +354,24 @@ flir_ema100080_read_dt_i2c_cmds(struct device *dev,
 		u32 reg;
 		u32 cmd;
 		int offset = i * num_args;
+
 		if (of_property_read_u32_index(np, propname, offset, &reg))
 			goto fail_prop_read;
 
 		if (of_property_read_u32_index(np, propname, offset + 1, &cmd))
 			goto fail_prop_read;
 		if (reg > U8_MAX) {
-			dev_err(dev, "%s[%i][0] = 0x%x does not fit in a u8\n",
-				propname, i, reg);
+			dev_err(dev, "%s[%i][0] = 0x%x does not fit in a u8\n", propname, i, reg);
 			goto fail_prop_read;
 		}
 		if (cmd > U8_MAX) {
-			dev_err(dev, "%s[%i][2] = 0x%x does not fit in a u8\n",
-				propname, i, cmd);
+			dev_err(dev, "%s[%i][2] = 0x%x does not fit in a u8\n", propname, i, cmd);
 			goto fail_prop_read;
 		}
 		i2c_cmds[i].cmd = cmd;
 		i2c_cmds[i].reg = reg;
 
-		dev_dbg(dev, "%s[%i] reg=0x%02hhx cmd 0x%02hhx\n", propname, i,
-			i2c_cmds[i].reg, i2c_cmds[i].cmd);
+		dev_dbg(dev, "%s[%i] reg=0x%02hhx cmd 0x%02hhx\n", propname, i, i2c_cmds[i].reg, i2c_cmds[i].cmd);
 	}
 	return num_cmds;
 fail_prop_read:
@@ -410,14 +381,13 @@ fail_prop_read:
  * Reads device tree to fill driver data.
  *
  * @param dev		device
- * @param vf		where to to place the data read from device-tree,
- * 			memory needs to be allocated by caller.
+ * @param vf		where to place the data read from device-tree,
+ *			memory needs to be allocated by caller.
  * @return int		On success, returns 0 and the vf structure is
- * 			filled.
- * 			In case of error an negative error code is returned.
+ *			filled.
+ *			In case of error an negative error code is returned.
  */
-static int flir_ema100080_read_dt_driver_data(struct device *dev,
-					      struct flir_ema100080_data *vf)
+static int flir_ema100080_read_dt_driver_data(struct device *dev, struct flir_ema100080_data *vf)
 {
 	int ret;
 	int retval = 0;
@@ -456,13 +426,14 @@ static int init_emagin_lcd(struct flir_ema100080_data *vf)
 {
 	int i;
 	int ret = 0;
+
 	dev_dbg(vf->dev, "Enter %s", __func__);
 
 	for (i = 0; i < vf->i2c_config_cmds_size; i++) {
 		u8 reg = vf->i2c_config_cmds[i].reg;
 		u8 cmd = vf->i2c_config_cmds[i].cmd;
-		dev_dbg(vf->dev, "i2c write[%i] reg=0x%02hhx cmd 0x%02hhx\n", i,
-			reg, cmd);
+
+		dev_dbg(vf->dev, "i2c write[%i] reg=0x%02hhx cmd 0x%02hhx\n", i, reg, cmd);
 		ret = i2c_smbus_write_byte_data(vf->client, reg, cmd);
 
 		if (ret < 0) {
@@ -483,12 +454,12 @@ static int init_emagin_lcd(struct flir_ema100080_data *vf)
 static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf)
 {
 	int ret = 0;
+
 	dev_dbg(vf->dev, "Set psave high\n");
 	if (gpiod_get_direction(vf->fvm_psave_gpiod)) {
 		ret = gpiod_direction_output(vf->fvm_psave_gpiod, 1);
 		if (ret) {
-			dev_err(vf->dev, "Could not set psave gpio (%d)\n",
-				ret);
+			dev_err(vf->dev, "Could not set psave gpio (%d)\n", ret);
 			return ret;
 		}
 	}
@@ -496,8 +467,7 @@ static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf)
 	dev_dbg(vf->dev, "Set pwr en high\n");
 	ret = gpiod_direction_output(vf->fvm_pwr_en_gpiod, 1);
 	if (ret) {
-		dev_err(vf->dev, "Could not set pwr en gpio (%d)\n",
-			ret);
+		dev_err(vf->dev, "Could not set pwr en gpio (%d)\n", ret);
 		return ret;
 	}
 
@@ -516,6 +486,7 @@ static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf)
 static int flir_ema100080_on_probe(struct flir_ema100080_data *vf)
 {
 	int ret = flir_ema100080_set_pwr_on(vf);
+
 	if (ret < 0) {
 		dev_err(vf->dev, "Failed to initialize emagin lcd\n");
 		return ret;
@@ -545,8 +516,7 @@ static int flir_ema100080_set_pwr_off(struct flir_ema100080_data *vf)
 	dev_dbg(vf->dev, "Set pwr en to low\n");
 	ret = gpiod_direction_output(vf->fvm_pwr_en_gpiod, 0);
 	if (ret) {
-		dev_err(vf->dev, "Could not set pwr en gpio (%d)\n",
-			ret);
+		dev_err(vf->dev, "Could not set pwr en gpio (%d)\n", ret);
 		return ret;
 	}
 
@@ -574,39 +544,6 @@ static int flir_ema100080_get_pwr_on(struct flir_ema100080_data *vf)
 {
 	return gpiod_get_value_cansleep(vf->fvm_psave_gpiod);
 }
-#if 0
-/**
- * Initializes the platform driver, called on module load
- *
- * @return int 0 on success
- */
-static int __init flir_ema100080_init(void)
-{
-	int retval;
-	pr_info("%s: init flir_ema100080 driver\n", __func__);
-	retval = platform_driver_register(&flir_ema100080_driver);
-	if (retval) {
-		pr_err("%s: Failed to register flir_ema100080_driver", __func__);
-		return retval;
-	}
-
-	return retval;
-}
-
-/**
- * Deinitializes the module, called on module unload
- *
- */
-static void __exit flir_ema100080_deinit(void)
-{
-	pr_info("%s: deinit flir_ema100080 driver\n", __func__);
-
-	platform_driver_unregister(&flir_ema100080_driver);
-}
-
-module_init(flir_ema100080_init);
-module_exit(flir_ema100080_deinit);
-#endif
 
 //static SIMPLE_DEV_PM_OPS(flir_ema100080_pm_ops, flir_ema100080_suspend, flir_ema100080_resume);
 
