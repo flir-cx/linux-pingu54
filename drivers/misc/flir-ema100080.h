@@ -18,11 +18,6 @@
 #ifndef FLIR_EMA100080_H
 #define FLIR_EMA100080_H
 
-
-#define FLIR_EMA100080_COMPATIBLE_STR "flir,ema100080"
-#define FLIR_EMA100080_MAX_I2C_CMDS 32
-#define FLIR_EMA100080_NAME "flir-ema100080"
-
 #define IOCTL_W(code, type) _IOW('c', code, type)
 #define IOCTL_R(code, type) _IOR('c', code, type)
 #define IOCTL_WR(code, type) _IOWR('c', code, type)
