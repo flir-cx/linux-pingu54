@@ -42,7 +42,6 @@ struct flir_ema100080_i2c_cmd {
  */
 struct flir_ema100080_data {
 	struct device *dev;
-
 	struct i2c_client *client;
 
 	/* Commands to run on startup, to init emagin display */
@@ -65,7 +64,9 @@ static int flir_ema100080_remove(struct i2c_client *client);
 /* Forwards for ioctl */
 static long flir_ema100080_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 static int flir_ema100080_dev_open(struct inode *inode, struct file *filp);
-static int flir_ema100080_do_ioctl(struct flir_ema100080_data *vf, u32 cmd, u8 *buf);
+static int flir_ema100080_do_ioctl(struct device *dev, u32 cmd, u8 *buf);
+static int init_emagin_lcd(struct device *dev);
+
 
 /* Forwards internal */
 static int
@@ -73,13 +74,13 @@ flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cm
 static int flir_ema100080_read_dt_driver_data(struct device *dev, struct flir_ema100080_data *vf);
 
 /* Module loading/unloading responses */
-static int flir_ema100080_on_probe(struct flir_ema100080_data *vf);
-static int flir_ema100080_on_remove(struct flir_ema100080_data *vf);
+static int flir_ema100080_on_probe(struct device *dev);
+static int flir_ema100080_on_remove(struct device *dev);
 
 /* ioctl responses */
-static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf);
-static int flir_ema100080_set_pwr_off(struct flir_ema100080_data *vf);
-static int flir_ema100080_get_pwr_on(struct flir_ema100080_data *vf);
+static int flir_ema100080_set_pwr_on(struct device *dev);
+static int flir_ema100080_set_pwr_off(struct device *dev);
+static int flir_ema100080_get_pwr_on(struct device *dev);
 
 static const struct file_operations miscdev_fops = {
 	.owner = THIS_MODULE,
@@ -101,7 +102,7 @@ static ssize_t pwr_on_show(struct device *dev, struct device_attribute *attr, ch
 	int ret;
 	struct flir_ema100080_data *vf = (struct flir_ema100080_data *)dev_get_drvdata(dev);
 
-	ret = flir_ema100080_get_pwr_on(vf);
+	ret = flir_ema100080_get_pwr_on(dev);
 	if (ret < 0) {
 		dev_err(dev, "power on failed\n");
 		return 0;
@@ -130,9 +131,9 @@ static ssize_t pwr_on_store(struct device *dev, struct device_attribute *attr, c
 	if (kstrtobool(buf, &on) < 0)
 		return -EINVAL;
 	if (on)
-		ret = flir_ema100080_set_pwr_on(vf);
+		ret = flir_ema100080_set_pwr_on(dev);
 	else
-		ret = flir_ema100080_set_pwr_off(vf);
+		ret = flir_ema100080_set_pwr_off(dev);
 
 	return (ret < 0) ? ret : count;
 }
@@ -161,9 +162,8 @@ MODULE_DEVICE_TABLE(of, flir_ema100080_of_match);
 static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret;
-	struct flir_ema100080_data *vf;
-
 	const struct of_device_id *match;
+	struct flir_ema100080_data *vf;
 	struct device *dev = &client->dev;
 
 	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_ON_GET IOCTL_R=%u\n", IOCTL_FLIR_VF_PWR_ON_GET);
@@ -171,7 +171,7 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_OFF IOCTL_W=%u\n", IOCTL_FLIR_VF_PWR_OFF);
 
 	// sanity check
-	match = of_match_device(flir_ema100080_of_match, &client->dev);
+	match = of_match_device(flir_ema100080_of_match, dev);
 	if (!match) {
 		dev_err(dev, "no device tree match for platform device!\n");
 		return -EINVAL;
@@ -182,7 +182,9 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 	if (!vf)
 		return -ENOMEM;
 
-	ret = flir_ema100080_read_dt_driver_data(&client->dev, vf);
+	dev_set_drvdata(dev, vf);
+
+	ret = flir_ema100080_read_dt_driver_data(dev, vf);
 	if (ret < 0)
 		return ret;
 
@@ -190,7 +192,7 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 	vf->miscdev.minor = MISC_DYNAMIC_MINOR;
 	vf->miscdev.name = "flir-ema100080";
 	vf->miscdev.fops = &miscdev_fops;
-	vf->dev = &client->dev;
+	vf->dev = dev;
 	vf->client = client;
 	i2c_set_clientdata(client, vf);
 
@@ -218,20 +220,20 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 		goto err_misc_deregister;
 	}
 	/* Call the probe implementation */
-	ret = flir_ema100080_on_probe(vf);
+	ret = flir_ema100080_on_probe(dev);
 	if (ret < 0) {
 		dev_err(dev, "Probe vf callback failed %d\n", ret);
 		goto err_remove_group;
 	}
-	ret = flir_ema100080_on_remove(vf);
+	ret = flir_ema100080_on_remove(dev);
 	dev_info(dev, "Viewfinder flir ema100080 found!\n");
 	return ret;
 
 err_remove_group:
-	dev_dbg(&client->dev, "remove sysfs group\n");
+	dev_dbg(dev, "remove sysfs group\n");
 	sysfs_remove_group(&client->dev.kobj, &flirvf_attr_groups);
 err_misc_deregister:
-	dev_dbg(&client->dev, "deregister misc dev\n");
+	dev_dbg(dev, "deregister misc dev\n");
 	misc_deregister(&vf->miscdev);
 
 	dev_err(dev, "Probing for ema100080 failed!\n");
@@ -248,6 +250,7 @@ static int flir_ema100080_remove(struct i2c_client *client)
 {
 	int ret;
 	struct flir_ema100080_data *vf = i2c_get_clientdata(client);
+	struct device *dev = &client->dev;
 
 	dev_dbg(&client->dev, "%s: enter\n", __func__);
 
@@ -257,7 +260,7 @@ static int flir_ema100080_remove(struct i2c_client *client)
 	misc_deregister(&vf->miscdev);
 	dev_dbg(&client->dev, "deregister misc dev\n");
 
-	ret = flir_ema100080_on_remove(vf);
+	ret = flir_ema100080_on_remove(dev);
 	vf->dev = 0;
 	if (ret < 0)
 		dev_err(&client->dev, "%s: remove vf callback failed\n", __func__);
@@ -297,7 +300,7 @@ static long flir_ema100080_ioctl(struct file *file, unsigned int cmd, unsigned l
 	}
 
 	if (!ret) {
-		ret = flir_ema100080_do_ioctl(vf, cmd, tmp);
+		ret = flir_ema100080_do_ioctl(dev, cmd, tmp);
 		if (ret)
 			dev_err(dev, "ioctl 0x%X failed: %ld\n", cmd, ret);
 	}
@@ -312,13 +315,13 @@ static long flir_ema100080_ioctl(struct file *file, unsigned int cmd, unsigned l
 	return ret;
 }
 
-static int flir_ema100080_do_ioctl(struct flir_ema100080_data *vf, u32 cmd, u8 *buf)
+static int flir_ema100080_do_ioctl(struct device *dev, u32 cmd, u8 *buf)
 {
 	int ret = -EINVAL;
 
 	switch (cmd) {
 	case IOCTL_FLIR_VF_PWR_ON_GET:
-		ret = flir_ema100080_get_pwr_on(vf);
+		ret = flir_ema100080_get_pwr_on(dev);
 		if (ret < 0)
 			return ret;
 
@@ -326,10 +329,10 @@ static int flir_ema100080_do_ioctl(struct flir_ema100080_data *vf, u32 cmd, u8 *
 		ret = 0;
 		break;
 	case IOCTL_FLIR_VF_PWR_OFF:
-		ret = flir_ema100080_set_pwr_off(vf);
+		ret = flir_ema100080_set_pwr_off(dev);
 		break;
 	case IOCTL_FLIR_VF_PWR_ON:
-		ret = flir_ema100080_set_pwr_on(vf);
+		ret = flir_ema100080_set_pwr_on(dev);
 		break;
 	default:
 		dev_err(vf->dev, "ioctl %u not supported\n", cmd);
@@ -434,10 +437,11 @@ static int flir_ema100080_read_dt_driver_data(struct device *dev, struct flir_em
  * @param vf viewfinder data struct, holds the device data
  * @return int non negative value on success
  */
-static int init_emagin_lcd(struct flir_ema100080_data *vf)
+static int init_emagin_lcd(struct device *dev)
 {
 	int i;
 	int ret = 0;
+	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
 
 	dev_dbg(vf->dev, "Enter %s", __func__);
 
@@ -460,12 +464,13 @@ static int init_emagin_lcd(struct flir_ema100080_data *vf)
 /**
  * @brief Set power on
  *
- * @param vf viewfinder data struct, holds the device data
+ * @param
  * @return int non negative value on success
  */
-static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf)
+static int flir_ema100080_set_pwr_on(struct device *dev)
 {
 	int ret = 0;
+	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
 
 	dev_dbg(vf->dev, "Set psave high\n");
 	if (gpiod_get_direction(vf->fvm_psave_gpiod)) {
@@ -481,7 +486,7 @@ static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf)
 	// Need to wait for chip to power up
 	mdelay(100);
 
-	return init_emagin_lcd(vf);
+	return init_emagin_lcd(dev);
 }
 
 /**
@@ -490,12 +495,12 @@ static int flir_ema100080_set_pwr_on(struct flir_ema100080_data *vf)
  * @param vf viewfinder data struct, holds the device data
  * @return int non negative value on success
  */
-static int flir_ema100080_on_probe(struct flir_ema100080_data *vf)
+static int flir_ema100080_on_probe(struct device *dev)
 {
-	int ret = flir_ema100080_set_pwr_on(vf);
+	int ret = flir_ema100080_set_pwr_on(dev);
 
 	if (ret < 0) {
-		dev_err(vf->dev, "Failed to initialize emagin lcd\n");
+		dev_err(dev, "Failed to initialize emagin lcd\n");
 		return ret;
 	}
 
@@ -508,9 +513,10 @@ static int flir_ema100080_on_probe(struct flir_ema100080_data *vf)
  * @param vf viewfinder data struct, holds the device data
  * @return int non negative value on success
  */
-static int flir_ema100080_set_pwr_off(struct flir_ema100080_data *vf)
+static int flir_ema100080_set_pwr_off(struct device *dev)
 {
 	int ret = 0;
+	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
 
 	dev_dbg(vf->dev, "Set psave to input\n");
 	if (!gpiod_get_direction(vf->fvm_psave_gpiod)) {
@@ -532,9 +538,9 @@ static int flir_ema100080_set_pwr_off(struct flir_ema100080_data *vf)
  * @param vf viewfinder data struct, holds the device data
  * @return int non negative value on success
  */
-static int flir_ema100080_on_remove(struct flir_ema100080_data *vf)
+static int flir_ema100080_on_remove(struct device *dev)
 {
-	return flir_ema100080_set_pwr_off(vf);
+	return flir_ema100080_set_pwr_off(dev);
 }
 
 /**
@@ -543,8 +549,9 @@ static int flir_ema100080_on_remove(struct flir_ema100080_data *vf)
  * @param vf viewfinder data struct, holds the device data
  * @return int non negative value on success
  */
-static int flir_ema100080_get_pwr_on(struct flir_ema100080_data *vf)
+static int flir_ema100080_get_pwr_on(struct device *dev)
 {
+	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
 	return gpiod_get_value_cansleep(vf->fvm_psave_gpiod);
 }
 
