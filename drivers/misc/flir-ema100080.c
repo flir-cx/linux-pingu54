@@ -30,6 +30,8 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/consumer.h>
 
+#define FLIR_EMA100080_MAX_I2C_CMDS 32
+
 struct flir_ema100080_i2c_cmd {
 	u8 reg;
 	u8 cmd;
@@ -143,7 +145,7 @@ static const struct attribute_group flirvf_attr_groups = {
 
 static const struct of_device_id flir_ema100080_of_match[] = {
 	{
-		.compatible = FLIR_EMA100080_COMPATIBLE_STR,
+		.compatible = "flir,ema100080",
 	},
 	{}
 };
@@ -186,7 +188,7 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 
 	/* Setup ioctl access */
 	vf->miscdev.minor = MISC_DYNAMIC_MINOR;
-	vf->miscdev.name = FLIR_EMA100080_NAME;
+	vf->miscdev.name = "flir-ema100080";
 	vf->miscdev.fops = &miscdev_fops;
 	vf->dev = &client->dev;
 	vf->client = client;
@@ -356,7 +358,7 @@ flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cm
 	struct device_node *np = dev->of_node;
 
 	if (!of_get_property(np, propname, &arr_len)) {
-		dev_err(dev, "%s missing or invalid to be compatible with %s\n", propname, FLIR_EMA100080_COMPATIBLE_STR);
+		dev_err(dev, "%s missing or invalid\n", propname);
 		return -EINVAL;
 	}
 
@@ -549,14 +551,14 @@ static int flir_ema100080_get_pwr_on(struct flir_ema100080_data *vf)
 //static SIMPLE_DEV_PM_OPS(flir_ema100080_pm_ops, flir_ema100080_suspend, flir_ema100080_resume);
 
 static const struct i2c_device_id flir_ema100080_id[] = {
-	{ FLIR_EMA100080_NAME, 0 },
+	{ "flir-ema100080", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, flir_ema100080_id);
 
 static struct i2c_driver flir_ema100080_driver = {
 	.driver = {
-		.name	= FLIR_EMA100080_NAME,
+		.name	= "flir-ema100080",
 		.owner	= THIS_MODULE,
 		.of_match_table = flir_ema100080_of_match,
 //		.pm	= &flir_ema100080_pm_ops,
