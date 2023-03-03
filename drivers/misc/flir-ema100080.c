@@ -69,8 +69,7 @@ static int init_emagin_lcd(struct device *dev);
 
 
 /* Forwards internal */
-static int
-flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cmd *i2c_cmds);
+static int flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cmd *i2c_cmds);
 static int flir_ema100080_read_dt_driver_data(struct device *dev);
 
 /* Module loading/unloading responses */
@@ -347,8 +346,7 @@ static int flir_ema100080_do_ioctl(struct device *dev, u32 cmd, u8 *buf)
  * @param i2c_cmds	The command array to fill
  * @return		Ńumber of tuples read from dt, negative on failure.
  */
-static int
-flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cmd *i2c_cmds)
+static int flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cmd *i2c_cmds)
 {
 	static const char propname[] = "i2c-config-cmds";
 	int num_args = 2; // tuples of 2
@@ -409,8 +407,8 @@ static int flir_ema100080_read_dt_driver_data(struct device *dev)
 {
 	int ret;
 	int retval = 0;
-	//struct device_node *np = dev->of_node;
 	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
+
 	vf->fvm_psave_gpiod = devm_gpiod_get(dev, "eoco-fvm-psave", GPIOD_ASIS);
 	if (IS_ERR(vf->fvm_psave_gpiod)) {
 		dev_err(dev, "unable to get eoco-fvm-psave gpio from dt\n");
@@ -549,6 +547,7 @@ static int flir_ema100080_on_remove(struct device *dev)
 static int flir_ema100080_get_pwr_on(struct device *dev)
 {
 	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
+
 	return gpiod_get_value_cansleep(vf->fvm_psave_gpiod);
 }
 
