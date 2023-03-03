@@ -71,7 +71,7 @@ static int init_emagin_lcd(struct device *dev);
 /* Forwards internal */
 static int
 flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cmd *i2c_cmds);
-static int flir_ema100080_read_dt_driver_data(struct device *dev, struct flir_ema100080_data *vf);
+static int flir_ema100080_read_dt_driver_data(struct device *dev);
 
 /* Module loading/unloading responses */
 static int flir_ema100080_on_probe(struct device *dev);
@@ -100,7 +100,6 @@ static const struct file_operations miscdev_fops = {
 static ssize_t pwr_on_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int ret;
-	struct flir_ema100080_data *vf = (struct flir_ema100080_data *)dev_get_drvdata(dev);
 
 	ret = flir_ema100080_get_pwr_on(dev);
 	if (ret < 0) {
@@ -125,8 +124,6 @@ static ssize_t pwr_on_store(struct device *dev, struct device_attribute *attr, c
 {
 	bool on;
 	int ret;
-
-	struct flir_ema100080_data *vf = (struct flir_ema100080_data *)dev_get_drvdata(dev);
 
 	if (kstrtobool(buf, &on) < 0)
 		return -EINVAL;
@@ -184,7 +181,7 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 
 	dev_set_drvdata(dev, vf);
 
-	ret = flir_ema100080_read_dt_driver_data(dev, vf);
+	ret = flir_ema100080_read_dt_driver_data(dev);
 	if (ret < 0)
 		return ret;
 
@@ -252,20 +249,20 @@ static int flir_ema100080_remove(struct i2c_client *client)
 	struct flir_ema100080_data *vf = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
 
-	dev_dbg(&client->dev, "%s: enter\n", __func__);
+	dev_dbg(dev, "%s: enter\n", __func__);
 
 	sysfs_remove_group(&client->dev.kobj, &flirvf_attr_groups);
-	dev_dbg(&client->dev, "remove sysfs group\n");
+	dev_dbg(dev, "remove sysfs group\n");
 
 	misc_deregister(&vf->miscdev);
-	dev_dbg(&client->dev, "deregister misc dev\n");
+	dev_dbg(dev, "deregister misc dev\n");
 
 	ret = flir_ema100080_on_remove(dev);
 	vf->dev = 0;
 	if (ret < 0)
-		dev_err(&client->dev, "%s: remove vf callback failed\n", __func__);
+		dev_err(dev, "%s: remove vf callback failed\n", __func__);
 
-	dev_dbg(&client->dev, "%s: exit\n", __func__);
+	dev_dbg(dev, "%s: exit\n", __func__);
 
 	return 0;
 }
@@ -335,7 +332,7 @@ static int flir_ema100080_do_ioctl(struct device *dev, u32 cmd, u8 *buf)
 		ret = flir_ema100080_set_pwr_on(dev);
 		break;
 	default:
-		dev_err(vf->dev, "ioctl %u not supported\n", cmd);
+		dev_err(dev, "ioctl %u not supported\n", cmd);
 		ret = -EINVAL;
 		break;
 	}
@@ -408,12 +405,12 @@ fail_prop_read:
  *			filled.
  *			In case of error an negative error code is returned.
  */
-static int flir_ema100080_read_dt_driver_data(struct device *dev, struct flir_ema100080_data *vf)
+static int flir_ema100080_read_dt_driver_data(struct device *dev)
 {
 	int ret;
 	int retval = 0;
 	//struct device_node *np = dev->of_node;
-
+	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
 	vf->fvm_psave_gpiod = devm_gpiod_get(dev, "eoco-fvm-psave", GPIOD_ASIS);
 	if (IS_ERR(vf->fvm_psave_gpiod)) {
 		dev_err(dev, "unable to get eoco-fvm-psave gpio from dt\n");
@@ -443,21 +440,21 @@ static int init_emagin_lcd(struct device *dev)
 	int ret = 0;
 	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
 
-	dev_dbg(vf->dev, "Enter %s", __func__);
+	dev_dbg(dev, "Enter %s", __func__);
 
 	for (i = 0; i < vf->i2c_config_cmds_size; i++) {
 		u8 reg = vf->i2c_config_cmds[i].reg;
 		u8 cmd = vf->i2c_config_cmds[i].cmd;
 
-		dev_dbg(vf->dev, "i2c write[%i] reg=0x%02hhx cmd 0x%02hhx\n", i, reg, cmd);
+		dev_dbg(dev, "i2c write[%i] reg=0x%02hhx cmd 0x%02hhx\n", i, reg, cmd);
 		ret = i2c_smbus_write_byte_data(vf->client, reg, cmd);
 
 		if (ret < 0) {
-			dev_err(vf->dev, "i2c write failed, is the eMagin lcd connected?\n");
+			dev_err(dev, "i2c write failed, is the eMagin lcd connected?\n");
 			return ret;
 		}
 	}
-	dev_dbg(vf->dev, "i2c write complete\n");
+	dev_dbg(dev, "i2c write complete\n");
 	return 0;
 }
 
@@ -472,11 +469,11 @@ static int flir_ema100080_set_pwr_on(struct device *dev)
 	int ret = 0;
 	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
 
-	dev_dbg(vf->dev, "Set psave high\n");
+	dev_dbg(dev, "Set psave high\n");
 	if (gpiod_get_direction(vf->fvm_psave_gpiod)) {
 		ret = gpiod_direction_output(vf->fvm_psave_gpiod, 1);
 		if (ret) {
-			dev_err(vf->dev, "Could not set psave gpio (%d)\n", ret);
+			dev_err(dev, "Could not set psave gpio (%d)\n", ret);
 			return ret;
 		}
 	}
@@ -518,10 +515,10 @@ static int flir_ema100080_set_pwr_off(struct device *dev)
 	int ret = 0;
 	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
 
-	dev_dbg(vf->dev, "Set psave to input\n");
+	dev_dbg(dev, "Set psave to input\n");
 	if (!gpiod_get_direction(vf->fvm_psave_gpiod)) {
 		if (gpiod_direction_input(vf->fvm_psave_gpiod)) {
-			dev_err(vf->dev, "Could not set psave gpio to input\n");
+			dev_err(dev, "Could not set psave gpio to input\n");
 			return -EFAULT;
 		}
 	}
