@@ -221,8 +221,8 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 		dev_err(dev, "Probe vf callback failed %d\n", ret);
 		goto err_remove_group;
 	}
-
-	return 0;
+	ret = flir_ema100080_on_remove(vf);
+	return ret;
 
 err_remove_group:
 	dev_dbg(&client->dev, "remove sysfs group\n");
@@ -514,6 +514,9 @@ static int flir_ema100080_set_pwr_off(struct flir_ema100080_data *vf)
 			return -EFAULT;
 		}
 	}
+
+	if (regulator_is_enabled(vf->supply))
+		ret = regulator_disable(vf->supply);
 
 	return 0;
 }
