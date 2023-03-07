@@ -19,20 +19,14 @@
 struct max5380_data {
 	struct i2c_client *client;
 	struct backlight_device *bdev;
-
-	/* Taken from device tree */
 	u32 default_brightness;
 	u32 max_brightness;
 };
 
-static const struct of_device_id max5380_match_table[] = {
-	{
-		.compatible = "flir,max5380"
-	},
-	{},
-};
+static const struct of_device_id max5380_match_table[] = { { .compatible = "flir,max5380" }, {}, };
 
 MODULE_DEVICE_TABLE(of, max5380_match_table);
+
 #ifdef CONFIG_OF
 /**
  * @brief Returns a u32 from device tree or default value if not found.
@@ -42,8 +36,7 @@ MODULE_DEVICE_TABLE(of, max5380_match_table);
  * @param default_val Return this value as default if prop not found
  * @return u32
  */
-static u32 max5380_read_of_u32(struct device *dev, const char *prop,
-			       u32 default_val)
+static u32 max5380_read_of_u32(struct device *dev, const char *prop, u32 default_val)
 {
 	struct device_node *np = dev->of_node;
 	u32 v;
@@ -103,11 +96,8 @@ static int max5380_update_status(struct backlight_device *backlight)
 	b = brightness;
 	if (brightness > 0) {
 		/* scale into 0 - 255 */
-		b = (u8)(((u32)brightness * 255) /
-			 ((u32)backlight->props.max_brightness));
-		dev_err(&data->client->dev,
-			"setting backlight to %u scaled from %u\n", b,
-			brightness);
+		b = (u8)(((u32)brightness * 255) / ((u32)backlight->props.max_brightness));
+		dev_err(&data->client->dev, "setting backlight to %u scaled from %u\n", b, brightness);
 	} else {
 		b = 0;
 	}
@@ -133,8 +123,7 @@ static const struct backlight_ops max5380_bl_ops = {
  * @param id	 i2c device id
  * @return 0 on success
  */
-static int max5380_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int max5380_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct backlight_properties props;
 	struct max5380_data *data;
@@ -147,8 +136,7 @@ static int max5380_probe(struct i2c_client *client,
 		return -EOPNOTSUPP;
 	}
 
-	data = devm_kzalloc(&client->dev, sizeof(struct max5380_data),
-			   GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct max5380_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -162,13 +150,10 @@ static int max5380_probe(struct i2c_client *client,
 	props.max_brightness = data->max_brightness;
 	props.brightness =
 		clamp_t(u32, data->default_brightness, 0, props.max_brightness);
-	data->bdev =
-		devm_backlight_device_register(&data->client->dev, "backlight_vf",
-					       &data->client->dev, data,
-					       &max5380_bl_ops, &props);
+	data->bdev = devm_backlight_device_register(&data->client->dev, "backlight_vf",
+						    &data->client->dev, data, &max5380_bl_ops, &props);
 	if (IS_ERR(data->bdev)) {
-		dev_err(&data->client->dev,
-			"failed to register backlight device\n");
+		dev_err(&data->client->dev, "failed to register backlight device\n");
 		return PTR_ERR(data->bdev);
 	}
 
