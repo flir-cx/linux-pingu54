@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
-* Simple driver for Texas Instruments max5380 Backlight driver chip
-* Copyright (C) 2012 Texas Instruments
-*/
+ * Simple driver for Texas Instruments max5380 Backlight driver chip
+ * Copyright (C) 2012 Texas Instruments
+ */
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/backlight.h>
@@ -47,22 +47,22 @@ static u32 max5380_read_of_u32(struct device *dev, const char *prop,
 {
 	struct device_node *np = dev->of_node;
 	u32 v;
+
 	if (of_property_read_u32(np, prop, &v)) {
-		dev_dbg(dev, "%s: %s defaults to %u\n", __func__, prop,
-			default_val);
+		dev_dbg(dev, "%s: %s defaults to %u\n", __func__, prop, default_val);
 		return default_val;
-	} else {
-		dev_dbg(dev, "%s: %s read to %u\n", __func__, prop, v);
-		return v;
 	}
+
+	dev_dbg(dev, "%s: %s read to %u\n", __func__, prop, v);
+	return v;
 }
 
 /**
  * @brief Parses device tree for max5380_data
  *
  * @param dev Device holding device tree data
- * @return int 	0 on success.
- * 		-EINVAL if the device tree entry is not found.
+ * @return  0 on success.
+ *          -EINVAL if the device tree entry is not found.
  */
 static int max5380_parse_dt(struct device *dev)
 {
@@ -128,9 +128,9 @@ static const struct backlight_ops max5380_bl_ops = {
 
 /**
  * @brief Probe function, called by linux.
- * 
+ *
  * @param client i2c client
- * @param id	 i2c device id 
+ * @param id	 i2c device id
  * @return 0 on success
  */
 static int max5380_probe(struct i2c_client *client,
@@ -139,6 +139,7 @@ static int max5380_probe(struct i2c_client *client,
 	struct backlight_properties props;
 	struct max5380_data *data;
 	int ret;
+
 	dev_dbg(&client->dev, "%s: probing\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -183,7 +184,7 @@ static int max5380_probe(struct i2c_client *client,
 
 /**
  * @brief Remove, called by linux
- * 
+ *
  * @param client i2c client
  * @return 0 on success
  */
