@@ -61,13 +61,13 @@ static u32 max5380_read_of_u32(struct device *dev, const char *prop,
  * @brief Parses device tree for max5380_data
  *
  * @param dev Device holding device tree data
- * @param bld backlight data structure
  * @return int 	0 on success.
  * 		-EINVAL if the device tree entry is not found.
  */
-static int max5380_parse_dt(struct device *dev, struct max5380_data *bld)
+static int max5380_parse_dt(struct device *dev)
 {
 	const struct of_device_id *match;
+	struct max5380_data *data = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "%s\n", __func__);
 	match = of_match_device(max5380_match_table, dev);
@@ -76,12 +76,12 @@ static int max5380_parse_dt(struct device *dev, struct max5380_data *bld)
 		return -EINVAL;
 	}
 
-	bld->default_brightness = max5380_read_of_u32(dev, "default-brightness", 55);
-	bld->max_brightness = max5380_read_of_u32(dev, "max-brightness", 253);
+	data->default_brightness = max5380_read_of_u32(dev, "default-brightness", 55);
+	data->max_brightness = max5380_read_of_u32(dev, "max-brightness", 253);
 	return 0;
 }
 #else
-static inline void max5380_parse_dt(struct device *dev, struct max5380_data *bm)
+static inline void max5380_parse_dt(struct device *dev)
 {
 	return 0;
 }
@@ -97,7 +97,7 @@ static int max5380_update_status(struct backlight_device *backlight)
 {
 	u8 b;
 	int ret;
-	struct max5380_data *bld = bl_get_data(backlight);
+	struct max5380_data *data = bl_get_data(backlight);
 	int brightness = backlight_get_brightness(backlight);
 
 	b = brightness;
@@ -105,17 +105,17 @@ static int max5380_update_status(struct backlight_device *backlight)
 		/* scale into 0 - 255 */
 		b = (u8)(((u32)brightness * 255) /
 			 ((u32)backlight->props.max_brightness));
-		dev_err(&bld->client->dev,
+		dev_err(&data->client->dev,
 			"setting backlight to %u scaled from %u\n", b,
 			brightness);
 	} else {
 		b = 0;
 	}
 
-	ret = i2c_smbus_write_byte(bld->client, b);
+	ret = i2c_smbus_write_byte(data->client, b);
 
 	if (ret < 0) {
-		dev_err(&bld->client->dev, "i2c write failed\n");
+		dev_err(&data->client->dev, "i2c write failed\n");
 		return ret;
 	}
 	return 0;
@@ -137,7 +137,7 @@ static int max5380_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct backlight_properties props;
-	struct max5380_data *bld;
+	struct max5380_data *data;
 	int ret;
 	dev_dbg(&client->dev, "%s: probing\n", __func__);
 
@@ -146,31 +146,32 @@ static int max5380_probe(struct i2c_client *client,
 		return -EOPNOTSUPP;
 	}
 
-	bld = devm_kzalloc(&client->dev, sizeof(struct max5380_data),
+	data = devm_kzalloc(&client->dev, sizeof(struct max5380_data),
 			   GFP_KERNEL);
-	if (!bld)
+	if (!data)
 		return -ENOMEM;
 
-	max5380_parse_dt(&client->dev, bld);
+	dev_set_drvdata(dev, data);
+	max5380_parse_dt(&client->dev);
 
-	bld->client = client;
+	data->client = client;
 
 	/* backlight register */
 	props.type = BACKLIGHT_RAW;
-	props.max_brightness = bld->max_brightness;
+	props.max_brightness = data->max_brightness;
 	props.brightness =
-		clamp_t(u32, bld->default_brightness, 0, props.max_brightness);
-	bld->bdev =
-		devm_backlight_device_register(&bld->client->dev, "backlight_vf",
-					       &bld->client->dev, bld,
+		clamp_t(u32, data->default_brightness, 0, props.max_brightness);
+	data->bdev =
+		devm_backlight_device_register(&data->client->dev, "backlight_vf",
+					       &data->client->dev, data,
 					       &max5380_bl_ops, &props);
-	if (IS_ERR(bld->bdev)) {
-		dev_err(&bld->client->dev,
+	if (IS_ERR(data->bdev)) {
+		dev_err(&data->client->dev,
 			"failed to register backlight device\n");
-		return PTR_ERR(bld->bdev);
+		return PTR_ERR(data->bdev);
 	}
 
-	i2c_set_clientdata(client, bld->bdev);
+	i2c_set_clientdata(client, data->bdev);
 	if (ret < 0) {
 		dev_err(&client->dev, "fail : backlight register.\n");
 		return ret;
