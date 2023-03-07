@@ -10,7 +10,7 @@
 #include <linux/of_device.h>
 #include <linux/err.h>
 
-#define MAX5380_NAME "backlight_vf"
+
 
 /**
  * @brief Structure holding driver data
@@ -161,7 +161,7 @@ static int max5380_probe(struct i2c_client *client,
 	props.brightness =
 		clamp_t(u32, bld->default_brightness, 0, props.max_brightness);
 	bld->bdev =
-		devm_backlight_device_register(&bld->client->dev, MAX5380_NAME,
+		devm_backlight_device_register(&bld->client->dev, "backlight_vf",
 					       &bld->client->dev, bld,
 					       &max5380_bl_ops, &props);
 	if (IS_ERR(bld->bdev)) {
@@ -197,13 +197,13 @@ static int max5380_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id max5380_id[] = { { MAX5380_NAME, 0 }, {} };
+static const struct i2c_device_id max5380_id[] = { { "backlight_vf", 0 }, {} };
 
 MODULE_DEVICE_TABLE(i2c, max5380_id);
 
 static struct i2c_driver max5380_i2c_driver = {
 	.driver = {
-			.name = MAX5380_NAME,
+			.name = "backlight_vf",
 			.of_match_table = max5380_match_table,
 		},
 	.probe = max5380_probe,
