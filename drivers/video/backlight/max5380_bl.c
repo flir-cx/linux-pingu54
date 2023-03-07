@@ -4,14 +4,11 @@
 * Copyright (C) 2012 Texas Instruments
 */
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/backlight.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/err.h>
-#include <linux/delay.h>
-#include <linux/uaccess.h>
 
 #define FLIR_MAX5380_COMPATIBLE_STR "flir,max5380"
 #define MAX5380_NAME "backlight_vf"
