@@ -12,6 +12,19 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
+/ {
+	regulators {
+		compatible = "simple-bus";
+
+		reg_eobb_3v3d: reg_eobb_3v3d {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "eobb +3v3d";
+		};
+	};
+};
+
 &i2c2 {
     /* FUELGAUGE */
     battery: bq40z50@b {
@@ -26,5 +39,6 @@
 		compatible = "atmel,24c02";
 		reg = <0x57>;
 		pagesize = <16>;
+		vcc-supply = <&reg_eobb_3v3d>;
 	};
 };
