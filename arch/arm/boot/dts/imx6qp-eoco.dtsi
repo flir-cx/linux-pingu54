@@ -67,14 +67,13 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 		};
-		reg_viewfinder: reg_viewfinder {
+		reg_govp: reg_govp {
 			compatible = "regulator-fixed";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			regulator-name = "reg_viewfinder";
+			regulator-name = "reg_govp";
 			gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
-			vin-supply = <&reg_eoco_3v3a_enable>;
 		};
 	};
 
@@ -614,49 +613,6 @@
 		reg = <0x57>;
 		pagesize = <16>;
 	};
-	flir_ema100080: flir_ema100080@32 {
-		compatible = "flir,ema100080";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_viewfinder>;
-
-		eoco-fvm-psave-gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
-		//eoco-fvm-pwr-en-gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&reg_viewfinder>;
-
-		reg = <0x32>;
-		// These were taken from old ce driver. It is essentially SVGA_60, from page 45 in the eMagin 100080 datasheet
-		// So this is the setup for the 800x600, this needs to match what is setup in mxc_lcdif (nxp code)
-		i2c-config-cmds =	<0x01 0x80>, // Red Analog Input Gain
-					<0x02 0x38>, // Red Analog Input DC Offset
-					<0x03 0x80>, // Green Analog Input Gain
-					<0x04 0x38>, // Green Analog Input DC Offset
-					<0x05 0x80>, // Blue Analog Input Gain
-					<0x06 0x38>, // Blue Analog Input DC Offset
-					<0x07 0x80>, // Mono Analog Input Gain
-					<0x08 0x38>, // Mono Analog Input DC Offset
-					<0x09 0x00>, // Vertical Mode Settings (SVGA 600 rows, RGB)
-					<0x0A 0x02>, // HMODE (SVGA 800 columns, internal PLL, no screen saver)
-					<0x0D 0x00>, // HRATE_L (Horizontal Shift Frame Rate = 0x8000 (every 9 minute))
-					<0x0E 0x80>, // HRATE_U
-					<0x0F 0x1E>, // PLL_L (Feedback Divider=0x41E, Post-Scaler Divider=1)
-					<0x10 0x0C>, // PLL_U
-					<0x11 0x0C>, // PIF (Phase Interpolator Frequency = 40 MHz)
-					<0x12 0x00>, // PI2 (Phase Adjustment)
-					<0x13 0xD4>, // HSTART (Horizontal Active Start Count)
-					<0x14 0x19>, // VSTART (Vertical Active Start Count)
-					<0x15 0xD8>, // HBLK
-					<0x16 0x0C>, // HDEL
-					<0x17 0x02>, // PWDN (disable MONO analog input)
-					<0x18 0x80>, // ATB (power control through PWDN register)
-					<0x1A 0x08>; // TRIM (automatic and periodic calibration)
-	};
-	backlight: backlight_vf@30 {
-		reg = <0x30>;
-		compatible = "flir,max5380";
-		default-brightness = <0x40>;
-		max-brightness = <255>;
-	};
-
 	sensor_flir_csi0: csi0@3c {
 		compatible = "flir,flir_csi";
 		reg = <0x3c>;

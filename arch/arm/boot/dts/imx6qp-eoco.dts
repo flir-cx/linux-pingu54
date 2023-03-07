@@ -22,6 +22,7 @@
 #include "imx6qp-eoxi.dtsi"
 #include "imx6qp-eobb.dtsi"
 #include "imx6qp-eodp.dtsi"
+#include "imx6qp-govp.dtsi"
 
 / {
 	model = "Teledyne FLIR i.MX6 Dual Plus eoco Board";
