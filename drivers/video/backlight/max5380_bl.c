@@ -10,7 +10,6 @@
 #include <linux/of_device.h>
 #include <linux/err.h>
 
-#define FLIR_MAX5380_COMPATIBLE_STR "flir,max5380"
 #define MAX5380_NAME "backlight_vf"
 
 /**
@@ -28,7 +27,7 @@ struct max5380_data {
 
 static const struct of_device_id max5380_match_table[] = {
 	{
-		.compatible = FLIR_MAX5380_COMPATIBLE_STR,
+		.compatible = "flir,max5380"
 	},
 	{},
 };
