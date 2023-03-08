@@ -9,8 +9,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/err.h>
-
-
+#include <linux/regulator/of_regulator.h>
+#include <linux/regulator/consumer.h>
 
 /**
  * @brief Structure holding driver data
@@ -21,6 +21,7 @@ struct max5380_data {
 	struct backlight_device *bdev;
 	u32 default_brightness;
 	u32 max_brightness;
+	struct regulator *supply;
 };
 
 static const struct of_device_id max5380_match_table[] = { { .compatible = "flir,max5380" }, {}, };
@@ -92,6 +93,7 @@ static int max5380_update_status(struct backlight_device *backlight)
 	int ret;
 	struct max5380_data *data = bl_get_data(backlight);
 	int brightness = backlight_get_brightness(backlight);
+	struct device *dev = &data->client->dev;
 
 	b = brightness;
 	if (brightness > 0) {
@@ -102,7 +104,16 @@ static int max5380_update_status(struct backlight_device *backlight)
 		b = 0;
 	}
 
+	if (!regulator_is_enabled(data->supply)) {
+		ret = regulator_enable(data->supply);
+	}
+
 	ret = i2c_smbus_write_byte(data->client, b);
+
+	if (regulator_is_enabled(data->supply) && brightness == 0) {
+		dev_dbg(dev, "brightness is set to zero.. power off regulator...\n");
+		ret = regulator_disable(data->supply);
+	};
 
 	if (ret < 0) {
 		dev_err(&data->client->dev, "i2c write failed\n");
@@ -127,6 +138,7 @@ static int max5380_probe(struct i2c_client *client, const struct i2c_device_id *
 {
 	struct backlight_properties props;
 	struct max5380_data *data;
+	struct device *dev = &client->dev;
 	int ret;
 
 	dev_dbg(&client->dev, "%s: probing\n", __func__);
@@ -144,6 +156,18 @@ static int max5380_probe(struct i2c_client *client, const struct i2c_device_id *
 	max5380_parse_dt(&client->dev);
 
 	data->client = client;
+
+	data->supply = devm_regulator_get(dev, "vcc");
+	if (IS_ERR(data->supply)) {
+		ret = PTR_ERR(data->supply);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "can't get regulator vcc-supply (%i)", ret);
+		else
+			dev_err(dev, "Deferred probe");
+		dev_err(dev, "Got error %i\n", ret);
+		data->supply = NULL;
+		return ret;
+	}
 
 	/* backlight register */
 	props.type = BACKLIGHT_RAW;
