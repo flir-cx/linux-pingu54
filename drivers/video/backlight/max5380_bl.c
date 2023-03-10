@@ -11,6 +11,7 @@
 #include <linux/err.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/consumer.h>
+#include <linux/delay.h>
 
 /**
  * @brief Structure holding driver data
@@ -108,7 +109,13 @@ static int max5380_update_status(struct backlight_device *backlight)
 		ret = regulator_enable(data->supply);
 	}
 
+	usleep_range(1000, 10000);
 	ret = i2c_smbus_write_byte(data->client, b);
+
+	if (ret < 0) {
+		dev_err(dev, "i2c write failed\n");
+		return ret;
+	}
 
 	if (regulator_is_enabled(data->supply) && brightness == 0) {
 		dev_dbg(dev, "brightness is set to zero.. power off regulator...\n");
@@ -116,9 +123,10 @@ static int max5380_update_status(struct backlight_device *backlight)
 	};
 
 	if (ret < 0) {
-		dev_err(&data->client->dev, "i2c write failed\n");
+		dev_err(dev, "backlight power off failed\n");
 		return ret;
 	}
+
 	return 0;
 }
 
