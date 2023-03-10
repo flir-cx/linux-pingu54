@@ -64,7 +64,6 @@ static int max5380_parse_dt(struct device *dev)
 	const struct of_device_id *match;
 	struct max5380_data *data = dev_get_drvdata(dev);
 
-	dev_dbg(dev, "%s\n", __func__);
 	match = of_match_device(max5380_match_table, dev);
 	if (!match) {
 		dev_err(dev, "no device tree match for platform device!\n");
@@ -100,7 +99,7 @@ static int max5380_update_status(struct backlight_device *backlight)
 	if (brightness > 0) {
 		/* scale into 0 - 255 */
 		b = (u8)(((u32)brightness * 255) / ((u32)backlight->props.max_brightness));
-		dev_err(&data->client->dev, "setting backlight to %u scaled from %u\n", b, brightness);
+		dev_dbg(dev, "setting backlight to %u scaled from %u\n", b, brightness);
 	} else {
 		b = 0;
 	}
@@ -121,7 +120,6 @@ static int max5380_update_status(struct backlight_device *backlight)
 		dev_dbg(dev, "brightness is set to zero.. power off regulator...\n");
 		ret = regulator_disable(data->supply);
 	};
-
 	if (ret < 0) {
 		dev_err(dev, "backlight power off failed\n");
 		return ret;
@@ -152,7 +150,7 @@ static int max5380_probe(struct i2c_client *client, const struct i2c_device_id *
 	dev_dbg(&client->dev, "%s: probing\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "fail : i2c functionality check\n");
+		dev_err(dev, "fail : i2c functionality check\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -185,16 +183,15 @@ static int max5380_probe(struct i2c_client *client, const struct i2c_device_id *
 	data->bdev = devm_backlight_device_register(&data->client->dev, "backlight_vf",
 						    &data->client->dev, data, &max5380_bl_ops, &props);
 	if (IS_ERR(data->bdev)) {
-		dev_err(&data->client->dev, "failed to register backlight device\n");
+		dev_err(dev, "failed to register backlight device\n");
 		return PTR_ERR(data->bdev);
 	}
 
 	i2c_set_clientdata(client, data->bdev);
 	if (ret < 0) {
-		dev_err(&client->dev, "fail : backlight register.\n");
+		dev_err(dev, "fail : backlight register.\n");
 		return ret;
 	}
-	dev_info(&client->dev, "max5380 backlight register OK.\n");
 
 	return 0;
 }
@@ -212,7 +209,6 @@ static int max5380_remove(struct i2c_client *client)
 	backlight->props.brightness = 0;
 	backlight_update_status(backlight);
 
-	dev_err(&client->dev, "%s: remove\n", __func__);
 	return 0;
 }
 
