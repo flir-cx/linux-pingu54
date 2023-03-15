@@ -3982,10 +3982,6 @@ static int mxcfb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Error %d on creating file for overlay_swap "
 				    " device propety\n", ret);
 
-	console_lock();
-	mxcfb_blank(FB_BLANK_NORMAL, fbi);
-	mxcfb_blank(FB_BLANK_UNBLANK, fbi);
-	console_unlock();
 	mxcfb_display_splash(fbi, &mxcfbi->bootlogo);
 
 	return 0;
