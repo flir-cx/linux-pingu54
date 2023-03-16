@@ -155,6 +155,7 @@
 	vmmc-supply = <&wlan_en_reg>;
 	non-removable;
 	no-1-8-v;
+	cap-power-off-card;
 	keep-power-in-suspend;
 	max-frequency = <25000000>;
 	status = "okay";
