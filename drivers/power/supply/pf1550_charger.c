@@ -47,6 +47,7 @@ struct pf1550_charger {
 	u32 min_system_volt;
 	u32 thermal_regulation_temp;
 	u32 coincell_volt;
+	unsigned int mA;
 };
 
 static struct pf1550_irq_info pf1550_charger_irqs[] = {
@@ -95,7 +96,7 @@ static int pf1550_get_charger_state(struct regmap *regmap, int *val)
 	return 0;
 }
 
-static int pf1550_get_charge_type(struct regmap *regmap, int *val)
+static int pf1550_get_charge_type(struct regmap *regmap, int *val, unsigned int selected_current)
 {
 	int ret;
 	unsigned int data;
@@ -113,7 +114,12 @@ static int pf1550_get_charge_type(struct regmap *regmap, int *val)
 	case PF1550_CHG_CONSTANT_CURRENT:
 	case PF1550_CHG_CONSTANT_VOL:
 	case PF1550_CHG_EOC:
-		*val = POWER_SUPPLY_CHARGE_TYPE_FAST;
+		if (selected_current <= 500)
+			*val = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
+		else if (selected_current < 1500)
+			*val = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
+		else
+			*val = POWER_SUPPLY_CHARGE_TYPE_FAST;
 		break;
 	case PF1550_CHG_DONE:
 	case PF1550_CHG_TIMER_FAULT:
@@ -466,7 +472,7 @@ static int pf1550_charger_get_property(struct power_supply *psy,
 		ret = pf1550_get_charger_state(regmap, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
-		ret = pf1550_get_charge_type(regmap, &val->intval);
+		ret = pf1550_get_charge_type(regmap, &val->intval, chg->mA);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = pf1550_get_battery_health(regmap, &val->intval);
@@ -622,7 +628,7 @@ static int pf1550_set_battery_charge_current(struct pf1550_charger *chg,
 		ilim = _10ma ;
 
 	ilim <<= PF1550_CHARG_REG_VBUS_INLIM_CNFG_SHIFT;
-
+	chg->mA = mA;
 	dev_dbg(chg->dev, "Charge current: %u (0x%x)\n",
 			mA, ilim);
 
@@ -743,6 +749,73 @@ static int pf1550_dt_init(struct device *dev, struct pf1550_charger *chg)
 	return 0;
 }
 
+static ssize_t pf1550_summary_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct pf1550_charger *chg = dev_get_drvdata(dev);
+	int len;
+	unsigned int min, max, selected;
+	unsigned int data;
+	const char *charger_type, *charger_state;
+
+	switch (chg->usb_phy->chg_type) {
+	case SDP_TYPE:
+		charger_type = "SDP";
+		break;
+	case DCP_TYPE:
+		charger_type = "DCP";
+		break;
+	case CDP_TYPE:
+		charger_type = "CDP";
+		break;
+	case ACA_TYPE:
+		charger_type = "ACA";
+		break;
+	case UNKNOWN_TYPE:
+		charger_type = "unknown";
+		break;
+	}
+
+	switch (chg->usb_phy->chg_state) {
+	case USB_CHARGER_DEFAULT:
+		charger_state = "default";
+		break;
+	case USB_CHARGER_PRESENT:
+		charger_state = "present";
+		break;
+	case USB_CHARGER_ABSENT:
+		charger_state = "absent";
+		break;
+	}
+
+	usb_phy_get_charger_current(chg->usb_phy, &min, &max);
+
+	(void) regmap_read(chg->pf1550->regmap, PF1550_CHARG_REG_CHG_SNS, &data);
+	if ((data == PF1550_CHG_CONSTANT_CURRENT) ||
+	    (data == PF1550_CHG_CONSTANT_VOL) ||
+	    (data == PF1550_CHG_EOC))
+		selected = chg->mA;
+	else
+		selected = 0;
+
+	len = sprintf(
+		buf,
+		"current [min, max, selected] : %d, %d, %d\n"
+		"charger type: %s\n"
+		"charger state: %s\n",
+		min, max, selected, charger_type, charger_state);
+
+	return len;
+}
+static DEVICE_ATTR(summary, 0444, pf1550_summary_show, NULL);
+
+static struct attribute *pf1550_attrs[] = {
+	&dev_attr_summary.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(pf1550);
+
 static int pf1550_charger_probe(struct platform_device *pdev)
 {
 	struct pf1550_charger *chg;
@@ -753,6 +826,12 @@ static int pf1550_charger_probe(struct platform_device *pdev)
 	chg = devm_kzalloc(&pdev->dev, sizeof(*chg), GFP_KERNEL);
 	if (!chg)
 		return -ENOMEM;
+
+	ret = sysfs_create_group(&pdev->dev.kobj, &pf1550_group);
+	if (ret) {
+		dev_err(&pdev->dev, "Creating pf1550 sysfs group failed.\n");
+		return ret;
+	}
 
 	chg->dev = &pdev->dev;
 	chg->pf1550 = pf1550;
@@ -825,6 +904,8 @@ static int pf1550_charger_probe(struct platform_device *pdev)
 static int pf1550_charger_remove(struct platform_device *pdev)
 {
 	struct pf1550_charger *chg = platform_get_drvdata(pdev);
+
+	sysfs_remove_group(&pdev->dev.kobj, &pf1550_group);
 
 	cancel_delayed_work_sync(&chg->irq_work);
 	power_supply_unregister(chg->charger);
