@@ -37,7 +37,6 @@ struct reg_value {
 };
 
 static struct reg_value lcd_setup_begin[] = {
-	{0x05, 150, 0, {0x11}}, //Sleep out
 	{0x29, 0, 4, {0xB9, 0xFF, 0x83, 0x94}}, //SETEXTC  extended command set access enable
 	{0x29, 0, 11, {
 			0xB1, 0x48, 0x14, 0x74, 0x09, 0x33,
@@ -99,6 +98,7 @@ static struct reg_value lcd_setup_begin[] = {
 };
 
 static struct reg_value lcd_setup_end[] = {
+	{0x05, 150, 0, {0x11}}, //Sleep out
 	{0x05, 50, 0, {0x29}} //Display on
 };
 
