@@ -235,9 +235,8 @@
 		gpio-sck = <&gpio_ptc 18 0>;
 		gpio-mosi = <&gpio_ptc 17 0>;
 		gpio-miso = <&gpio_ptc 16 0>;
-		num-chipselects = <3>;
+		num-chipselects = <2>;
 		cs-gpios = <&gpio_ptc 19 GPIO_ACTIVE_LOW>,
-			<&gpio_ptc 12 GPIO_ACTIVE_LOW>,
 			<&gpio_ptc 13 GPIO_ACTIVE_LOW>;
 
 		mapcomm_gpio: okeanos@0 {
@@ -252,19 +251,11 @@
 			interrupt-name = "okeanos";
 		};
 
-		/* Layer-0 calib flash */
-		calibflash@cs1 {
-			compatible = "micron,n25q256ax1", "jedec,spi-nor";
-			spi-max-frequency = <20000000>;
-			reg = <1>;
-			status = "okay";
-		};
-
 		/* Bootrom on REMI */
-		bootromflash@cs2 {
+		bootromflash@cs1 {
 			compatible = "winbond,w25q64", "jedec,spi-nor";
 			spi-max-frequency = <20000000>;
-			reg = <2>;
+			reg = <1>;
 			status = "okay";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -339,7 +330,6 @@
 	pinctrl_spi3: spi3 {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC11__PTC11	0x3
-			IMX7ULP_PAD_PTC12__PTC12	0x3
 			IMX7ULP_PAD_PTC13__PTC13	0x3
 			IMX7ULP_PAD_PTC14__PTC14	0x2
 			IMX7ULP_PAD_PTC16__PTC16	0x0
