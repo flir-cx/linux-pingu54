@@ -168,6 +168,7 @@
 		compatible = "gpio-reset";
 		reset-gpios = <&gpio_ptc 7 GPIO_ACTIVE_LOW>;
 		reset-delay-us = <5000>;
+		initially-in-reset;
 		#reset-cells = <0>;
 	};
 
