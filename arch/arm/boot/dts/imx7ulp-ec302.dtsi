@@ -622,7 +622,11 @@
 		kernel-maximum-soc = <100>;
 		alert-low-rsoc = <0x0>;
 		alert-low-voltage = <0x0>;
-		appli-adjustment = <0x4040>;
+		appli-adjustment = <0x0606>;
+		empty-cell-voltage = <0x0000>;
+		ite-offset = <0x0000>;
+		battery-profile = <0x0002>;
+		term-current-rate = <0x0003>;
 	};
 };
 

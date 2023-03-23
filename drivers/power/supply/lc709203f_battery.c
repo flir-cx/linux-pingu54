@@ -45,6 +45,9 @@
 #define LC709203F_IC_POWER_MODE		0x15
 #define LC709203F_STATUS_BIT		0x16
 #define LC709203F_NUM_OF_THE_PARAM	0x1A
+#define LC709203F_TERM_CURRENT_RATE	0x1C
+#define LC709203F_EMPTY_CELL_VOLT	0x1D
+#define LC709203F_ITE_OFFSET		0x1E
 
 #define LC709203F_DELAY			(30*HZ)
 #define LC709203F_MAX_REGS		0x1A
@@ -66,6 +69,10 @@ struct lc709203f_platform_data {
 	const char *tz_name;
 	u32 initial_rsoc;
 	u32 appli_adjustment;
+	u32 empty_cell_voltage;
+	u32 ite_offset;
+	u32 battery_profile;
+	u32 term_current_rate;
 	u32 thermistor_beta;
 	u32 therm_adjustment;
 	u32 threshold_soc;
@@ -360,6 +367,22 @@ static void of_lc709203f_parse_platform_data(struct i2c_client *client,
 	if (!ret)
 		pdata->appli_adjustment = pval;
 
+	ret = of_property_read_u32(np, "empty-cell-voltage", &pval);
+	if (!ret)
+		pdata->empty_cell_voltage = pval;
+
+	ret = of_property_read_u32(np, "ite-offset", &pval);
+	if (!ret)
+		pdata->ite_offset = pval;
+
+	ret = of_property_read_u32(np, "battery-profile", &pval);
+	if (!ret)
+		pdata->battery_profile = pval;
+
+	ret = of_property_read_u32(np, "term-current-rate", &pval);
+	if (!ret)
+		pdata->term_current_rate = pval;
+
 	pdata->tz_name = NULL;
 	ret = of_property_read_string(np, "tz-name", &pstr);
 	if (!ret)
@@ -527,15 +550,49 @@ static int lc709203f_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (chip->pdata->appli_adjustment) {
-		ret = lc709203f_write_word(chip->client,
-			LC709203F_ADJUSTMENT_PACK_APPLI,
-			chip->pdata->appli_adjustment);
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"ADJUSTMENT_APPLI write failed: %d\n", ret);
-			return ret;
-		}
+	ret = lc709203f_write_word(chip->client,
+		LC709203F_ADJUSTMENT_PACK_APPLI,
+		chip->pdata->appli_adjustment);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"ADJUSTMENT_APPLI write failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = lc709203f_write_word(chip->client,
+		LC709203F_EMPTY_CELL_VOLT,
+		chip->pdata->empty_cell_voltage);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"EMPTY_CELL_VOLT write failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = lc709203f_write_word(chip->client,
+		LC709203F_ITE_OFFSET,
+		chip->pdata->ite_offset);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"ITE_OFFSET write failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = lc709203f_write_word(chip->client,
+		LC709203F_CHANGE_OF_THE_PARAM,
+		chip->pdata->battery_profile);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"CHANGE_OF_THE_PARAM write failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = lc709203f_write_word(chip->client,
+		LC709203F_TERM_CURRENT_RATE,
+		chip->pdata->term_current_rate);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"TERM_CURRENT_RATE write failed: %d\n", ret);
+		return ret;
 	}
 
 	if (chip->pdata->tz_name || !chip->pdata->thermistor_beta)
@@ -564,24 +621,6 @@ static int lc709203f_probe(struct i2c_client *client,
 		dev_err(&client->dev, "STATUS_BIT write failed: %d\n", ret);
 		return ret;
 	}
-
-	type = lc709203f_read_word(chip->client, LC709203F_NUM_OF_THE_PARAM) == 0x0301? LC709203F:LC709204F;
-	dev_err(&client->dev, "Fuelguage %s detected\n", type==LC709203F?"LC709203f":"LC709204f");
-
-	param = lc709203f_read_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM);
-
-	// Battery param should be 1 for lc709203f and 0 for lc709204f (FLIR ec201 settings)
-	param_val = type==LC709203F?1:0;
-
-	if(param != param_val)
-	{
-		ret = lc709203f_write_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM, param_val);
-		if (ret < 0) {
-			dev_err(&client->dev, "STATUS_BIT write failed: %d\n", ret);
-			return ret;
-		}
-	}
-
 
 skip_thermistor_config:
 	lc709203f_update_soc_voltage(chip);
