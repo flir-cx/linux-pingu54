@@ -332,6 +332,21 @@
 		reg = <0x55>;
 	};
 
+	touchscreen_truly:tsc@70 {
+		status = "okay";
+		compatible = "cypress,tt21000";
+		reg = <0x70>;
+		vdd-supply = <&DA9063_LDO11>;
+
+		pinctrl_names = "default";
+		interrupt-parent = <&gpio7>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&leif_pca9534_0x4a 4 GPIO_ACTIVE_LOW>;
+		touchscreen-size-x = <640>;
+		touchscreen-size-y = <480>;
+		linux,keycodes = <KEY_1>, <KEY_F2>, <KEY_3>, <KEY_4>, <KEY_F5>;
+	};
+
 	touchscreen:edt_ft5336@38 {
 		compatible = "edt,ft5336";
 		reg = <0x38>;
