@@ -52,6 +52,7 @@ struct flir_ema100080_data {
 	struct gpio_desc *fvm_psave_gpiod;
 
 	struct regulator *supply;
+	bool regulator_enabled;
 
 	/* ioctl */
 	struct miscdevice miscdev;
@@ -203,6 +204,7 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 		vf->supply = NULL;
 		return ret;
 	}
+	vf->regulator_enabled = false;
 
 	ret = misc_register(&vf->miscdev);
 	if (ret) {
@@ -476,7 +478,13 @@ static int flir_ema100080_set_pwr_on(struct device *dev)
 		}
 	}
 
-	ret = regulator_enable(vf->supply);
+	if (!vf->regulator_enabled) {
+		ret = regulator_enable(vf->supply);
+		vf->regulator_enabled = true;
+		dev_info(dev, "Viewfinder enabling regulator\n");
+	} else {
+		dev_err(dev, "Viewfinder regulator has already been enabled...\n");
+	}
 
 	// Need to wait for chip to power up
 	mdelay(100);
@@ -521,8 +529,13 @@ static int flir_ema100080_set_pwr_off(struct device *dev)
 		}
 	}
 
-	if (regulator_is_enabled(vf->supply))
+	if (vf->regulator_enabled) {
 		ret = regulator_disable(vf->supply);
+		vf->regulator_enabled = false;
+		dev_info(dev, "Viewfinder disabling regulator\n");
+	} else {
+		dev_err(dev, "can not disable regulator... which is not enabled...\n");
+	}
 
 	return 0;
 }
