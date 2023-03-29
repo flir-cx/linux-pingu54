@@ -28,6 +28,7 @@ struct mxc_lcd_platform_data {
 	u32 ipu_id;
 	u32 disp_id;
 	struct pinctrl *pinctrl;
+	bool bus_enabled;
 };
 
 struct mxc_lcdif_data {
@@ -36,6 +37,76 @@ struct mxc_lcdif_data {
 };
 
 #define DISPDRV_LCD	"lcd"
+
+
+/* enablebus
+ * hack to disable the lcd bus on EOCO platforms
+ *
+ * the LCD bus on EOCO can feed power to the viewfinder, causing the viewfinder
+ * to be powered when all other power is shut off
+ * This causes the viewfinder to always emit some light, and by disabling the LCD bus, this
+ * can be avoided.
+ *
+ * The driver is used also in evander (and potentially other cameras)
+ * For eoco, the 'default' state has been changed in the device-tree to disable the
+ * LCD bus to the viewfinder, as the normal state should be off for the device
+ *
+ * A new state pinctrl state has been added, named 'active', which turns on the LCD bus.
+ *
+ * Currently, activate feature  if the 'active' state is found,
+ *   if so, we allow toggling between active and default state.
+ *   else we remain in the default state
+ *
+ * A future improvment could be to implement a 'sleep' state (or another state) (se pinctrl.txt)
+ * to better integrate It with the Linux system, however, It currently does not seem
+ * thtat this Freescale driver has implemented any such power saving features, so further
+ * investigations is needed to determine If It is possible with this driver
+ */
+static ssize_t enablebus_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
+{
+	int ret;
+	bool on;
+	struct mxc_lcd_platform_data *plat_data = dev->platform_data;
+	struct pinctrl_state *s;
+
+	if (kstrtobool(buf, &on) < 0)
+		return -EINVAL;
+	if (on) {
+		dev_info(dev, "Enabling lcd bus...\n");
+		s = pinctrl_lookup_state(plat_data->pinctrl, "enabled");
+	} else {
+		dev_info(dev, "Disabling lcd bus...\n");
+		s = pinctrl_lookup_state(plat_data->pinctrl, "disabled");
+	}
+
+	ret = pinctrl_select_state(plat_data->pinctrl, s);
+
+	if (ret == 0) {
+		plat_data->bus_enabled = on;
+		ret = len;
+	}
+
+	return ret;
+}
+
+static ssize_t enablebus_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct mxc_lcd_platform_data *plat_data = dev->platform_data;
+	return sprintf(buf, "enablebus: %s\n", plat_data->bus_enabled ? "enabled" : "disabled");
+}
+
+static DEVICE_ATTR_RW(enablebus);
+
+static struct attribute *lcdif_sysfs_enablebus_attrs[] = {
+	&dev_attr_enablebus.attr,
+	NULL
+};
+
+static struct attribute_group lcdif_sysfs_control_attr_grp = {
+	.name = "control",
+	.attrs = lcdif_sysfs_enablebus_attrs,
+};
+
 
 static struct fb_videomode lcdif_modedb[] = {
 	{
@@ -203,6 +274,7 @@ static int mxc_lcdif_probe(struct platform_device *pdev)
 	if (!plat_data)
 		return -ENOMEM;
 	pdev->dev.platform_data = plat_data;
+	plat_data->bus_enabled = false;
 
 	ret = lcd_get_of_property(pdev, plat_data);
 	if (ret < 0) {
@@ -223,12 +295,39 @@ static int mxc_lcdif_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, lcdif);
 	dev_dbg(&pdev->dev, "%s exit\n", __func__);
 
+	if (IS_ERR(pinctrl_lookup_state(plat_data->pinctrl, "enabled")) ||
+	    IS_ERR(pinctrl_lookup_state(plat_data->pinctrl, "disabled"))) {
+		// Silent pass through, no change to systems which do not
+		// have the enabled/disabled pincontrols
+	} else {
+		struct pinctrl_state *s = pinctrl_lookup_state(plat_data->pinctrl, "disabled");
+
+		ret = pinctrl_select_state(plat_data->pinctrl, s);
+		if (ret == 0) {
+			dev_info(&pdev->dev, "Disabling viewfinder lcd bus...\n");
+			plat_data->bus_enabled = true;
+		}
+
+		ret = sysfs_create_group(&pdev->dev.kobj, &lcdif_sysfs_control_attr_grp);
+		if (ret)
+			pr_err("LCDIF Error creating sysfs grp control\n");
+	}
 	return ret;
 }
 
 static int mxc_lcdif_remove(struct platform_device *pdev)
 {
 	struct mxc_lcdif_data *lcdif = dev_get_drvdata(&pdev->dev);
+	struct mxc_lcd_platform_data *plat_data = pdev->dev.platform_data;
+
+	if (IS_ERR(pinctrl_lookup_state(plat_data->pinctrl, "enabled")) ||
+	    IS_ERR(pinctrl_lookup_state(plat_data->pinctrl, "disabled"))) {
+		// Silent pass through, no change to systems which do not
+		// have the enabled/disabled pincontrols
+	} else {
+		dev_info(&pdev->dev, "remove pinctrl contains active...\n");
+		sysfs_remove_group(&pdev->dev.kobj, &lcdif_sysfs_control_attr_grp);
+	}
 
 	mxc_dispdrv_puthandle(lcdif->disp_lcdif);
 	mxc_dispdrv_unregister(lcdif->disp_lcdif);
