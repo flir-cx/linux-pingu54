@@ -870,13 +870,6 @@
 				>;
 		};
 
-		pinctrl_viewfinder: vfgrp {
-			fsl,pins = <
-				MX6QDL_PAD_DI0_PIN15__GPIO4_IO17	0x100b1
-				MX6QDL_PAD_DI0_PIN4__GPIO4_IO20     0x100b1
-			>;
-		};
-
 		pinctrl_ipu1: ipu1grp {
 			fsl,pins = <
 				MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK 0x10
