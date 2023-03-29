@@ -27,6 +27,7 @@ struct mxc_lcd_platform_data {
 	u32 default_ifmt;
 	u32 ipu_id;
 	u32 disp_id;
+	struct pinctrl *pinctrl;
 };
 
 struct mxc_lcdif_data {
@@ -188,7 +189,6 @@ static int lcd_get_of_property(struct platform_device *pdev,
 static int mxc_lcdif_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct pinctrl *pinctrl;
 	struct mxc_lcdif_data *lcdif;
 	struct mxc_lcd_platform_data *plat_data;
 
@@ -210,10 +210,10 @@ static int mxc_lcdif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "can't get/select pinctrl\n");
-		return PTR_ERR(pinctrl);
+	plat_data->pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(plat_data->pinctrl)) {
+		dev_err(&pdev->dev, "can't get/select default pinctrl\n");
+		return PTR_ERR(plat_data->pinctrl);
 	}
 
 	lcdif->pdev = pdev;
