@@ -333,7 +333,6 @@
 	};
 
 	touchscreen_truly:tsc@70 {
-		status = "okay";
 		compatible = "cypress,tt21000";
 		reg = <0x70>;
 		vdd-supply = <&DA9063_LDO11>;
@@ -345,6 +344,7 @@
 		touchscreen-size-x = <640>;
 		touchscreen-size-y = <480>;
 		linux,keycodes = <KEY_1>, <KEY_F2>, <KEY_3>, <KEY_4>, <KEY_F5>;
+		status = "disabled"; /* This is set to okay from u-boot if truly display is detected */
 	};
 
 	touchscreen:edt_ft5336@38 {
@@ -373,8 +373,7 @@
 		touchscreen-size-y = <520>;  //size of touchscreen area
 		
 		reset-gpios = <&leif_pca9534_0x4a 4 GPIO_ACTIVE_HIGH>;
-		//		wake-gpios = <&roco_pca9534 5 GPIO_ACTIVE_HIGH>;
-		status = "okay";
+		status = "okay"; /* This is disabled from u-boot if truly display is detected */
 	};
 };
 
