@@ -43,6 +43,13 @@ static struct pf1550_irq_info pf1550_onkey_irqs[] = {
 	{ PF1550_ONKEY_IRQ_8SI,		"8S" },
 };
 
+static int pf1550_reset_times[] = {
+	PF1550_PMIC_RESET_4S,
+	PF1550_PMIC_RESET_8S,
+	PF1550_PMIC_RESET_12S,
+	PF1550_PMIC_RESET_16S,
+};
+
 static irqreturn_t pf1550_onkey_irq_handler(int irq, void *data)
 {
 	struct onkey_drv_data *onkey = data;
@@ -76,6 +83,39 @@ static irqreturn_t pf1550_onkey_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int set_reset_time(struct pf1550_dev *pf1550, u32 reset_time)
+{
+	unsigned int reg_data;
+	int ret, i;
+	bool valid = false;
+
+	for (i = 0; i < ARRAY_SIZE(pf1550_reset_times); i++)
+		if (reset_time == pf1550_reset_times[i])
+			valid = true;
+
+	if (!valid) {
+		dev_err(pf1550->dev, "Invalid pmic reset time\n");
+		return -EINVAL;
+	}
+
+	ret = regmap_read(pf1550->regmap, PF1550_PMIC_REG_PWRCTRL0, &reg_data);
+	if (ret < 0) {
+		dev_err(pf1550->dev, "Could not read PWCTRL0 reg\n");
+		return ret;
+	}
+
+	reg_data = (reg_data & ~PF1550_PMIC_REG_PWRCTRL0_TGRESET_MASK) |
+		   PF1550_PMIC_RESET_TIME_TO_REG_VAL(reset_time);
+
+	ret = regmap_write(pf1550->regmap, PF1550_PMIC_REG_PWRCTRL0, reg_data);
+	if (ret < 0) {
+		dev_err(pf1550->dev, "Could not write PWCTRL0 reg\n");
+		return ret;
+	}
+
+	return ret;
+}
+
 static int pf1550_onkey_probe(struct platform_device *pdev)
 {
 	struct onkey_drv_data *onkey;
@@ -83,6 +123,7 @@ static int pf1550_onkey_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct pf1550_dev *pf1550 = dev_get_drvdata(pdev->dev.parent);
 	int i, error;
+	u32 reset_time;
 
 	if (!np)
 		return -ENODEV;
@@ -94,6 +135,10 @@ static int pf1550_onkey_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "linux,keycode", &onkey->keycode)) {
 		onkey->keycode = KEY_POWER;
 		dev_warn(&pdev->dev, "KEY_POWER without setting in dts\n");
+	}
+
+	if (of_property_read_u32(np, "reset-time", &reset_time)) {
+		dev_warn(&pdev->dev, "reset-time without setting in dts\n");
 	}
 
 	onkey->wakeup = of_property_read_bool(np, "wakeup");
@@ -139,6 +184,11 @@ static int pf1550_onkey_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register input device\n");
 		input_free_device(input);
 		return error;
+	}
+
+	error = set_reset_time(pf1550, reset_time);
+	if (error < 0) {
+		dev_err(&pdev->dev, "failed to set reset time\n");
 	}
 
 	onkey->input = input;

@@ -146,18 +146,6 @@ static int pf1550_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	ret = regmap_read(pf1550->regmap, PF1550_PMIC_REG_PWRCTRL0, &reg_data);
-	if (ret < 0) {
-		dev_err(pf1550->dev, "Could not read PWCTRL0 reg\n");
-		return ret;
-	}
-	reg_data = (reg_data & ~PF1550_PMIC_REG_PWRCTRL0_TGRESET_MASK) | PF1550_PMIC_REG_PWRCTRL0_TGRESET_4S;
-	ret = regmap_write(pf1550->regmap, PF1550_PMIC_REG_PWRCTRL0, reg_data);
-	if (ret < 0) {
-		dev_err(pf1550->dev, "Could not write PWCTRL0 reg\n");
-		return ret;
-	}
-
 	pf1550->type = PF1550;
 	dev_info(pf1550->dev, "pf1550 found.\n");
 
