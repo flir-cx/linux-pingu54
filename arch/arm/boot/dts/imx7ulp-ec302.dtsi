@@ -567,6 +567,7 @@
 		onkey {
 			compatible = "fsl,pf1550-onkey";
 			linux,keycode = <KEY_F8>;
+			reset-time = <8>;
 		};
 
 		charger {
