@@ -64,7 +64,7 @@
 	backlight: backlight_vf@30 {
 		reg = <0x30>;
 		compatible = "flir,max5380";
-		default-brightness = <0x40>;
+		default-brightness = <0x0>;
 		max-brightness = <255>;
 		vcc-supply = <&reg_govp>;
 	};
