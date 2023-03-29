@@ -27,8 +27,8 @@
 &i2c1 {
 	flir_ema100080: flir_ema100080@32 {
 		compatible = "flir,ema100080";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_viewfinder>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&pinctrl_viewfinder>;
 
 		eoco-fvm-psave-gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
 		//eoco-fvm-pwr-en-gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
@@ -79,5 +79,12 @@
 };
 
 &iomuxc {
+		pinctrl_viewfinder: vfgrp {
+			fsl,pins = <
+				MX6QDL_PAD_DI0_PIN15__GPIO4_IO17	0x100b1
+				MX6QDL_PAD_DI0_PIN4__GPIO4_IO20     0x100b1
+			>;
+		};
+
 };
 
