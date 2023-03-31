@@ -266,16 +266,9 @@ static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 		while (len > 0) {
 			if ((written / DSI_GEN_PLD_DATA_BUF_SIZE) + 1 ==
 				(MIPI_DSI_GEN_FIFO_SIZE / DSI_GEN_PLD_DATA_BUF_SIZE)) {
-				/* Last write before fifo is full, start clocking out */
+				/* Last write before fifo is full 60 bytes written, start clocking out */
 				mipi_dsi_write_register(mipi_dsi,
 							MIPI_DSI_GEN_HDR, val);
-				dev_err(&mipi_dsi->pdev->dev, "Started DSI clocking out fifo when %d bytes written\n", written);
-				if (mipi_dsi_poll_register(mipi_dsi,
-						MIPI_DSI_CMD_PKT_STATUS,
-						DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL)) {
-					return -EIO;
-				}
-				dev_dbg(&mipi_dsi->pdev->dev, "Fifo is no longer full");
 			}
 			mipi_dsi_write_register(mipi_dsi,
 				MIPI_DSI_GEN_PLD_DATA, *buf);
@@ -287,6 +280,8 @@ static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 			if (mipi_dsi_poll_register(mipi_dsi,
 					MIPI_DSI_CMD_PKT_STATUS,
 					DSI_CMD_PKT_STATUS_GEN_PLD_W_FULL)) {
+				dev_err(&mipi_dsi->pdev->dev,
+					"The pld fifo is full %d bytes written, returning\n", written);
 				return -EIO;
 			}
 		}
@@ -319,11 +314,12 @@ static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 	if (mipi_dsi_poll_register(mipi_dsi,
 			MIPI_DSI_CMD_PKT_STATUS,
 			DSI_CMD_PKT_STATUS_GEN_CMD_FULL)) {
+		dev_err(&mipi_dsi->pdev->dev, "Poll failed DSI_CMD_PKT_STATUS_GEN_CMD_FULL\n");
 		return -EIO;
 	}
 	if (write_len < MIPI_DSI_GEN_FIFO_SIZE)
 	{
-		/* We have already started the clocking out */
+		/* We have not already started the clocking out */
 		mipi_dsi_write_register(mipi_dsi, MIPI_DSI_GEN_HDR, val);
 		dev_dbg(&mipi_dsi->pdev->dev, "\twrite_reg:0x%02x, val:0x%08x.\n",
 				MIPI_DSI_GEN_HDR, val);
@@ -337,10 +333,13 @@ static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 			DSI_CMD_PKT_STATUS_GEN_PLD_W_EMPTY)) {
 		udelay(50);
 		timeout++;
-		if (timeout == MIPI_DSI_REG_RW_TIMEOUT)
+		if (timeout == MIPI_DSI_REG_RW_TIMEOUT) {
+			dev_err(&mipi_dsi->pdev->dev, "MIPI_DSI_REG_RW_TIMEOUT status=0x%02x\n", status);
 			return -EIO;
+		}
 		mipi_dsi_read_register(mipi_dsi, MIPI_DSI_CMD_PKT_STATUS,
 				&status);
+		dev_dbg(&mipi_dsi->pdev->dev, "MIPI_DSI_CMD_PKT_STATUS status=0x%02x\n", status);
 	}
 
 	return 0;
