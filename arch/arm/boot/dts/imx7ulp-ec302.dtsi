@@ -57,18 +57,6 @@
 			enable-active-high;
 		};
 
-		bt_en_reg: bt_en_reg {
-			compatible = "regulator-fixed";
-			regulator-name = "bt_en";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpios = <&gpio_pte 15 GPIO_ACTIVE_HIGH>;
-			startup-delay-us = <70000>;
-			enable-active-high;
-			regulator-boot-on;
-			regulator-always-on;
-		};
-
 		vcam_en_reg_dovdd: vcam_en_reg_dovdd {
 			compatible = "regulator-fixed";
 			regulator-name = "vcam_en_reg_dovdd";
