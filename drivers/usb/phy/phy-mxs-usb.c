@@ -991,14 +991,16 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 
 	if (i > 20) {
 		dev_err(phy->dev, "charger detecting timeout\n");
+		chgr_type = UNKNOWN_TYPE;
+	}
 
-		dev_info(phy->dev, "Checking CC pins... CC1: %d, CC2: %d\n", m4_cc1_adc, m4_cc2_adc);
-		if (m4_cc1_adc > CC_ADC_DCP_THRESHOLD || m4_cc2_adc > CC_ADC_DCP_THRESHOLD) {
+	if (chgr_type == SDP_TYPE || chgr_type == UNKNOWN_TYPE) {
+		dev_info(phy->dev, "Checking CC pins... CC1: %d, CC2: %d\n",
+				phy->chg_cc.cc1, phy->chg_cc.cc2);
+		if (phy->chg_cc.cc1 > CC_ADC_DCP_THRESHOLD ||
+				phy->chg_cc.cc2 > CC_ADC_DCP_THRESHOLD) {
 			dev_info(phy->dev, "DCP\n");
 			chgr_type = DCP_TYPE;
-		} else {
-			dev_info(phy->dev, "SDP\n");
-			chgr_type = UNKNOWN_TYPE;
 		}
 	}
 
