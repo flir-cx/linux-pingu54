@@ -92,6 +92,11 @@ struct usb_charger_current {
 	unsigned int aca_max;
 };
 
+struct usb_charger_cc {
+	uint16_t cc1;
+	uint16_t cc2;
+};
+
 struct usb_phy {
 	struct device		*dev;
 	const char		*label;
@@ -118,6 +123,7 @@ struct usb_phy {
 	enum usb_charger_state	chg_state;
 	struct usb_charger_current	chg_cur;
 	struct work_struct		chg_work;
+	struct usb_charger_cc	chg_cc;
 
 	/* for notification of usb_phy_events */
 	struct atomic_notifier_head	notifier;
