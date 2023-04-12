@@ -615,7 +615,6 @@ static int cyttsp5_enter_sleep(struct cyttsp5 *ts)
 {
 	int rc;
 	u8 cmd[2];
-	u16 crc;
 
 	memset(cmd, 0, sizeof(cmd));
 
@@ -654,7 +653,6 @@ static int cyttsp5_wakeup(struct cyttsp5 *ts)
 {
 	int rc;
 	u8 cmd[2];
-	u16 crc;
 
 	memset(cmd, 0, sizeof(cmd));
 
@@ -734,7 +732,6 @@ static int cyttsp5_get_hid_descriptor(struct cyttsp5 *ts,
 {
 	struct device *dev = ts->dev;
 	int rc;
-	u8 cmd[2];
 
 	rc = cyttsp5_write(ts, HID_DESC_REG, NULL, 0);
 	if (rc) {
@@ -1049,14 +1046,13 @@ static int __maybe_unused cyttsp5_suspend(struct device *dev)
 
 	if (!ts->is_wakeup_source)
 		cyttsp5_enter_sleep(ts);
+
 	return 0;
 }
 
 static int __maybe_unused cyttsp5_resume(struct device *dev)
 {
 	struct cyttsp5 *ts = dev_get_drvdata(dev);
-	struct i2c_client *client = to_i2c_client(dev);
-	int error;
 
 	if (!ts->is_wakeup_source)
 		cyttsp5_wakeup(ts);
@@ -1070,6 +1066,7 @@ static struct i2c_driver cyttsp5_i2c_driver = {
 	.driver = {
 		.name = CYTTSP5_NAME,
 		.of_match_table = cyttsp5_of_match,
+		.pm = &cyttsp5_pm,
 	},
 	.probe_new = cyttsp5_i2c_probe,
 	.id_table = cyttsp5_i2c_id,
