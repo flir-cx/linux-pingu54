@@ -658,9 +658,8 @@ int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi,
 			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
 		}
 	} else if (panel == 2) {
-		
-		dev_dbg(&mipi_dsi->pdev->dev,
-			"Power on secondary display\n");
+
+		dev_dbg(&mipi_dsi->pdev->dev, "Power on secondary display\n");
 		
 		if(mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_set){
 			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
@@ -983,6 +982,35 @@ static int mipi_swap_panel(struct mxc_dispdrv_handle *disp,
 	return 0;
 }
 
+/**
+ * @brief Get which panel is currently active
+ *
+ * @param disp display driver handle
+ * @param fbi frame fuffer info struct
+ * @return int 1 for primary panel (lcd), 2 for secondary panel (vf), 0 for both off.
+ */
+static int mipi_get_active_panel(struct mxc_dispdrv_handle *disp,
+				 struct fb_info *fbi)
+{
+	struct mipi_dsi_info *mipi_dsi = mxc_dispdrv_getdata(disp);
+	int panel = 0;
+	int primary = -1;
+	int secondary = -1;
+
+	if (mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_get)
+		primary = mipi_dsi->primary_cb->mipi_lcd_power_get(mipi_dsi);
+
+	if (mipi_dsi->secondary_cb && mipi_dsi->secondary_cb->mipi_lcd_power_get)
+		secondary = mipi_dsi->secondary_cb->mipi_lcd_power_get(mipi_dsi);
+
+	if (primary > 0)
+		panel = 1; // lcd
+	if (secondary > 0)
+		panel = 2; // vf
+
+	return panel;
+}
+
 static struct mxc_dispdrv_driver mipi_dsi_drv = {
 	.name	= DISPDRV_MIPI,
 	.init	= mipi_dsi_disp_init,
@@ -991,6 +1019,7 @@ static struct mxc_dispdrv_driver mipi_dsi_drv = {
 	.disable = mipi_dsi_disable,
 	.setup	= mipi_dsi_setup,
 	.swap_panel = mipi_swap_panel,
+	.get_active_panel = mipi_get_active_panel,
 };
 
 __attribute__((unused)) static int device_reset(struct device *dev)
