@@ -32,16 +32,16 @@ struct mxc_dispdrv_setting {
 
 struct mxc_dispdrv_driver {
 	const char *name;
-	int (*init) (struct mxc_dispdrv_handle *, struct mxc_dispdrv_setting *);
-	void (*deinit) (struct mxc_dispdrv_handle *);
+	int (*init)(struct mxc_dispdrv_handle *disp, struct mxc_dispdrv_setting *setting);
+	void (*deinit)(struct mxc_dispdrv_handle *disp);
 	/* display driver enable function for extension */
-	int (*enable) (struct mxc_dispdrv_handle *, struct fb_info *);
+	int (*enable)(struct mxc_dispdrv_handle *disp, struct fb_info *fbi);
 	/* display driver disable function, called at early part of fb_blank */
-	void (*disable) (struct mxc_dispdrv_handle *, struct fb_info *);
+	void (*disable)(struct mxc_dispdrv_handle *disp, struct fb_info *fbi);
 	/* display driver setup function, called at early part of fb_set_par */
-	int (*setup) (struct mxc_dispdrv_handle *, struct fb_info *fbi);
+	int (*setup)(struct mxc_dispdrv_handle *disp, struct fb_info *fbi);
 	/* display driver swap panel function */
-	int (*swap_panel) (struct mxc_dispdrv_handle *, struct fb_info *fbi, int active);
+	int (*swap_panel)(struct mxc_dispdrv_handle *disp, struct fb_info *fbi, int active);
 	/* display driver get active panel function */
 	int (*get_active_panel)(struct mxc_dispdrv_handle *disp, struct fb_info *fbi);
 };

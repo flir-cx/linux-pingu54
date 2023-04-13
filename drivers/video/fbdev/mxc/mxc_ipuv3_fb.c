@@ -3157,10 +3157,10 @@ static int swap_disp_panel(struct fb_info *fbi, int panel)
 {
 	struct mxcfb_info *mxcfbi = (struct mxcfb_info *)fbi->par;
 
-	if(!mxcfbi->dispdrv->drv->swap_panel)
+	if (!mxcfbi->dispdrv->drv->swap_panel)
 		return -ENODEV;
 
-	return mxcfbi->dispdrv->drv->swap_panel(mxcfbi->dispdrv, fbi,panel);
+	return mxcfbi->dispdrv->drv->swap_panel(mxcfbi->dispdrv, fbi, panel);
 }
 
 static ssize_t disp_panel_show(struct device *dev,
@@ -3179,7 +3179,7 @@ static ssize_t disp_panel_store(struct device *dev,
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
-	swap_disp_panel(fbi,val);
+	swap_disp_panel(fbi, val);
 
 	return count;
 }
