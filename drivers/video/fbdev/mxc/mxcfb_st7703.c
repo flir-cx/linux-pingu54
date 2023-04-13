@@ -385,10 +385,9 @@ int mipid_st7703_lcd_power_get(struct mipi_dsi_info *mipi_dsi)
 	int lcd_mipi_sel, lcd_power;
 	dev_dbg(&mipi_dsi->pdev->dev, "mipid_st7703_lcd_power_get\n");
 	if (mipi_dsi->lcd_mipi_sel_gpio)
-		lcd_mipi_sel=gpio_get_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio);
-	if (mipi_dsi->lcd_power_gpio){
-		lcd_power=gpio_get_value_cansleep(mipi_dsi->lcd_power_gpio);
-	}
+		lcd_mipi_sel = gpio_get_value_cansleep(mipi_dsi->lcd_mipi_sel_gpio);
+	if (mipi_dsi->lcd_power_gpio)
+		lcd_power = gpio_get_value_cansleep(mipi_dsi->lcd_power_gpio);
 
 	if (lcd_mipi_sel < 0 || lcd_power < 0) {
 		dev_err(dev, "failed to get gpio in %s\n", __func__);

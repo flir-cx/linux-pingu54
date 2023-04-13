@@ -629,56 +629,46 @@ int mipi_rotate_primary(struct mipi_dsi_info *mipi_dsi, int rotation)
 	return 0;
 }
 
-int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi,
-				 int panel)
+int mipi_dsi_select_panel(struct mipi_dsi_info *mipi_dsi, int panel)
 {
 	if (panel == 0) {
 		dev_dbg(&mipi_dsi->pdev->dev, "Shut off all displays\n");
-		if(mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_set){
+		if (mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_set)
 			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		}
-		if(mipi_dsi->secondary_cb && mipi_dsi->secondary_cb->mipi_lcd_power_set){
+
+		if (mipi_dsi->secondary_cb && mipi_dsi->secondary_cb->mipi_lcd_power_set)
 			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		}
-	} else if (panel == 1) {
-		dev_dbg(&mipi_dsi->pdev->dev, "Power on primary display\n");
-		if (mipi_dsi->secondary_cb && mipi_dsi->secondary_cb->mipi_lcd_power_set) {
-			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		}
-		if(mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_set){
-			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 1);
+
+	} else if (panel == 1 || panel == 2) {
+		struct mipi_dsi_cb *turn_on_cb;
+		struct mipi_dsi_cb *turn_off_cb;
+
+		if (panel == 1) {
+			turn_on_cb = mipi_dsi->primary_cb;
+			turn_off_cb = mipi_dsi->secondary_cb;
+			dev_dbg(&mipi_dsi->pdev->dev, "Power on primary display\n");
+		} else { // panel 2
+			turn_on_cb = mipi_dsi->secondary_cb;
+			turn_off_cb = mipi_dsi->primary_cb;
+			dev_dbg(&mipi_dsi->pdev->dev, "Power on secondary display\n");
 		}
 
-		if(mipi_dsi->primary_cb){
+		if (turn_off_cb && turn_off_cb->mipi_lcd_power_set)
+			turn_off_cb->mipi_lcd_power_set(mipi_dsi, 0);
+
+		if (turn_on_cb) {
+			if (turn_on_cb->mipi_lcd_power_set) {
+				turn_on_cb->mipi_lcd_power_set(mipi_dsi, 0);
+				turn_on_cb->mipi_lcd_power_set(mipi_dsi, 1);
+			}
 			mipi_dsi_set_mode(mipi_dsi, 1);
 			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-			mipi_dsi->primary_cb->mipi_lcd_setup(mipi_dsi);
-			mipi_dsi_set_mode(mipi_dsi, 0);
-			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-		}
-	} else if (panel == 2) {
-
-		dev_dbg(&mipi_dsi->pdev->dev, "Power on secondary display\n");
-		
-		if(mipi_dsi->primary_cb && mipi_dsi->primary_cb->mipi_lcd_power_set){
-			mipi_dsi->primary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-		}
-
-		if (mipi_dsi->secondary_cb && mipi_dsi->secondary_cb->mipi_lcd_power_set) {
-			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 0);
-			mipi_dsi->secondary_cb->mipi_lcd_power_set(mipi_dsi, 1);
-		}
-
-		if(mipi_dsi->secondary_cb){
-			mipi_dsi_set_mode(mipi_dsi, 1);
-			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
-			mipi_dsi->secondary_cb->mipi_lcd_setup(mipi_dsi);
+			turn_on_cb->mipi_lcd_setup(mipi_dsi);
 			mipi_dsi_set_mode(mipi_dsi, 0);
 			msleep((1000 / mipi_dsi->mode->refresh + 1) << 1);
 		}
 	} else {
-		dev_err(&mipi_dsi->pdev->dev, "Unknown panel selected\n");
+		dev_err(&mipi_dsi->pdev->dev, "Unknown panel selected (%i)\n", panel);
 		return -EIO;
 	}
 	return 0;
