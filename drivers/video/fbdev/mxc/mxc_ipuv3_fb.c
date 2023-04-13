@@ -58,6 +58,7 @@
 #include "mxc_dispdrv.h"
 
 static int swap_disp_panel(struct fb_info *fbi, int panel);
+static int get_active_panel(struct fb_info *fbi);
 /*
  * Driver name
  */
@@ -2393,13 +2394,29 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 		}
 	case MXCFB_SWAP_PANEL:
 		{
-			int panel;
-			if (get_user(panel, argp))
+			int vf_active; // 1 => vf, not 1 => lcd
+			int wanted_panel;
+			int current_panel = get_active_panel(fbi); // 1 => lcd, 2 => vf
+
+			if (get_user(vf_active, argp))
 				return -EFAULT;
 
-			mxcfb_blank(FB_BLANK_NORMAL, fbi);
-			retval = swap_disp_panel(fbi,panel);
-			mxcfb_blank(FB_BLANK_UNBLANK, fbi);
+			// On startup primary is on, don't change if not needed
+			// since it causes the display to go black for a second or so
+			wanted_panel = (vf_active == 1) ? 2 : 1;
+
+			dev_dbg(fbi->device, "%s: Swap from panel=%i to panel=%i\n",
+				__func__, current_panel, wanted_panel);
+			if (current_panel != wanted_panel) {
+				mxcfb_blank(FB_BLANK_NORMAL, fbi);
+				retval = swap_disp_panel(fbi, vf_active);
+				mxcfb_blank(FB_BLANK_UNBLANK, fbi);
+			} else {
+				dev_dbg(fbi->device, "%s: Skip swap from panel=%i to panel=%i\n",
+					__func__, current_panel, wanted_panel);
+				retval = 0;
+			}
+
 			break;
 		}
 	default:
@@ -3126,7 +3143,15 @@ static ssize_t show_disp_dev(struct device *dev,
 }
 static DEVICE_ATTR(fsl_disp_dev_property, S_IRUGO, show_disp_dev, NULL);
 
+static int get_active_panel(struct fb_info *fbi)
+{
+	struct mxcfb_info *mxcfbi = (struct mxcfb_info *)fbi->par;
 
+	if (!mxcfbi->dispdrv->drv->get_active_panel)
+		return -ENODEV;
+
+	return mxcfbi->dispdrv->drv->get_active_panel(mxcfbi->dispdrv, fbi);
+}
 
 static int swap_disp_panel(struct fb_info *fbi, int panel)
 {

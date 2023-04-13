@@ -42,6 +42,8 @@ struct mxc_dispdrv_driver {
 	int (*setup) (struct mxc_dispdrv_handle *, struct fb_info *fbi);
 	/* display driver swap panel function */
 	int (*swap_panel) (struct mxc_dispdrv_handle *, struct fb_info *fbi, int active);
+	/* display driver get active panel function */
+	int (*get_active_panel)(struct mxc_dispdrv_handle *disp, struct fb_info *fbi);
 };
 
 struct mxc_dispdrv_handle *mxc_dispdrv_register(struct mxc_dispdrv_driver *drv);
