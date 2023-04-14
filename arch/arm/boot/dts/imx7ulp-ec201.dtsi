@@ -52,7 +52,7 @@
 			regulator-name = "wl";
 			regulator-min-microvolt = <2700000>;
 			regulator-max-microvolt = <2700000>;
-			gpio = <&gpio_pte 6 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio_pte 6 GPIO_ACTIVE_HIGH>;
 			startup-delay-us = <70000>;
 			enable-active-high;
 		};
@@ -62,7 +62,7 @@
 			regulator-name = "bt_en";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio_pte 15 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio_pte 15 GPIO_ACTIVE_HIGH>;
 			startup-delay-us = <70000>;
 			enable-active-high;
 			regulator-boot-on;
@@ -74,7 +74,7 @@
 			regulator-name = "vcam_en_reg_dovdd";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio_ptf 16 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio_ptf 16 GPIO_ACTIVE_HIGH>;
 			startup-delay-us = <0>;
 			enable-active-high;
 		};
@@ -84,7 +84,7 @@
 			regulator-name = "vcam_en_reg_avdd";
 			regulator-min-microvolt = <2700000>;
 			regulator-max-microvolt = <2700000>;
-			gpio = <&gpio_ptf 17 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio_ptf 17 GPIO_ACTIVE_HIGH>;
 			startup-delay-us = <0>;
 			enable-active-high;
 		};
