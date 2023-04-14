@@ -547,26 +547,26 @@
 	sda-gpios = <&gpio_ptc 9 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-//	ov5640: ov5640@3c {
-//		compatible = "ovti,ov5640";
-//		reg = <0x3c>;
-//		clocks = <&clks IMX7ULP_CLK_DUMMY>;
-//		clock-names = "csi_mclk";
-//		DOVDD-supply = <&vcam_en_reg_dovdd>; /* 1.8v */
-//		AVDD-supply = <&vcam_en_reg_avdd>;  /* 2.8v */
-//		pwn-gpios = <&gpio_ptf 15 GPIO_ACTIVE_HIGH>;
-//		rst-gpios = <&gpio_ptf 14 GPIO_ACTIVE_HIGH>;
-//		clk-gpios = <&gpio_ptc 0 GPIO_ACTIVE_HIGH>;
-//		csi_id = <0>;
-//		mclk = <24000000>;
-//		mclk_source = <0>;
-//		status = "okay";
-//		port {
-//			ov5640_ep: endpoint {
-//				remote-endpoint = <&viu_ep>;
-//			};
-//		};
-//	};
+	ov5640: ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		clocks = <&pcc3 IMX7ULP_CLK_DUMMY>;
+		clock-names = "csi_mclk";
+		DOVDD-supply = <&vcam_en_reg_dovdd>; /* 1.8v */
+		AVDD-supply = <&vcam_en_reg_avdd>;  /* 2.8v */
+		pwn-gpios = <&gpio_ptf 15 GPIO_ACTIVE_HIGH>;
+		rst-gpios = <&gpio_ptf 14 GPIO_ACTIVE_HIGH>;
+		clk-gpios = <&gpio_ptf 3 GPIO_ACTIVE_HIGH>;
+		csi_id = <0>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+		status = "okay";
+		port {
+			ov5640_ep: endpoint {
+				remote-endpoint = <&viu_ep>;
+			};
+		};
+	};
 
 	acc_kxtj3: acc_kxtj3@0F {
 		compatible = "kionix,kxtj21009";
@@ -815,15 +815,15 @@
 		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
-//
-//&viu {
-//	pinctrl-names = "default", "sleep";
-//	pinctrl-0 = <&pinctrl_camera>;
-//	pinctrl-1 = <&pinctrl_camera_sleep>;
-//	status = "okay";
-//	port {
-//	viu_ep: endpoint {
-//			remote-endpoint = <&ov5640_ep>;
-//		};
-//	};
-//};
+
+&viu {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_camera>;
+	pinctrl-1 = <&pinctrl_camera_sleep>;
+	status = "okay";
+	port {
+	viu_ep: endpoint {
+			remote-endpoint = <&ov5640_ep>;
+		};
+	};
+};
