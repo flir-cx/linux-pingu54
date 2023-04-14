@@ -234,9 +234,18 @@
 	pinctrl_lpi2c5_sleep: lpi2c5grp_sleep {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC4__PTC4          0x0
-	IMX7ULP_PAD_PTC5__PTC5          0x0
+			IMX7ULP_PAD_PTC5__PTC5          0x0
 			IMX7ULP_PAD_PTC19__PTC19        0x3  /* PMIC_INT */
 			IMX7ULP_PAD_PTC18__PTC18        0x27 /* PMIC_WD */
+			>;
+	};
+
+	pinctrl_lpi2c5_gpio: lpi2c5grp_gpio {
+		fsl,pins = <
+			IMX7ULP_PAD_PTC4__PTC4          0x27
+			IMX7ULP_PAD_PTC5__PTC5          0x27
+			IMX7ULP_PAD_PTC1__PTC1          0x3  /* PMIC_INT */
+			IMX7ULP_PAD_PTC0__PTC0          0x27 /* PMIC_WD */
 			>;
 	};
 
@@ -262,6 +271,17 @@
 			>;
 	};
 
+	pinctrl_lpi2c6_gpio: lpi2c6grp_gpio {
+		fsl,pins = <
+			IMX7ULP_PAD_PTC8__PTC8          0x27
+			IMX7ULP_PAD_PTC9__PTC9          0x27
+			IMX7ULP_PAD_PTC10__PTC10        0x2 /* ACC_INT_n */
+			IMX7ULP_PAD_PTC11__PTC11        0x20000 /* TP_LED_EN */
+			IMX7ULP_PAD_PTC15__PTC15	    0x20000 /* TORCH */
+			IMX7ULP_PAD_PTC16__PTC16	    0x20000 /* STROBE */
+			>;
+	};
+
 	pinctrl_lpi2c7: lpi2c7grp {
 		fsl,pins = <
 			IMX7ULP_PAD_PTE12__LPI2C7_SCL   0x27
@@ -277,6 +297,15 @@
 			IMX7ULP_PAD_PTE13__PTE13        0x0
 			IMX7ULP_PAD_PTE14__PTE14		0x0 /* PCAPINT_n */
 			IMX7ULP_PAD_PTF5__PTF5          0x3 /* TP_RESET_n */
+			>;
+	};
+
+	pinctrl_lpi2c7_gpio: lpi2c7grp_gpio {
+		fsl,pins = <
+			IMX7ULP_PAD_PTE12__LPI2C7_SCL   0x27
+			IMX7ULP_PAD_PTE13__LPI2C7_SDA   0x27
+			IMX7ULP_PAD_PTE14__PTE14		0x3 /* PCAPINT_n */
+			IMX7ULP_PAD_PTF5__PTF5          0x20043 /* TP_RESET_n */
 			>;
 	};
 
@@ -411,9 +440,12 @@
 &lpi2c5 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	pinctrl-names = "default", "sleep";
+	pinctrl-names = "default", "sleep", "gpio";
 	pinctrl-0 = <&pinctrl_lpi2c5>;
 	pinctrl-1 = <&pinctrl_lpi2c5_sleep>;
+	pinctrl-2 = <&pinctrl_lpi2c5_gpio>;
+	scl-gpios = <&gpio_ptc 4 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio_ptc 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	pmic: pf1550@08 {
@@ -507,9 +539,12 @@
 &lpi2c6 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	pinctrl-names = "default", "sleep";
+	pinctrl-names = "default", "sleep", "gpio";
 	pinctrl-0 = <&pinctrl_lpi2c6>;
 	pinctrl-1 = <&pinctrl_lpi2c6_sleep>;
+	pinctrl-2 = <&pinctrl_lpi2c6_gpio>;
+	scl-gpios = <&gpio_ptc 8 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio_ptc 9 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 //	ov5640: ov5640@3c {
@@ -611,9 +646,12 @@
 &lpi2c7 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	pinctrl-names = "default",  "sleep";
+	pinctrl-names = "default",  "sleep", "gpio";
 	pinctrl-0 = <&pinctrl_lpi2c7>;
 	pinctrl-1 = <&pinctrl_lpi2c7_sleep>;
+	pinctrl-2 = <&pinctrl_lpi2c7_gpio>;
+	scl-gpios = <&gpio_pte 12 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio_pte 13 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	touchscreen_v2:tsc@24{
