@@ -123,7 +123,8 @@ static const struct regmap_config tmp114_regmap_config = {
 	.max_register = TMP114_TEMP_REG,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 	.cache_type = REGCACHE_NONE,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int tmp114_probe(struct i2c_client *client,
