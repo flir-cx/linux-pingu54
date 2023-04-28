@@ -214,11 +214,6 @@
 /* Threshold for CC ADC to be considered a DCP (dedicated charging port) */
 #define CC_ADC_DCP_THRESHOLD        1000
 
-uint16_t m4_cc1_adc;
-EXPORT_SYMBOL(m4_cc1_adc);
-uint16_t m4_cc2_adc;
-EXPORT_SYMBOL(m4_cc2_adc);
-
 struct mxs_phy_data {
 	unsigned int flags;
 };
@@ -284,6 +279,8 @@ struct mxs_phy {
 	bool hardware_control_phy2_clk;
 	enum usb_current_mode mode;
 	unsigned long clk_rate;
+	spinlock_t lock;
+	bool dcd_flow_ongoing;
 };
 
 static inline bool is_imx6q_phy(struct mxs_phy *mxs_phy)
@@ -918,6 +915,14 @@ static int mxs_phy_dcd_start(struct mxs_phy *mxs_phy)
 	return 0;
 }
 
+#define unlock_spinlock_return(mxs_phy, flags, rval)	\
+{ \
+	spin_lock_irqsave(&mxs_phy->lock, flags); \
+	mxs_phy->dcd_flow_ongoing = false; \
+	spin_unlock_irqrestore(&mxs_phy->lock, flags); \
+	return rval; \
+}
+
 #define DCD_CHARGING_DURTION 1000 /* One second according to BC 1.2 */
 static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 {
@@ -926,9 +931,22 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 	u32 value;
 	int i = 0;
 	enum usb_charger_type chgr_type;
+	unsigned long flags;
+	bool dcd_flow_ongoing;
+
+	/* prevent two calls to mxs_phy_dcd_flow() to run at the same time */
+	do {
+		spin_lock_irqsave(&mxs_phy->lock, flags);
+		dcd_flow_ongoing = mxs_phy->dcd_flow_ongoing;
+		if (!dcd_flow_ongoing)
+			mxs_phy->dcd_flow_ongoing = true;
+		spin_unlock_irqrestore(&mxs_phy->lock, flags);
+		if (dcd_flow_ongoing)
+			msleep(20);
+	} while (dcd_flow_ongoing);
 
 	if (mxs_phy_dcd_start(mxs_phy))
-		return UNKNOWN_TYPE;
+		unlock_spinlock_return(mxs_phy, flags, UNKNOWN_TYPE);
 
 	while (i++ <= (DCD_CHARGING_DURTION / 50)) {
 		value = readl(base + DCD_CONTROL);
@@ -1008,7 +1026,7 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 	readl(base + DCD_STATUS);
 	writel(DCD_CONTROL_IACK, base + DCD_CONTROL);
 	writel(DCD_CONTROL_SR, base + DCD_CONTROL);
-	return chgr_type;
+	unlock_spinlock_return(mxs_phy, flags, chgr_type);
 }
 
 static int mxs_phy_probe(struct platform_device *pdev)
@@ -1153,10 +1171,6 @@ static int mxs_phy_probe(struct platform_device *pdev)
 static int mxs_phy_remove(struct platform_device *pdev)
 {
 	struct mxs_phy *mxs_phy = platform_get_drvdata(pdev);
-
-	/* Reset cc values */
-	m4_cc1_adc = 0;
-	m4_cc2_adc = 0;
 
 	usb_remove_phy(&mxs_phy->phy);
 	pm_runtime_get_sync(&pdev->dev);

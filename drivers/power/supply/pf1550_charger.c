@@ -47,7 +47,6 @@ struct pf1550_charger {
 	u32 min_system_volt;
 	u32 thermal_regulation_temp;
 	u32 coincell_volt;
-	unsigned int mA;
 };
 
 static struct pf1550_irq_info pf1550_charger_irqs[] = {
@@ -58,6 +57,98 @@ static struct pf1550_irq_info pf1550_charger_irqs[] = {
 	{ PF1550_CHARG_IRQ_DPMI,		"DPM" },
 	{ PF1550_CHARG_IRQ_THMI,		"THM" },
 };
+
+static const char * const pf1550_charge_type_text[] = {
+	[POWER_SUPPLY_CHARGE_TYPE_UNKNOWN]	= "Unknown",
+	[POWER_SUPPLY_CHARGE_TYPE_NONE]		= "N/A",
+	[POWER_SUPPLY_CHARGE_TYPE_TRICKLE]	= "Trickle",
+	[POWER_SUPPLY_CHARGE_TYPE_FAST]		= "Fast",
+	[POWER_SUPPLY_CHARGE_TYPE_STANDARD]	= "Standard",
+	[POWER_SUPPLY_CHARGE_TYPE_ADAPTIVE]	= "Adaptive",
+	[POWER_SUPPLY_CHARGE_TYPE_CUSTOM]	= "Custom",
+	[POWER_SUPPLY_CHARGE_TYPE_LONGLIFE]	= "Long Life",
+};
+
+static int pf1550_get_selected_current(struct regmap *regmap)
+{
+	unsigned int data;
+	int ret;
+
+	ret = regmap_read(regmap, PF1550_CHARG_REG_VBUS_INLIM_CNFG, &data);
+	if (ret < 0)
+		return ret;
+	data = (data & PF1550_CHARG_REG_VBUS_INLIM_CNFG_MASK)
+		>> PF1550_CHARG_REG_VBUS_INLIM_CNFG_SHIFT;
+	switch (data) {
+	case _10ma:
+		ret = 10;
+		break;
+	case _15ma:
+		ret = 15;
+		break;
+	case _20ma:
+		ret = 20;
+		break;
+	case _25ma:
+		ret = 25;
+		break;
+	case _30ma:
+		ret = 30;
+		break;
+	case _35ma:
+		ret = 35;
+		break;
+	case _40ma:
+		ret = 40;
+		break;
+	case _45ma:
+		ret = 45;
+		break;
+	case _50ma:
+		ret = 50;
+		break;
+	case _100ma:
+		ret = 100;
+		break;
+	case _150ma:
+		ret = 150;
+		break;
+	case _200ma:
+		ret = 200;
+		break;
+	case _300ma:
+		ret = 300;
+		break;
+	case _400ma:
+		ret = 400;
+		break;
+	case _500ma:
+		ret = 500;
+		break;
+	case _600ma:
+		ret = 600;
+		break;
+	case _700ma:
+		ret = 700;
+		break;
+	case _800ma:
+		ret = 800;
+		break;
+	case _900ma:
+		ret = 900;
+		break;
+	case _1000ma:
+		ret = 1000;
+		break;
+	case _1500ma:
+		ret = 1500;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
 
 static int pf1550_get_charger_state(struct regmap *regmap, int *val)
 {
@@ -96,11 +187,12 @@ static int pf1550_get_charger_state(struct regmap *regmap, int *val)
 	return 0;
 }
 
-static int pf1550_get_charge_type(struct regmap *regmap, int *val, unsigned int selected_current)
+static int pf1550_get_charge_type(struct regmap *regmap, int *val)
 {
-	int ret;
+	int ret, selected_current;
 	unsigned int data;
 
+	selected_current = pf1550_get_selected_current(regmap);
 	ret = regmap_read(regmap, PF1550_CHARG_REG_CHG_SNS, &data);
 	if (ret < 0)
 		return ret;
@@ -203,6 +295,61 @@ static int pf1550_get_online(struct regmap *regmap, int *val)
 	*val = (data & PF1550_VBUS_VALID) ? 1 : 0;
 
 	return 0;
+}
+
+static ssize_t pf1550_get_summary_string(struct pf1550_charger *chg, size_t buf_size, char *buf)
+{
+	int len, charge_type;
+	unsigned int min, max, selected;
+	unsigned int data;
+	const char *charger_type, *charger_state, *charger_operation;
+
+	switch (chg->usb_phy->chg_type) {
+	case SDP_TYPE:
+		charger_type = "SDP";
+		break;
+	case DCP_TYPE:
+		charger_type = "DCP";
+		break;
+	case CDP_TYPE:
+		charger_type = "CDP";
+		break;
+	case ACA_TYPE:
+		charger_type = "ACA";
+		break;
+	case UNKNOWN_TYPE:
+		charger_type = "unknown";
+		break;
+	}
+
+	switch (chg->usb_phy->chg_state) {
+	case USB_CHARGER_DEFAULT:
+		charger_state = "default";
+		break;
+	case USB_CHARGER_PRESENT:
+		charger_state = "present";
+		break;
+	case USB_CHARGER_ABSENT:
+		charger_state = "absent";
+		break;
+	}
+
+	usb_phy_get_charger_current(chg->usb_phy, &min, &max);
+	selected = pf1550_get_selected_current(chg->pf1550->regmap);
+	if (pf1550_get_charge_type(chg->pf1550->regmap, &charge_type))
+		charger_operation = "UNKNOWN";
+	else
+		charger_operation = pf1550_charge_type_text[charge_type];
+
+	len = snprintf(
+		buf, buf_size,
+		"current [min, max, selected] : %d, %d, %d\n"
+		"charger type: %s\n"
+		"charger state: %s\n"
+		"charger operation: %s\n",
+		min, max, selected, charger_type, charger_state, charger_operation);
+
+	return len;
 }
 
 static void pf1550_chg_bat_isr(struct pf1550_charger *chg)
@@ -323,6 +470,7 @@ static void pf1550_chg_thm_ok_toggle_charging(struct pf1550_charger *chg)
 	unsigned int chg_oper;
 	unsigned int vbus_ok;
 	unsigned int thm_ok;
+	char summary_string[128];
 
 	dev_info(chg->dev, "Enable/disable charging based on THM_OK and VBUS_OK.\n");
 
@@ -358,6 +506,9 @@ static void pf1550_chg_thm_ok_toggle_charging(struct pf1550_charger *chg)
 		dev_err(chg->dev, "Update CHG_OPER error.\n");
 		return;
 	}
+
+	(void) pf1550_get_summary_string(chg, sizeof(summary_string), summary_string);
+	dev_info(chg->dev, "\n%s", summary_string);
 }
 
 static int pf1550_chg_set_coincell_volt(struct pf1550_charger *chg,
@@ -407,6 +558,7 @@ static void pf1550_charger_irq_work(struct work_struct *work)
 						  irq_work);
 	int i, irq_type = -1;
 	unsigned int status;
+	char summary_string[128];
 
 	if (!chg->charger)
 		return;
@@ -438,6 +590,8 @@ static void pf1550_charger_irq_work(struct work_struct *work)
 		break;
 	case PF1550_CHARG_IRQ_DPMI:
 		dev_info(chg->dev, "DPM interrupt.\n");
+		(void) pf1550_get_summary_string(chg, sizeof(summary_string), summary_string);
+		dev_info(chg->dev, "\n%s", summary_string);
 		break;
 	case PF1550_CHARG_IRQ_THMI:
 		pf1550_chg_thm_isr(chg);
@@ -472,7 +626,7 @@ static int pf1550_charger_get_property(struct power_supply *psy,
 		ret = pf1550_get_charger_state(regmap, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
-		ret = pf1550_get_charge_type(regmap, &val->intval, chg->mA);
+		ret = pf1550_get_charge_type(regmap, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = pf1550_get_battery_health(regmap, &val->intval);
@@ -624,11 +778,10 @@ static int pf1550_set_battery_charge_current(struct pf1550_charger *chg,
 		ilim = _200ma;
 	else if(mA >= 100)
 		ilim = _100ma;
-	else 
+	else
 		ilim = _10ma ;
 
 	ilim <<= PF1550_CHARG_REG_VBUS_INLIM_CNFG_SHIFT;
-	chg->mA = mA;
 	dev_dbg(chg->dev, "Charge current: %u (0x%x)\n",
 			mA, ilim);
 
@@ -644,7 +797,7 @@ static void pf1550_usb_work(struct work_struct *data)
 	unsigned int min, max;
 	usb_phy_get_charger_current(chg->usb_phy, &min, &max);
 
-	switch(chg->usb_phy->chg_state)
+	switch (chg->usb_phy->chg_state)
 	{
 		case USB_CHARGER_DEFAULT:
 		case USB_CHARGER_ABSENT:
@@ -653,10 +806,15 @@ static void pf1550_usb_work(struct work_struct *data)
 
 		case USB_CHARGER_PRESENT:
 			//force 1500ma if charger type is cdp
-			if(chg->usb_phy->chg_type == CDP_TYPE )
+			if (
+				(chg->usb_phy->chg_type == CDP_TYPE)
+				||
+				(chg->usb_phy->chg_type == DCP_TYPE)
+				)
 				max = 1500;
 			pf1550_set_battery_charge_current(chg, max);
 			pf1550_set_charger_operation(chg, true);
+			dev_info(chg->dev, "USB charging enabled, current set to %d\n", max);
 		break;
 	}
 
@@ -752,60 +910,7 @@ static int pf1550_dt_init(struct device *dev, struct pf1550_charger *chg)
 static ssize_t pf1550_summary_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct pf1550_charger *chg = dev_get_drvdata(dev);
-	int len;
-	unsigned int min, max, selected;
-	unsigned int data;
-	const char *charger_type, *charger_state;
-
-	switch (chg->usb_phy->chg_type) {
-	case SDP_TYPE:
-		charger_type = "SDP";
-		break;
-	case DCP_TYPE:
-		charger_type = "DCP";
-		break;
-	case CDP_TYPE:
-		charger_type = "CDP";
-		break;
-	case ACA_TYPE:
-		charger_type = "ACA";
-		break;
-	case UNKNOWN_TYPE:
-		charger_type = "unknown";
-		break;
-	}
-
-	switch (chg->usb_phy->chg_state) {
-	case USB_CHARGER_DEFAULT:
-		charger_state = "default";
-		break;
-	case USB_CHARGER_PRESENT:
-		charger_state = "present";
-		break;
-	case USB_CHARGER_ABSENT:
-		charger_state = "absent";
-		break;
-	}
-
-	usb_phy_get_charger_current(chg->usb_phy, &min, &max);
-
-	(void) regmap_read(chg->pf1550->regmap, PF1550_CHARG_REG_CHG_SNS, &data);
-	if ((data == PF1550_CHG_CONSTANT_CURRENT) ||
-	    (data == PF1550_CHG_CONSTANT_VOL) ||
-	    (data == PF1550_CHG_EOC))
-		selected = chg->mA;
-	else
-		selected = 0;
-
-	len = sprintf(
-		buf,
-		"current [min, max, selected] : %d, %d, %d\n"
-		"charger type: %s\n"
-		"charger state: %s\n",
-		min, max, selected, charger_type, charger_state);
-
-	return len;
+	return pf1550_get_summary_string(dev_get_drvdata(dev), PAGE_SIZE, buf);
 }
 static DEVICE_ATTR(summary, 0444, pf1550_summary_show, NULL);
 
