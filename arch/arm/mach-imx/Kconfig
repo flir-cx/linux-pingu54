@@ -38,7 +38,7 @@ config IMX_BOOTTIME
 
 choice
 	prompt "Select imx boot time source"
-	default IMX_BOOTTIME_KERNEL_STD
+	default IMX_KERNEL_STD_BOOTTIME
 	depends on IMX_BOOTTIME
 
 	config IMX_KERNEL_STD_BOOTTIME
