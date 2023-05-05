@@ -279,8 +279,6 @@ struct mxs_phy {
 	bool hardware_control_phy2_clk;
 	enum usb_current_mode mode;
 	unsigned long clk_rate;
-	spinlock_t lock;
-	bool dcd_flow_ongoing;
 };
 
 static inline bool is_imx6q_phy(struct mxs_phy *mxs_phy)
@@ -915,14 +913,6 @@ static int mxs_phy_dcd_start(struct mxs_phy *mxs_phy)
 	return 0;
 }
 
-#define unlock_spinlock_return(mxs_phy, flags, rval)	\
-{ \
-	spin_lock_irqsave(&mxs_phy->lock, flags); \
-	mxs_phy->dcd_flow_ongoing = false; \
-	spin_unlock_irqrestore(&mxs_phy->lock, flags); \
-	return rval; \
-}
-
 #define DCD_CHARGING_DURTION 1000 /* One second according to BC 1.2 */
 static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 {
@@ -931,22 +921,13 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 	u32 value;
 	int i = 0;
 	enum usb_charger_type chgr_type;
-	unsigned long flags;
-	bool dcd_flow_ongoing;
+	bool cc_is_set;
+	uint16_t cc1, cc2;
 
-	/* prevent two calls to mxs_phy_dcd_flow() to run at the same time */
-	do {
-		spin_lock_irqsave(&mxs_phy->lock, flags);
-		dcd_flow_ongoing = mxs_phy->dcd_flow_ongoing;
-		if (!dcd_flow_ongoing)
-			mxs_phy->dcd_flow_ongoing = true;
-		spin_unlock_irqrestore(&mxs_phy->lock, flags);
-		if (dcd_flow_ongoing)
-			msleep(20);
-	} while (dcd_flow_ongoing);
+	cc_is_set = cc_val_get(&phy->chg_cc, &cc1, &cc2);
 
 	if (mxs_phy_dcd_start(mxs_phy))
-		unlock_spinlock_return(mxs_phy, flags, UNKNOWN_TYPE);
+		return UNKNOWN_TYPE;
 
 	while (i++ <= (DCD_CHARGING_DURTION / 50)) {
 		value = readl(base + DCD_CONTROL);
@@ -1012,21 +993,24 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 		chgr_type = UNKNOWN_TYPE;
 	}
 
-	if (chgr_type == SDP_TYPE || chgr_type == UNKNOWN_TYPE) {
+	if (cc_is_set &&
+	    (chgr_type == SDP_TYPE || chgr_type == UNKNOWN_TYPE)
+		) {
 		dev_info(phy->dev, "Checking CC pins... CC1: %d, CC2: %d\n",
-				phy->chg_cc.cc1, phy->chg_cc.cc2);
-		if (phy->chg_cc.cc1 > CC_ADC_DCP_THRESHOLD ||
-				phy->chg_cc.cc2 > CC_ADC_DCP_THRESHOLD) {
+			 cc1, cc2);
+		if (cc1 > CC_ADC_DCP_THRESHOLD ||
+		    cc2 > CC_ADC_DCP_THRESHOLD) {
 			dev_info(phy->dev, "DCP\n");
 			chgr_type = DCP_TYPE;
 		}
-	}
+	} else if (!cc_is_set)
+		dev_info(phy->dev, "No CC values received.\n");
 
 	/* disable dcd module */
 	readl(base + DCD_STATUS);
 	writel(DCD_CONTROL_IACK, base + DCD_CONTROL);
 	writel(DCD_CONTROL_SR, base + DCD_CONTROL);
-	unlock_spinlock_return(mxs_phy, flags, chgr_type);
+	return chgr_type;
 }
 
 static int mxs_phy_probe(struct platform_device *pdev)

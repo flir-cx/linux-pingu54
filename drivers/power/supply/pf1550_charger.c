@@ -297,11 +297,13 @@ static int pf1550_get_online(struct regmap *regmap, int *val)
 	return 0;
 }
 
-static ssize_t pf1550_get_summary_string(struct pf1550_charger *chg, size_t buf_size, char *buf)
+static ssize_t pf1550_get_summary_string(struct pf1550_charger *chg,
+					 bool oneline,
+					 size_t buf_size,
+					 char *buf)
 {
 	int len, charge_type;
 	unsigned int min, max, selected;
-	unsigned int data;
 	const char *charger_type, *charger_state, *charger_operation;
 
 	switch (chg->usb_phy->chg_type) {
@@ -341,15 +343,28 @@ static ssize_t pf1550_get_summary_string(struct pf1550_charger *chg, size_t buf_
 	else
 		charger_operation = pf1550_charge_type_text[charge_type];
 
-	len = snprintf(
-		buf, buf_size,
-		"current [min, max, selected] : %d, %d, %d\n"
-		"charger type: %s\n"
-		"charger state: %s\n"
-		"charger operation: %s\n",
-		min, max, selected, charger_type, charger_state, charger_operation);
+	if (oneline)
+		len = snprintf(
+			buf, buf_size,
+			"[%d, %d] => %d, type [%s], state [%s], operation [%s]\n",
+			min, max, selected, charger_type, charger_state, charger_operation);
+	else
+		len = snprintf(
+			buf, buf_size,
+			"current [min, max, selected] : %d, %d, %d\n"
+			"charger type: %s\n"
+			"charger state: %s\n"
+			"charger operation: %s\n",
+			min, max, selected, charger_type, charger_state, charger_operation);
 
 	return len;
+}
+
+static void pf1550_print_summary(struct pf1550_charger *chg, const char *header)
+{
+	char summary_string[128];
+	(void) pf1550_get_summary_string(chg, true, sizeof(summary_string), summary_string);
+	dev_info(chg->dev, "[%s] %s", header, summary_string);
 }
 
 static void pf1550_chg_bat_isr(struct pf1550_charger *chg)
@@ -470,7 +485,6 @@ static void pf1550_chg_thm_ok_toggle_charging(struct pf1550_charger *chg)
 	unsigned int chg_oper;
 	unsigned int vbus_ok;
 	unsigned int thm_ok;
-	char summary_string[128];
 
 	dev_info(chg->dev, "Enable/disable charging based on THM_OK and VBUS_OK.\n");
 
@@ -483,12 +497,12 @@ static void pf1550_chg_thm_ok_toggle_charging(struct pf1550_charger *chg)
 	thm_ok = chg_int_ok & PF1550_CHG_INT_OK_THM_OK_MASK;
 
 	/*
-     * Check if charging should be enabled based on JEITA thermal range
+	 * Check if charging should be enabled based on JEITA thermal range
 	 * and if VBUS is OK.
-     *
-     * (VBUS provides the thermistor voltage so thermistor value only valid
-     * when VBUS is present)
-     *
+	 *
+	 * (VBUS provides the thermistor voltage so thermistor value only valid
+	 * when VBUS is present)
+	 *
 	 */
 
 	if (thm_ok && vbus_ok){
@@ -502,13 +516,10 @@ static void pf1550_chg_thm_ok_toggle_charging(struct pf1550_charger *chg)
 	}
 
 	if (regmap_update_bits(chg->pf1550->regmap, PF1550_CHARG_REG_CHG_OPER,
-				PF1550_CHARG_REG_CHG_OPER_CHG_OPER_MASK, chg_oper)) {
+			       PF1550_CHARG_REG_CHG_OPER_CHG_OPER_MASK, chg_oper)) {
 		dev_err(chg->dev, "Update CHG_OPER error.\n");
 		return;
 	}
-
-	(void) pf1550_get_summary_string(chg, sizeof(summary_string), summary_string);
-	dev_info(chg->dev, "\n%s", summary_string);
 }
 
 static int pf1550_chg_set_coincell_volt(struct pf1550_charger *chg,
@@ -558,7 +569,6 @@ static void pf1550_charger_irq_work(struct work_struct *work)
 						  irq_work);
 	int i, irq_type = -1;
 	unsigned int status;
-	char summary_string[128];
 
 	if (!chg->charger)
 		return;
@@ -581,25 +591,26 @@ static void pf1550_charger_irq_work(struct work_struct *work)
 		break;
 	case PF1550_CHARG_IRQ_BATI:
 		pf1550_chg_bat_isr(chg);
+		pf1550_print_summary(chg, "BATI");
 		break;
 	case PF1550_CHARG_IRQ_CHGI:
 		pf1550_chg_chg_isr(chg);
+		pf1550_print_summary(chg, "CHGI");
 		break;
 	case PF1550_CHARG_IRQ_VBUSI:
 		pf1550_chg_vbus_isr(chg);
+		pf1550_print_summary(chg, "VBUS");
 		break;
 	case PF1550_CHARG_IRQ_DPMI:
 		dev_info(chg->dev, "DPM interrupt.\n");
-		(void) pf1550_get_summary_string(chg, sizeof(summary_string), summary_string);
-		dev_info(chg->dev, "\n%s", summary_string);
 		break;
 	case PF1550_CHARG_IRQ_THMI:
 		pf1550_chg_thm_isr(chg);
+		pf1550_print_summary(chg, "THMI");
 		break;
 	default:
 		dev_err(chg->dev, "unknown interrupt occurred.\n");
 	}
-
 	mutex_unlock(&chg->mutex);
 }
 
@@ -749,8 +760,6 @@ static int pf1550_set_charger_operation(struct pf1550_charger *chg, bool on)
 			CHARGER_OFF_LINEAR_ON);
 }
 
-
-
 static int pf1550_set_battery_charge_current(struct pf1550_charger *chg,
 		unsigned int mA)
 {
@@ -790,36 +799,44 @@ static int pf1550_set_battery_charge_current(struct pf1550_charger *chg,
 			PF1550_CHARG_REG_VBUS_INLIM_CNFG_MASK, ilim);
 }
 
-static void pf1550_usb_work(struct work_struct *data)
+static void pf1550_refresh_charge_current(struct pf1550_charger *chg)
 {
-	struct pf1550_charger *chg =
-			container_of(data, struct pf1550_charger, usb_work);
 	unsigned int min, max;
+
 	usb_phy_get_charger_current(chg->usb_phy, &min, &max);
 
 	switch (chg->usb_phy->chg_state)
 	{
-		case USB_CHARGER_DEFAULT:
-		case USB_CHARGER_ABSENT:
-			pf1550_set_charger_operation(chg, false);
+	case USB_CHARGER_DEFAULT:
+	case USB_CHARGER_ABSENT:
+		pf1550_set_charger_operation(chg, false);
 		break;
 
-		case USB_CHARGER_PRESENT:
-			//force 1500ma if charger type is cdp
-			if (
-				(chg->usb_phy->chg_type == CDP_TYPE)
-				||
-				(chg->usb_phy->chg_type == DCP_TYPE)
-				)
-				max = 1500;
-			pf1550_set_battery_charge_current(chg, max);
-			pf1550_set_charger_operation(chg, true);
-			dev_info(chg->dev, "USB charging enabled, current set to %d\n", max);
+	case USB_CHARGER_PRESENT:
+		//force 1500ma for certain conditions
+		if (
+			(chg->usb_phy->chg_type == CDP_TYPE)
+			||
+			(chg->usb_phy->chg_type == DCP_TYPE)
+			)
+			max = 1500;
+		pf1550_set_battery_charge_current(chg, max);
+		pf1550_set_charger_operation(chg, true);
 		break;
 	}
-
 	dev_dbg(chg->dev, " usb chg_state,chg_type %x %x \n",
-			chg->usb_phy->chg_state, chg->usb_phy->chg_type);
+		chg->usb_phy->chg_state, chg->usb_phy->chg_type);
+}
+
+static void pf1550_usb_work(struct work_struct *data)
+{
+	struct pf1550_charger *chg =
+		container_of(data, struct pf1550_charger, usb_work);
+
+	mutex_lock(&chg->mutex);
+	pf1550_refresh_charge_current(chg);
+	pf1550_print_summary(chg, "USBW");
+	mutex_unlock(&chg->mutex);
 	return;
 }
 
@@ -910,7 +927,14 @@ static int pf1550_dt_init(struct device *dev, struct pf1550_charger *chg)
 static ssize_t pf1550_summary_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	return pf1550_get_summary_string(dev_get_drvdata(dev), PAGE_SIZE, buf);
+	ssize_t retval;
+	struct pf1550_charger *chg = dev_get_drvdata(dev);
+
+	mutex_lock(&chg->mutex);
+	retval = pf1550_get_summary_string(chg, false, PAGE_SIZE, buf);
+	mutex_unlock(&chg->mutex);
+
+	return retval;
 }
 static DEVICE_ATTR(summary, 0444, pf1550_summary_show, NULL);
 
