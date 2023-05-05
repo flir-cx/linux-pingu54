@@ -95,7 +95,45 @@ struct usb_charger_current {
 struct usb_charger_cc {
 	uint16_t cc1;
 	uint16_t cc2;
+	bool cc_is_set;
+	spinlock_t lock;
 };
+
+static inline void cc_val_set(struct usb_charger_cc *cc,
+			      uint16_t n_cc1,
+			      uint16_t n_cc2)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&cc->lock, flags);
+	cc->cc1 = n_cc1;
+	cc->cc2 = n_cc2;
+	cc->cc_is_set = true;
+	spin_unlock_irqrestore(&cc->lock, flags);
+}
+
+static inline bool cc_val_get(struct usb_charger_cc *cc,
+			      uint16_t *n_cc1,
+			      uint16_t *n_cc2)
+{
+	unsigned long flags;
+	bool cc_is_set;
+	int tries;
+
+	do {
+		spin_lock_irqsave(&cc->lock, flags);
+		*n_cc1 = cc->cc1;
+		*n_cc2 = cc->cc2;
+		cc_is_set = cc->cc_is_set;
+		cc->cc_is_set = false;
+		spin_unlock_irqrestore(&cc->lock, flags);
+		if (!cc_is_set) {
+			tries++;
+			msleep(50);
+		}
+	} while ((tries < 10) && !cc_is_set);
+	return cc_is_set;
+}
 
 struct usb_phy {
 	struct device		*dev;
