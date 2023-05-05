@@ -46,7 +46,7 @@ imx_boottime_t board_get_time(void)
 	if (epit_regs == NULL)
 		epit_regs = (struct epit *) ioremap(EPIT1_BASE_ADDR, 0x1000);
 
-	return 0xFFFFFFFF - epit_regs->cnr;
+	return (u64) (0xFFFFFFFF - epit_regs->cnr);
 }
 #elif defined(CONFIG_IMX7ULP_BOOTTIME)
 
@@ -113,8 +113,8 @@ static int __init boottime_init(void)
 {
 	int error = 0;
 
-	pr_info("kernel_init boottime %llu\n", board_get_time());
-	pr_debug("Module initialized successfully\n");
+	pr_info("boottime_init boottime %llu\n", board_get_time());
+	pr_debug("Module boottime initialized successfully\n");
 
 	boottime_kobject = kobject_create_and_add("boottime",
 						  kernel_kobj);
@@ -130,9 +130,9 @@ static int __init boottime_init(void)
 
 static void __exit boottime_exit(void)
 {
-	pr_debug("Module uninitialized successfully.\n");
 	sysfs_remove_file(boottime_kobject, &boottime_attribute.attr);
 	kobject_put(boottime_kobject);
+	pr_debug("Module boottime uninitialized successfully.\n");
 }
 
 module_init(boottime_init);
