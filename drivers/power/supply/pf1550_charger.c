@@ -60,7 +60,7 @@ static struct pf1550_irq_info pf1550_charger_irqs[] = {
 
 static const char * const pf1550_charge_type_text[] = {
 	[POWER_SUPPLY_CHARGE_TYPE_UNKNOWN]	= "Unknown",
-	[POWER_SUPPLY_CHARGE_TYPE_NONE]		= "N/A",
+	[POWER_SUPPLY_CHARGE_TYPE_NONE]		= "Not Charging",
 	[POWER_SUPPLY_CHARGE_TYPE_TRICKLE]	= "Trickle",
 	[POWER_SUPPLY_CHARGE_TYPE_FAST]		= "Fast",
 	[POWER_SUPPLY_CHARGE_TYPE_STANDARD]	= "Standard",
@@ -187,8 +187,9 @@ static int pf1550_get_charger_state(struct regmap *regmap, int *val)
 	return 0;
 }
 
-static int pf1550_get_charge_type(struct regmap *regmap, int *val)
+static int pf1550_get_charge_type(struct regmap *regmap, int *val, const char **no_charge_reason)
 {
+	const char *reason = "";
 	int ret, selected_current;
 	unsigned int data;
 
@@ -214,17 +215,38 @@ static int pf1550_get_charge_type(struct regmap *regmap, int *val)
 			*val = POWER_SUPPLY_CHARGE_TYPE_FAST;
 		break;
 	case PF1550_CHG_DONE:
+		reason = " - Done";
+		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		break;
 	case PF1550_CHG_TIMER_FAULT:
+		reason = " - Timer fault";
+		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		break;
 	case PF1550_CHG_SUSPEND:
+		reason = " - Thermistor Suspend";
+		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		break;
 	case PF1550_CHG_OFF_INV:
+		reason = " - Input Invalid";
+		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		break;
 	case PF1550_CHG_BAT_OVER:
+		reason = " - Overvoltage";
+		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		break;
 	case PF1550_CHG_OFF_TEMP:
+		reason = " - Temperature";
+		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		break;
 	case PF1550_CHG_LINEAR_ONLY:
+		reason = " - Linear only";
 		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
 		break;
 	default:
 		*val = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
 	}
+	if (no_charge_reason)
+		*no_charge_reason = reason;
 
 	return 0;
 }
@@ -302,6 +324,7 @@ static ssize_t pf1550_get_summary_string(struct pf1550_charger *chg,
 					 size_t buf_size,
 					 char *buf)
 {
+	const char *no_charge_reason = "";
 	int len, charge_type;
 	unsigned int min, max, selected;
 	const char *charger_type, *charger_state, *charger_operation;
@@ -338,7 +361,7 @@ static ssize_t pf1550_get_summary_string(struct pf1550_charger *chg,
 
 	usb_phy_get_charger_current(chg->usb_phy, &min, &max);
 	selected = pf1550_get_selected_current(chg->pf1550->regmap);
-	if (pf1550_get_charge_type(chg->pf1550->regmap, &charge_type))
+	if (pf1550_get_charge_type(chg->pf1550->regmap, &charge_type, &no_charge_reason))
 		charger_operation = "UNKNOWN";
 	else
 		charger_operation = pf1550_charge_type_text[charge_type];
@@ -346,16 +369,20 @@ static ssize_t pf1550_get_summary_string(struct pf1550_charger *chg,
 	if (oneline)
 		len = snprintf(
 			buf, buf_size,
-			"[%d, %d] => %d, type [%s], state [%s], operation [%s]\n",
-			min, max, selected, charger_type, charger_state, charger_operation);
+			"[%d, %d] => %d, type [%s], state [%s], operation [%s%s]\n",
+			min, max, selected, charger_type,
+			charger_state, charger_operation,
+			no_charge_reason);
 	else
 		len = snprintf(
 			buf, buf_size,
 			"current [min, max, selected] : %d, %d, %d\n"
 			"charger type: %s\n"
 			"charger state: %s\n"
-			"charger operation: %s\n",
-			min, max, selected, charger_type, charger_state, charger_operation);
+			"charger operation: %s%s\n",
+			min, max, selected, charger_type,
+			charger_state, charger_operation,
+			no_charge_reason);
 
 	return len;
 }
@@ -637,7 +664,7 @@ static int pf1550_charger_get_property(struct power_supply *psy,
 		ret = pf1550_get_charger_state(regmap, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
-		ret = pf1550_get_charge_type(regmap, &val->intval);
+		ret = pf1550_get_charge_type(regmap, &val->intval, NULL);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = pf1550_get_battery_health(regmap, &val->intval);
