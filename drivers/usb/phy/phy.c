@@ -679,6 +679,10 @@ int usb_add_phy_dev(struct usb_phy *x)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_USB_PHY_EXT_CC
+	spin_lock_init(&x->chg_cc.lock);
+#endif
+
 	usb_charger_init(x);
 	ret = usb_add_extcon(x);
 	if (ret)
