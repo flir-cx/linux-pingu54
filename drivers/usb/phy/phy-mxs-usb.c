@@ -211,8 +211,10 @@
 /* The MXS PHYs which have DCD module for charger detection */
 #define MXS_PHY_HAS_DCD				BIT(5)
 
+#ifdef CONFIG_USB_PHY_EXT_CC
 /* Threshold for CC ADC to be considered a DCP (dedicated charging port) */
 #define CC_ADC_DCP_THRESHOLD        1000
+#endif
 
 struct mxs_phy_data {
 	unsigned int flags;
@@ -924,7 +926,9 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 	bool cc_is_set;
 	uint16_t cc1, cc2;
 
+#ifdef CONFIG_USB_PHY_EXT_CC
 	cc_is_set = cc_val_get(&phy->chg_cc, &cc1, &cc2);
+#endif
 
 	if (mxs_phy_dcd_start(mxs_phy))
 		return UNKNOWN_TYPE;
@@ -993,6 +997,7 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 		chgr_type = UNKNOWN_TYPE;
 	}
 
+#ifdef CONFIG_USB_PHY_EXT_CC
 	if (cc_is_set &&
 	    (chgr_type == SDP_TYPE || chgr_type == UNKNOWN_TYPE)
 		) {
@@ -1005,6 +1010,9 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 		}
 	} else if (!cc_is_set)
 		dev_info(phy->dev, "No CC values received.\n");
+	else
+		dev_info(phy->dev, "CC values ignored\n");
+#endif
 
 	/* disable dcd module */
 	readl(base + DCD_STATUS);

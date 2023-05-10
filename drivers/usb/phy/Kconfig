@@ -160,6 +160,16 @@ config USB_MXS_PHY
 
 	  MXS Phy is used by some of the i.MX SoCs, for example imx23/28/6x.
 
+config USB_PHY_EXT_CC
+	bool "Enable support for external CC pins."
+	depends on USB_MXS_PHY
+	help
+	  Enable support for external setting of CC pin levels.
+	  This is used for example on ec302 where the CC pins are read
+	  by the M4, and not the A7 itself.
+
+	  To enable this feature, select Y here.
+
 config USB_TEGRA_PHY
 	tristate "NVIDIA Tegra USB PHY Driver"
 	depends on ARCH_TEGRA || COMPILE_TEST

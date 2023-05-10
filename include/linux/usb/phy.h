@@ -92,6 +92,7 @@ struct usb_charger_current {
 	unsigned int aca_max;
 };
 
+#ifdef CONFIG_USB_PHY_EXT_CC
 struct usb_charger_cc {
 	uint16_t cc1;
 	uint16_t cc2;
@@ -134,6 +135,7 @@ static inline bool cc_val_get(struct usb_charger_cc *cc,
 	} while ((tries < 10) && !cc_is_set);
 	return cc_is_set;
 }
+#endif
 
 struct usb_phy {
 	struct device		*dev;
@@ -161,7 +163,9 @@ struct usb_phy {
 	enum usb_charger_state	chg_state;
 	struct usb_charger_current	chg_cur;
 	struct work_struct		chg_work;
+#ifdef CONFIG_USB_PHY_EXT_CC
 	struct usb_charger_cc	chg_cc;
+#endif
 
 	/* for notification of usb_phy_events */
 	struct atomic_notifier_head	notifier;
