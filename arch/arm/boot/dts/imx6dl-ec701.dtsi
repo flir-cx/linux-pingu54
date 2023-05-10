@@ -151,7 +151,7 @@
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "mipi_dsi";
 		interface_pix_fmt = "RGB24";
-		mode_str ="ORISE-VGA";
+		mode_str ="TRULY-VGA";
 		default_bpp = <32>;
 		int_clk = <0>;
 		late_init = <0>;
@@ -251,7 +251,7 @@
 &mipi_dsi {
 	dev_id = <0>;
 	disp_id = <1>;
-	lcd_panel = "ORISE-VGA";
+	lcd_panel = "TRULY-VGA";
 	disp-power-on-supply = <&reg_ec701_lcd_en>;
 	status = "okay";
 };
@@ -421,7 +421,7 @@
 				};
 			};
 
-			/* 1V1D_FPGA2 */
+			/* 1V1D_FPGA2, not present on ec701 */
 			DA9063_BMEM:bmem  {
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BMEM";
@@ -432,7 +432,7 @@
 				};
 			};
 
-			/* 1V8D */
+			/* 1V8D, not present on ec701 */
 			DA9063_BIO:bio  {
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BIO";
@@ -458,12 +458,12 @@
 				};
 			};
 
-			/* 1V2D_FPGA2 */
+			/* 1V2D_FPGA2, not present on ec701 */
 			DA9063_LDO2:ldo2  {
 				regulator-name = "DA9063_LDO2";
 			};
 
-			/* 1V8D_FPGA2 */
+			/* 1V8D_FPGA2, not present on ec701 */
 			DA9063_LDO3:ldo3  {
 				regulator-name = "DA9063_LDO3";
 			};
@@ -475,12 +475,12 @@
 				regulator-max-microvolt = <3440000>;
 			};
 
-			/* 2V5D_FPGA2 */
+			/* 2V5D_FPGA2, not present on ec701 */
 			DA9063_LDO6:ldo6  {
 				regulator-name = "DA9063_LDO6";
 			};
 
-			/* 3V15D_FPGA2 */
+			/* 3V15D_FPGA2, not present on ec701 */
 			DA9063_LDO7:ldo7  {
 				regulator-name = "DA9063_LDO7";
 			};
@@ -498,7 +498,7 @@
 				regulator-always-on;
 			};
 
-			/* 2V5D_FPGA */
+			/* 2V5D_FPGA, not present on ec701 */
 			DA9063_LDO10:ldo10  {
 				regulator-name = "DA9063_LDO10";
 				regulator-boot-on;
