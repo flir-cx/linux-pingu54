@@ -986,6 +986,50 @@ static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 	return aic31xx_setup_pll(component, params);
 }
 
+static int aic31xx_configure_digital_mic(struct snd_soc_component *component)
+{
+	int ret;
+	u32 mtype;
+	u32 mic_src;
+	u32 adc_src;
+	struct device *dev = component->dev;
+
+	ret = fwnode_property_read_u32(dev->fwnode, "mic-type", &mtype);
+	if (ret < 0) /* mic-type missing: skip config (analog assumed) */
+		return 0;
+
+	switch (mtype) {
+	case MIC_DIGITAL_GPIO1:
+		mic_src = AIC31XX_GPIO1_INPUT;
+		adc_src = AIC31XX_ADCS_SOURCE_GPIO1;
+		break;
+	case MIC_DIGITAL_DIN:
+		mic_src = AIC31XX_GPIO1_GPI;
+		adc_src = AIC31XX_ADCS_SOURCE_DIN;
+		break;
+	case MIC_ANALOG:
+		return 0;
+	};
+
+	dev_dbg(dev, "## %s: Configure digital microphone, type %u\n", __func__, mtype);
+
+	/* enable delta sigma mono ADC channel for digital mic */
+	ret = snd_soc_component_update_bits(component, AIC31XX_ADCSETUP,
+					    AIC31XX_ADCS_MASK,
+					    AIC31XX_ADCS_DELTA_SIGMA | adc_src);
+	if (ret >= 0) /* Set input source */
+		ret = snd_soc_component_update_bits(component, AIC31XX_GPIO1,
+						    AIC31XX_GPIO1_FUNC_MASK,
+						    mic_src <<
+						    AIC31XX_GPIO1_FUNC_SHIFT);
+	if (ret < 0)
+		dev_err(dev, "Digital mic configuration failed\n");
+	else
+		ret = 0;
+
+	return ret;
+}
+
 static int aic31xx_dac_mute(struct snd_soc_dai *codec_dai, int mute,
 			    int direction)
 {
@@ -1283,7 +1327,9 @@ static int aic31xx_power_on(struct snd_soc_component *component)
 	 */
 	aic31xx_set_jack(component, aic31xx->jack, NULL);
 
-	return 0;
+	ret = aic31xx_configure_digital_mic(component);
+
+	return ret;
 }
 
 static void aic31xx_power_off(struct snd_soc_component *component)
@@ -1638,9 +1684,13 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 
 	dev_set_drvdata(aic31xx->dev, aic31xx);
 
-	fwnode_property_read_u32(aic31xx->dev->fwnode, "ai31xx-micbias-vg",
-				 &micbias_value);
+	ret = fwnode_property_read_u32(aic31xx->dev->fwnode, "ai31xx-micbias-vg",
+				       &micbias_value);
+	if (ret < 0)
+		micbias_value = MICBIAS_OFF;
+
 	switch (micbias_value) {
+	case MICBIAS_OFF:
 	case MICBIAS_2_0V:
 	case MICBIAS_2_5V:
 	case MICBIAS_AVDDV:

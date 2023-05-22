@@ -229,6 +229,13 @@ struct aic31xx_pdata {
 #define AIC31XX_HSD_HP			0x01
 #define AIC31XX_HSD_HS			0x03
 
+/* AIC31XX_ADCSETUP (ADC Digital Mic) */
+#define AIC31XX_ADCS_MASK               (BIT(7) | GENMASK(5, 3) | GENMASK(1, 0))
+#define AIC31XX_ADCS_POWERED_UP         BIT(7)
+#define AIC31XX_ADCS_SOURCE_GPIO1       0
+#define AIC31XX_ADCS_SOURCE_DIN         BIT(5)
+#define AIC31XX_ADCS_DELTA_SIGMA        BIT(3)
+
 /* AIC31XX_HPDRIVER */
 #define AIC31XX_HPD_OCMV_MASK		GENMASK(4, 3)
 #define AIC31XX_HPD_OCMV_SHIFT		3
