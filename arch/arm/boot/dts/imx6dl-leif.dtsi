@@ -13,6 +13,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/sound/tlv320aic31xx-micbias.h>
 
 /*This file represents leif-a and later*/
 
@@ -241,8 +242,8 @@
 	tlv320aic31xx: tlv320aic31xx@18 {
 		compatible = "ti,tlv320aic3100";
 		reg = <0x18>;
-                ai31xx-micbias-vg = <1>; // 1=2.0V 2=2.5V 3=AVDD(3.15V)
-		mic-type = <1>; // Digital microphone
+		ai31xx-micbias-vg = <MICBIAS_OFF>;
+		mic-type = <MIC_DIGITAL_GPIO1>;
                 HPVDD-supply = <&reg_audio_en>;
                 SPRVDD-supply = <&reg_audio_en>;
                 SPLVDD-supply = <&reg_audio_en>;
