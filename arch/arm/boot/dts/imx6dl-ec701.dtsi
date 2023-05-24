@@ -75,7 +75,7 @@
 		reg_ec701_lcd_en: reg_ec701_lcd_en {
 			compatible = "regulator-fixed";
 			regulator-name = "lcd_en";
-			gpio = <&ec701_pca9534_0x42 7 GPIO_ACTIVE_HIGH>;
+			gpio = <&ec701_pca9534_0x46 6 GPIO_ACTIVE_HIGH>;
 			regulator-boot-on;
 			enable-active-high;
 		};
