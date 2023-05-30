@@ -11,19 +11,6 @@
 
 #include <dt-bindings/input/input.h>
 
-/ {
-	regulators {
-		compatible = "simple-bus";
-
-		reg_viewfinder: reg_viewfinder {
-			compatible = "regulator-fixed";
-			regulator-name = "reg viewfinder";
-			vin-supply = <&reg_govp>;
-			vin2-supply = <&reg_eoco_3v3a_enable>;
-		};
-	};
-};
-
 &i2c1 {
 	flir_ema100080: flir_ema100080@32 {
 		compatible = "flir,ema100080";
@@ -32,7 +19,8 @@
 
 		eoco-fvm-psave-gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
 		//eoco-fvm-pwr-en-gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&reg_viewfinder>;
+		vin-supply = <&reg_govp>;
+		adc-supply = <&reg_eoco_3v3a_enable>; //supply to ADC converter on EOCO board
 
 		reg = <0x32>;
 		// These were taken from old ce driver. It is essentially SVGA_60, from page 45 in the eMagin 100080 datasheet
