@@ -705,6 +705,7 @@ static int pwm_backlight_resume(struct device *dev)
 {
 	struct backlight_device *bl = dev_get_drvdata(dev);
 
+	bl->props.power = 0;
 	backlight_update_status(bl);
 
 	return 0;
