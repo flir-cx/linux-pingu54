@@ -1938,7 +1938,6 @@ static int ov5640_change_mode_direct(enum ov5640_frame_rate frame_rate,
 	    pModeSetting == NULL || ArySize == 0)*/
 		return -EINVAL;
 
-	pr_info("%s: mode = %d, frame_rate = %d bp2\n", __func__, mode, frame_rate);
 	/* set ov5640 to subsampling mode */
 	retval = ov5640_download_firmware(pModeSetting, ArySize);
 
