@@ -1164,6 +1164,25 @@ static struct vb2_ops imx_viu_vb2_ops = {
 	.buf_queue		= imx_viu_buf_queue,
 };
 
+static void imx_viu_soft_reset(struct imx_viu_device *viu_dev)
+{
+	unsigned int scr;
+
+	return; 
+
+	scr = readl(viu_dev->base + VIU_SCR);
+
+	/* set reset */
+	scr |= SCR_SOFT_RESET;
+	writel(scr, viu_dev->base + VIU_SCR);
+
+	mdelay(1);
+
+	/* out of reset */
+	scr &= ~SCR_SOFT_RESET;
+	writel(scr, viu_dev->base + VIU_SCR);
+}
+
 static irqreturn_t imx_viu_irq_handler(int irq, void *dev_id)
 {
 	volatile unsigned int scr;
@@ -1190,13 +1209,16 @@ static irqreturn_t imx_viu_irq_handler(int irq, void *dev_id)
 			dev_warn(viu_dev->dev, "ERROR IRQ %#x.\n",
 					errcode);
 		}
-		if (0x1 == errcode || 0x2 == errcode) {
+		if (0x1 == errcode || 0x2 == errcode || 0x7 == errcode) {
 			/* DMA_ACT is set during vertical active, recover */
 			recover = true;
 			imx_viu_irq_enable(viu_dev, VSYNC_IRQ);
 
 			if (0x2 == errcode) {
 				writel(scr & ~SCR_DMA_ACT, viu_dev->base + VIU_SCR);
+			}
+			if (0x7 == errcode) {
+				imx_viu_soft_reset(viu_dev);
 			}
 		}
 		return IRQ_HANDLED;
