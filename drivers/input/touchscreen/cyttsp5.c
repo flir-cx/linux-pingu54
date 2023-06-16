@@ -1028,6 +1028,13 @@ static int cyttsp5_i2c_probe(struct i2c_client *client)
 	return cyttsp5_probe(&client->dev, regmap, client->irq, client->name);
 }
 
+static int cyttsp5_i2c_remove(struct i2c_client *client)
+{
+	sysfs_remove_group(&client->dev.kobj, &cyttsp5_attr_control_grp);
+
+	return 0;
+}
+
 static const struct of_device_id cyttsp5_of_match[] = {
 	{ .compatible = "cypress,tt21000", },
 	{ }
@@ -1069,6 +1076,7 @@ static struct i2c_driver cyttsp5_i2c_driver = {
 		.pm = &cyttsp5_pm,
 	},
 	.probe_new = cyttsp5_i2c_probe,
+	.remove = cyttsp5_i2c_remove,
 	.id_table = cyttsp5_i2c_id,
 };
 module_i2c_driver(cyttsp5_i2c_driver);
