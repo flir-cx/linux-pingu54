@@ -56,6 +56,8 @@
 #define OV5640_SENSOR_MODEL_HIGH_K      "OV5640-A71A-K_45039C15"
 #define OV5640_SENSOR_MODEL_CSP         "OV5640-A71A_45039C15J"
 
+#define OV5640_SRM_GROUP_ACCESS         0x3212
+
 enum ov5640_mode {
 	ov5640_mode_MIN = 0,
 	ov5640_mode_VGA_640_480 = 0,
@@ -102,6 +104,7 @@ struct ov5640_mode_info {
 	u32 height;
 	struct reg_value *init_data_ptr;
 	u32 init_data_size;
+	s32 group;
 };
 
 struct ov5640 {
@@ -1054,152 +1057,154 @@ static struct reg_value ov5640_setting_15fps_1080P_1920_1080[] = {
 };
 
 static struct reg_value ov5640_setting_15fps_QSXGA_2592_1944[] = {
-    {0x3c07, 0x07, 0x0, 0x0}, //50_60Hz
-    {0x3820, 0x40, 0x0, 0x0}, //V flip
-    {0x3821, 0x06, 0x0, 0x0}, //Mirror, jpeg disable
-    {0x3814, 0x11, 0x0, 0x0}, //X inc
-    {0x3815, 0x11, 0x0, 0x0}, //Y inc
-    {0x3800, 0x00, 0x0, 0x0}, //X addr start H
-    {0x3801, 0x00, 0x0, 0x0}, //X addr start L,0
-    {0x3802, 0x00, 0x0, 0x0}, //Y addr start H
-    {0x3803, 0x00, 0x0, 0x0}, //Y addr start L, 0
-    {0x3804, 0x0a, 0x0, 0x0}, //X addr end H
-    {0x3805, 0x3f, 0x0, 0x0}, //X addr end L, 2623
-    {0x3806, 0x07, 0x0, 0x0}, //Y addr end H
-    {0x3807, 0x9f, 0x0, 0x0}, //Y addr end L, 1951
-    {0x3808, 0x0a, 0x0, 0x0}, //DVP hor width H
-    {0x3809, 0x20, 0x0, 0x0}, //DVP hor width L, 2592
-    {0x380a, 0x07, 0x0, 0x0}, //DVP ver height H
-    {0x380b, 0x98, 0x0, 0x0}, //DVP ver height L, 1944
-    {0x380c, 0x0b, 0x0, 0x0}, //ISP total Hor size H
-    {0x380d, 0x1c, 0x0, 0x0}, //ISP total Hor size L, 2844
-    {0x380e, 0x07, 0x0, 0x0}, //ISP total Ver size H
-    {0x380f, 0xb0, 0x0, 0x0}, //ISP total Ver size L, 1968
-    {0x3810, 0x00, 0x0, 0x0}, //ISP hor offset H
-    {0x3811, 0x10, 0x0, 0x0}, //ISP hor offset L, 16 (191126 changen from 0)
-    {0x3812, 0x00, 0x0, 0x0}, //ISP Ver offset H
-    {0x3813, 0x04, 0x0, 0x0}, //ISP Ver offset L, 4 (191126 changen from 0)
-    {0x3618, 0x04, 0x0, 0x0}, //undoc
-    {0x3612, 0x2b, 0x0, 0x0}, //undoc
-    {0x3709, 0x12, 0x0, 0x0}, //undoc
-    {0x370c, 0x00, 0x0, 0x0}, //undoc
-    {0x3a02, 0x07, 0x0, 0x0}, //60Hz max expo H
-    {0x3a03, 0xae, 0x0, 0x0}, //60Hz max expo L
-    {0x3a14, 0x07, 0x0, 0x0}, //50Hz max expo H
-    {0x3a15, 0xae, 0x0, 0x0}, //50Hz max expo L
-    {0x4004, 0x06, 0x0, 0x0}, //BLC
-    {0x3002, 0x1c, 0x0, 0x0}, //Disable JFIFO, SFIFO and JPEG
-    {0x3006, 0xc3, 0x0, 0x0}, //JPG clock
-    {0x4713, 0x02, 0x0, 0x0}, //JPG mode 2
-    {0x4407, 0x0c, 0x0, 0x0}, //JPG ctrl
-    {0x460b, 0x37, 0x0, 0x0}, //Debug
-    {0x460c, 0x20, 0x0, 0x0}, //VFIFO
-    {0x4837, 0x2c, 0x0, 0x0}, //PCLK period
-    {0x3824, 0x01, 0x0, 0x0}, //DVP clock div
-    {0x5001, 0x83, 0x0, 0x0}, //ISP control
-    {0x3034, 0x1a, 0x0, 0x0}, //SC PLL
-    {0x3035, 0x21, 0x0, 0x0}, //SC PLL
-    {0x3036, 0x4d, 0x0, 0x0}, //SC PLL (191126 change from 69)
-    {0x3037, 0x13, 0x0, 0x0}, //SC PLL
+	{0x3022, 0x06, 0x0, 0x0}, /* turn off overlay */
+	{0x3c07, 0x07, 0x0, 0x0}, //50_60Hz
+	{0x3820, 0x40, 0x0, 0x0}, //V flip
+	{0x3821, 0x06, 0x0, 0x0}, //Mirror, jpeg disable
+	{0x3814, 0x11, 0x0, 0x0}, //X inc
+	{0x3815, 0x11, 0x0, 0x0}, //Y inc
+	{0x3800, 0x00, 0x0, 0x0}, //X addr start H
+	{0x3801, 0x00, 0x0, 0x0}, //X addr start L,0
+	{0x3802, 0x00, 0x0, 0x0}, //Y addr start H
+	{0x3803, 0x00, 0x0, 0x0}, //Y addr start L, 0
+	{0x3804, 0x0a, 0x0, 0x0}, //X addr end H
+	{0x3805, 0x3f, 0x0, 0x0}, //X addr end L, 2623
+	{0x3806, 0x07, 0x0, 0x0}, //Y addr end H
+	{0x3807, 0x9f, 0x0, 0x0}, //Y addr end L, 1951
+	{0x3808, 0x0a, 0x0, 0x0}, //DVP hor width H
+	{0x3809, 0x20, 0x0, 0x0}, //DVP hor width L, 2592
+	{0x380a, 0x07, 0x0, 0x0}, //DVP ver height H
+	{0x380b, 0x98, 0x0, 0x0}, //DVP ver height L, 1944
+	{0x380c, 0x0b, 0x0, 0x0}, //ISP total Hor size H
+	{0x380d, 0x1c, 0x0, 0x0}, //ISP total Hor size L, 2844
+	{0x380e, 0x07, 0x0, 0x0}, //ISP total Ver size H
+	{0x380f, 0xb0, 0x0, 0x0}, //ISP total Ver size L, 1968
+	{0x3810, 0x00, 0x0, 0x0}, //ISP hor offset H
+	{0x3811, 0x10, 0x0, 0x0}, //ISP hor offset L, 16 (191126 changen from 0)
+	{0x3812, 0x00, 0x0, 0x0}, //ISP Ver offset H
+	{0x3813, 0x04, 0x0, 0x0}, //ISP Ver offset L, 4 (191126 changen from 0)
+	{0x3618, 0x04, 0x0, 0x0}, //undoc
+	{0x3612, 0x2b, 0x0, 0x0}, //undoc
+	{0x3709, 0x12, 0x0, 0x0}, //undoc
+	{0x370c, 0x00, 0x0, 0x0}, //undoc
+	{0x3a02, 0x07, 0x0, 0x0}, //60Hz max expo H
+	{0x3a03, 0xae, 0x0, 0x0}, //60Hz max expo L
+	{0x3a14, 0x07, 0x0, 0x0}, //50Hz max expo H
+	{0x3a15, 0xae, 0x0, 0x0}, //50Hz max expo L
+	{0x4004, 0x06, 0x0, 0x0}, //BLC
+	{0x3002, 0x1c, 0x0, 0x0}, //Disable JFIFO, SFIFO and JPEG
+	{0x3006, 0xc3, 0x0, 0x0}, //JPG clock
+	{0x4713, 0x02, 0x0, 0x0}, //JPG mode 2
+	{0x4407, 0x0c, 0x0, 0x0}, //JPG ctrl
+	{0x460b, 0x37, 0x0, 0x0}, //Debug
+	{0x460c, 0x20, 0x0, 0x0}, //VFIFO
+	{0x4837, 0x2c, 0x0, 0x0}, //PCLK period
+	{0x3824, 0x01, 0x0, 0x0}, //DVP clock div
+	{0x5001, 0x83, 0x0, 0x0}, //ISP control
+	{0x3034, 0x1a, 0x0, 0x0}, //SC PLL
+	{0x3035, 0x21, 0x0, 0x0}, //SC PLL
+	{0x3036, 0x4d, 0x0, 0x0}, //SC PLL (191126 change from 69)
+	{0x3037, 0x13, 0x0, 0x0}, //SC PLL
+	{0x3503, 0x00, 0x0, 0x0}, /* Turn on AE/AG */
 };
 
 static struct ov5640_mode_info ov5640_mode_info_data[2][ov5640_mode_MAX + 1] = {
 	{
 		{ov5640_mode_VGA_640_480,      640,  480,
 		ov5640_setting_15fps_VGA_640_480,
-		ARRAY_SIZE(ov5640_setting_15fps_VGA_640_480)},
+		ARRAY_SIZE(ov5640_setting_15fps_VGA_640_480), -1},
 		{ov5640_mode_QVGA_320_240,     320,  240,
 #if 0
 		ov5640_setting_15fps_QVGA_320_240,
-		ARRAY_SIZE(ov5640_setting_15fps_QVGA_320_240)},
+		ARRAY_SIZE(ov5640_setting_15fps_QVGA_320_240), -1},
 #else
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 #endif
 		{ov5640_mode_NTSC_720_480,     720,  480,
 #if 0
 		ov5640_setting_15fps_NTSC_720_480,
-		ARRAY_SIZE(ov5640_setting_15fps_NTSC_720_480)},
+		ARRAY_SIZE(ov5640_setting_15fps_NTSC_720_480), -1},
 #else
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 #endif
 		{ov5640_mode_PAL_720_576,      720,  576,
 		ov5640_setting_15fps_PAL_720_576,
-		ARRAY_SIZE(ov5640_setting_15fps_PAL_720_576)},
+		ARRAY_SIZE(ov5640_setting_15fps_PAL_720_576), -1},
 		{ov5640_mode_720P_1280_720,   1280,  720,
 		ov5640_setting_15fps_720P_1280_720,
-		ARRAY_SIZE(ov5640_setting_15fps_720P_1280_720)},
+		ARRAY_SIZE(ov5640_setting_15fps_720P_1280_720), -1},
 		{ov5640_mode_1080P_1920_1080, 1920, 1080,
 		ov5640_setting_15fps_1080P_1920_1080,
-		ARRAY_SIZE(ov5640_setting_15fps_1080P_1920_1080)},
+		ARRAY_SIZE(ov5640_setting_15fps_1080P_1920_1080), -1},
 		{ov5640_mode_QSXGA_2592_1944, 2592, 1944,
 		ov5640_setting_15fps_QSXGA_2592_1944,
-		ARRAY_SIZE(ov5640_setting_15fps_QSXGA_2592_1944)},
+		ARRAY_SIZE(ov5640_setting_15fps_QSXGA_2592_1944), 2},
 		{ov5640_mode_QCIF_176_144,     176,  144,
 		ov5640_setting_15fps_QCIF_176_144,
-		ARRAY_SIZE(ov5640_setting_15fps_QCIF_176_144)},
+		ARRAY_SIZE(ov5640_setting_15fps_QCIF_176_144), -1},
 		{ov5640_mode_XGA_1024_768,    1024,  768,
 		ov5640_setting_15fps_XGA_1024_768,
-		ARRAY_SIZE(ov5640_setting_15fps_XGA_1024_768)},
+		ARRAY_SIZE(ov5640_setting_15fps_XGA_1024_768), -1},
 		{ov5640_mode_320p_480_320,     480, 320,
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 		{ov5640_mode_854p_480_854,     480, 854,
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 		{ov5640_mode_bt656_640_480,    640, 480,
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 		{ov5640_mode_bt656_640_480_FOV2,    640, 480,
 		ov5640_bt656_640_480_FOV2,
-		ARRAY_SIZE(ov5640_bt656_640_480_FOV2)},
+		ARRAY_SIZE(ov5640_bt656_640_480_FOV2), -1},
 	},
 	{
 		{ov5640_mode_VGA_640_480,      640,  480,
 		ov5640_setting_30fps_VGA_640_480,
-		ARRAY_SIZE(ov5640_setting_30fps_VGA_640_480)},
+		ARRAY_SIZE(ov5640_setting_30fps_VGA_640_480), 0},
 		{ov5640_mode_QVGA_320_240,     320,  240,
 #if 0
 		ov5640_setting_30fps_QVGA_320_240,
-		ARRAY_SIZE(ov5640_setting_30fps_QVGA_320_240)},
+		ARRAY_SIZE(ov5640_setting_30fps_QVGA_320_240), -1},
 #else
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 #endif
 		{ov5640_mode_NTSC_720_480,     720,  480,
 #if 0
 		ov5640_setting_30fps_NTSC_720_480,
-		ARRAY_SIZE(ov5640_setting_30fps_NTSC_720_480)},
+		ARRAY_SIZE(ov5640_setting_30fps_NTSC_720_480), -1},
 #endif
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 		{ov5640_mode_PAL_720_576,      720,  576,
 		ov5640_setting_30fps_PAL_720_576,
-		ARRAY_SIZE(ov5640_setting_30fps_PAL_720_576)},
+		ARRAY_SIZE(ov5640_setting_30fps_PAL_720_576), -1},
 		{ov5640_mode_720P_1280_720,   1280,  720,
 		ov5640_setting_30fps_720P_1280_720,
-		ARRAY_SIZE(ov5640_setting_30fps_720P_1280_720)},
-		{ov5640_mode_1080P_1920_1080, 0, 0, NULL, 0},
-		{ov5640_mode_QSXGA_2592_1944, 0, 0, NULL, 0},
+		ARRAY_SIZE(ov5640_setting_30fps_720P_1280_720), -1},
+		{ov5640_mode_1080P_1920_1080, 0, 0, NULL, 0, -1},
+		{ov5640_mode_QSXGA_2592_1944, 0, 0, NULL, 0, -1},
 		{ov5640_mode_QCIF_176_144,     176,  144,
 		ov5640_setting_30fps_QCIF_176_144,
-		ARRAY_SIZE(ov5640_setting_30fps_QCIF_176_144)},
+		ARRAY_SIZE(ov5640_setting_30fps_QCIF_176_144), -1},
 		{ov5640_mode_XGA_1024_768,    1024,  768,
 		ov5640_setting_30fps_XGA_1024_768,
-		ARRAY_SIZE(ov5640_setting_30fps_XGA_1024_768)},
+		ARRAY_SIZE(ov5640_setting_30fps_XGA_1024_768), -1},
 		{ov5640_mode_320p_480_320,     480, 320,
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 		{ov5640_mode_854p_480_854,     480, 854,
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 		{ov5640_mode_bt656_640_480,    640, 480,
 		ov5640_bt656_720_480,
-		ARRAY_SIZE(ov5640_bt656_720_480)},
+		ARRAY_SIZE(ov5640_bt656_720_480), -1},
 		{ov5640_mode_bt656_640_480_FOV2,    640, 480,
 		ov5640_bt656_640_480_FOV2,
-		ARRAY_SIZE(ov5640_bt656_640_480_FOV2)},
+		ARRAY_SIZE(ov5640_bt656_640_480_FOV2), 1},
 	},
 };
 
@@ -1385,6 +1390,45 @@ static s32 ov5640_read_reg(u16 reg, u8 *val)
 	*val = u8RdVal;
 
 	return u8RdVal;
+}
+
+static int ov5640_write_SRM_start(u8 group)
+{
+	pr_debug("ov5640 write start %d %d\n", group, 0x00+group);
+
+	if (ov5640_write_reg(OV5640_SRM_GROUP_ACCESS, 0x00+group)) {
+		pr_err("ov5640: error start");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int ov5640_write_SRM_end(u8 group)
+{
+	pr_debug("ov5640 write end %d\n", group);
+	if (ov5640_write_reg(OV5640_SRM_GROUP_ACCESS, 0x10+group)) {
+		pr_err("ov5640: error end");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int ov5640_change_SRM_group(u8 group)
+{
+	if (group < 0 || group > 4)
+		return -1;
+
+	pr_info("ov5640 change group %d\n", group);
+
+	/* Launch group */
+	if (ov5640_write_reg(OV5640_SRM_GROUP_ACCESS, 0xA0+group)) {
+		pr_err("ov5640: error end");
+		return -1;
+	}
+
+	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1776,7 +1820,7 @@ static int ov5640_download_firmware(struct reg_value *pModeSetting, s32 ArySize)
 			pr_err("ov5640: Failed to write reg 0x%x: 0x%x\n", RegAddr, Val);
 			goto err;
 		}
-		
+
 		if (Delay_ms) {
 			msleep(Delay_ms);
 		}
@@ -1866,8 +1910,10 @@ static int ov5640_get_sensor_model_conf(char *model, int model_len, struct reg_v
 static int ov5640_init_mode(void)
 {
 	struct reg_value *pModeSetting;
+	s32 group;
 	int ArySize = 0, retval = 0;
 	char sensor_model[OV5640_SENSOR_MODEL_MAX_LEN + 1];
+	int i, j;
 
 	ov5640_data.on = true;
 
@@ -1896,6 +1942,25 @@ static int ov5640_init_mode(void)
 			goto err;
 	}
 
+	/* Download firmware to SRAM groups */
+	for (j = 0; j < 2; j++) {
+		for (i = 0; i < ov5640_mode_MAX+1; i++) {
+			group = ov5640_mode_info_data[j][i].group;
+			if (group >= 0 && group < 4) {
+				pr_info("ov5640: write group %d mode %d framerate %d", group, i, j);
+				pModeSetting = ov5640_mode_info_data[j][i].init_data_ptr;
+				ArySize = ov5640_mode_info_data[j][i].init_data_size;
+
+				ov5640_write_SRM_start(group);
+				ov5640_download_firmware(pModeSetting, ArySize);
+				ov5640_write_SRM_end(group);
+			}
+		}
+	}
+
+	if (ov5640_change_SRM_group(0) < 0)
+		goto err;
+
 	pr_info("%s: config bt656 success\n", __func__);
 
 	/* skip 9 vysnc: start capture at 10th vsync */
@@ -1916,6 +1981,7 @@ static int ov5640_change_mode_direct(enum ov5640_frame_rate frame_rate,
 {
 	struct reg_value *pModeSetting = NULL;
 	s32 ArySize = 0;
+	s32 group = 0;
 	int retval = 0;
 
 	if (mode > ov5640_mode_MAX || mode < ov5640_mode_MIN) {
@@ -1927,6 +1993,8 @@ static int ov5640_change_mode_direct(enum ov5640_frame_rate frame_rate,
 	pModeSetting = ov5640_mode_info_data[frame_rate][mode].init_data_ptr;
 	ArySize =
 		ov5640_mode_info_data[frame_rate][mode].init_data_size;
+	group =
+		ov5640_mode_info_data[frame_rate][mode].group;
 
 	ov5640_data.pix.width = ov5640_mode_info_data[frame_rate][mode].width;
 	ov5640_data.pix.height = ov5640_mode_info_data[frame_rate][mode].height;
@@ -1939,10 +2007,17 @@ static int ov5640_change_mode_direct(enum ov5640_frame_rate frame_rate,
 		return -EINVAL;
 
 	/* set ov5640 to subsampling mode */
-	retval = ov5640_download_firmware(pModeSetting, ArySize);
+
+	// If group is found, change group, otherwse download firmware
+	if (group >= 0) {
+		retval = ov5640_change_SRM_group(group);
+		if (retval < 0)
+			pr_err("failed to set group\n");
+	} else
+		retval = ov5640_download_firmware(pModeSetting, ArySize);
 
 	/* turn on AE AG for subsampling mode, in case the firmware didn't */
-//    ov5640_turn_on_AE_AG(1);
+//	ov5640_turn_on_AE_AG(1);
 
 	/* calculate banding filter */
 //	ov5640_set_bandingfilter();
@@ -1986,12 +2061,17 @@ static int ov5640_change_mode_exposure_calc(enum ov5640_frame_rate frame_rate,
 	struct reg_value *pModeSetting = NULL;
 	s32 ArySize = 0;
 	int retval = 0;
+	s32 group = 0;
+
+	pr_info("%s: mode = %d, frame_rate = %d\n", __func__, mode, frame_rate);
 
 	/* check if the input mode and frame rate is valid */
 	pModeSetting =
 		ov5640_mode_info_data[frame_rate][mode].init_data_ptr;
 	ArySize =
 		ov5640_mode_info_data[frame_rate][mode].init_data_size;
+	group =
+		ov5640_mode_info_data[frame_rate][mode].group;
 
 	ov5640_data.pix.width =
 		ov5640_mode_info_data[frame_rate][mode].width;
@@ -2015,16 +2095,20 @@ static int ov5640_change_mode_exposure_calc(enum ov5640_frame_rate frame_rate,
 //	ov5640_set_night_mode(0);
 
 	/* turn off overlay */
-	ov5640_write_reg(0x3022, 0x06);
+//	ov5640_write_reg(0x3022, 0x06);
 
-	/* Write capture setting */
-	retval = ov5640_download_firmware(pModeSetting, ArySize);
+	// If group is found, change group, otherwse download firmware
+	if (group >= 0)
+		retval = ov5640_change_SRM_group(group);
+	else
+		retval = ov5640_download_firmware(pModeSetting, ArySize);
+
 	if (retval < 0)
 		goto err;
 
 //	/* turn off AE AG when capture image. */
 //	ov5640_turn_on_AE_AG(0);
-	ov5640_turn_on_AE_AG(1);
+//	ov5640_turn_on_AE_AG(1);
 //	/* read capture VTS */
 //	cap_VTS = ov5640_get_VTS();
 //	cap_HTS = ov5640_get_HTS();
@@ -2540,7 +2624,7 @@ static int ov5640_probe(struct i2c_client *client,
 	}
 
 	mdelay(5);
-	
+
 	/* Set initial values for the sensor struct. */
 	memset(&ov5640_data, 0, sizeof(ov5640_data));
 	ov5640_data.sensor_clk = devm_clk_get(dev, "csi_mclk");
@@ -2586,7 +2670,7 @@ static int ov5640_probe(struct i2c_client *client,
 	}
 
 	v4l2_i2c_subdev_init(&ov5640_data.subdev, client, &ov5640_subdev_ops);
-	
+
 	retval = v4l2_async_register_subdev(&ov5640_data.subdev);
 	if (retval < 0) {
 		dev_err(dev, "%s--Async register failed, ret=%d\n", __func__, retval);
