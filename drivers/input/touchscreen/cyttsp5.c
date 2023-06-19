@@ -955,6 +955,7 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 		dev_err(dev, "Failed to request reset gpio, error %d\n", rc);
 		return rc;
 	}
+	msleep(5);
 	gpiod_set_value_cansleep(ts->reset_gpio, 0);
 
 	/* Need a delay to have device up */
