@@ -577,13 +577,26 @@ static int lc709203f_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = lc709203f_write_word(chip->client,
-		LC709203F_CHANGE_OF_THE_PARAM,
-		chip->pdata->battery_profile);
+	/*
+	 * Check if battery profile already is selected
+	 * Every write to this register will recalibrate the fuelgauge,
+	 * which we only want to do once.
+	 */
+	ret = lc709203f_read_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM);
 	if (ret < 0) {
 		dev_err(&client->dev,
-			"CHANGE_OF_THE_PARAM write failed: %d\n", ret);
+			"CHANGE_OF_THE_PARAM read failed: %d\n", ret);
 		return ret;
+	}
+	if (ret != chip->pdata->battery_profile) {
+		ret = lc709203f_write_word(chip->client,
+			LC709203F_CHANGE_OF_THE_PARAM,
+			chip->pdata->battery_profile);
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"CHANGE_OF_THE_PARAM write failed: %d\n", ret);
+			return ret;
+		}
 	}
 
 	ret = lc709203f_write_word(chip->client,
