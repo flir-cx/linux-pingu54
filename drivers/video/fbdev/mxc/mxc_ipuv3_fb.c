@@ -1842,7 +1842,7 @@ static int mxcfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 /*
  * Function to copy/scale to another frame buffer
  */
-static void clone_fb(struct fb_info *info, unsigned long src_paddr, int fb)
+static void ipu_clone_fb(struct fb_info *info, unsigned long src_paddr, int fb)
 {
 	struct ipu_task task;
 	struct mxcfb_info *mxc_dest_fbi = NULL;
@@ -2777,7 +2777,7 @@ next:
 	// Copy this framebuffer to another
 	for (fb = 2; fb < num_registered_fb; fb++) {
 		if (mxc_fbi->do_clone[fb]) {
-			clone_fb(info, base, fb);
+			ipu_clone_fb(info, base, fb);
 		}
 	}
 
