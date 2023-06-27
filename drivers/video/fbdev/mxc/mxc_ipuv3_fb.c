@@ -138,7 +138,6 @@ struct mxcfb_info {
 	bool cur_prefetch;
 
 	bool do_clone[MAX_FB_NO];
-
 	spinlock_t spin_lock;	/* for PRE small yres cases */
 	struct ipu_pre_context *pre_config;
 	struct backlight_device * bd;
@@ -1867,6 +1866,22 @@ static void ipu_clone_fb(struct fb_info *info, unsigned long src_paddr, int fb)
 	task.output.height = mxc_dest_fbi->cur_var.yres;
 	task.output.paddr = dest_fbi->fix.smem_start; // This is the base
 	task.output.format = fbi_to_pixfmt(dest_fbi, false);
+
+	if (fb == 3 &&
+	    (task.input.width == task.output.width) &&
+	    (task.input.height == task.output.height) &&
+	    (task.input.format == task.output.format)) {
+		//Ensure that the ipu task will have something to do...
+		//Mainly, when copying from LCD to HDMI (framebuffer 3), the
+		//input size and formats are the same as the output size and format,
+		//so there is nothing to do in the IPU task
+		//(reported by ipu_device.c:check_task...)
+		//Ensure we have something to do,
+		//currently, by dropping one line of the input buffer
+		//task.output.rotate = IPU_ROTATE_90_RIGHT;
+		task.input.crop.w = task.input.width;
+		task.input.crop.h = task.input.height - 1;
+	}
 
 	// Check if we can use page flipping if target & destination use multibuffering
 	// check if page numbers match
