@@ -3768,6 +3768,11 @@ static int mxcfb_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = 0;
 	struct device_node *node;
+	static int clone_to_registered;  // only register clone_to on the first framebuffer
+	// clone_to attribute is used to clone the first framebuffer to
+	// the viewfinder and/or the HDMI output
+	// This variable is used to detect if we are registering the first
+	// framebuffer, and only then we create the clone_to attribute
 
 	dev_dbg(&pdev->dev, "%s enter\n", __func__);
 	pdev->id = of_alias_get_id(pdev->dev.of_node, "mxcfb");
@@ -3928,11 +3933,12 @@ static int mxcfb_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "Error %d on creating file for disp "
 				    " device propety\n", ret);
-
-	ret = device_create_file(fbi->dev, &dev_attr_clone_to);
-	if (ret)
-		dev_err(&pdev->dev, "Error %d on creating file for clone "
-				    " device propety\n", ret);
+	if (! clone_to_registered++) {
+		ret = device_create_file(fbi->dev, &dev_attr_clone_to);
+		if (ret)
+			dev_err(&pdev->dev, "Error %d on creating file for clone "
+				" device propety\n", ret);
+	}
 
 	mxcfb_display_splash(fbi, &mxcfbi->bootlogo);
 
