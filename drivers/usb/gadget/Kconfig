@@ -218,6 +218,18 @@ config USB_F_TCM
 
 # this first set of drivers all depend on bulk-capable hardware.
 
+config USB_GADGET_FORCE_DCD_RENEG
+	bool "Force re-run of DCD."
+	depends on USB_LIBCOMPOSITE
+	help
+	  On certain systems the USB hw has a DCD block that handles
+	  the "Charging Port Detection". On FLIR ec302 this block
+	  will not be able to detect anything but SDP unless the
+	  gadget stack has been configured. however the negotiation
+	  is already done when the gadget stack is configured. This
+	  option adds support for automatic re-detection so that the
+	  correct power mode can be detected.
+
 config USB_CONFIGFS
 	tristate "USB Gadget functions configurable through configfs"
 	select USB_LIBCOMPOSITE
