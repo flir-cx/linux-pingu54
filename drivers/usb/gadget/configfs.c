@@ -6,6 +6,7 @@
 #include <linux/nls.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget_configfs.h>
+#include <linux/usb/phy.h>
 #include "configfs.h"
 #include "u_f.h"
 #include "u_os_desc.h"
@@ -1413,6 +1414,18 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 	}
 
 	usb_ep_autoconfig_reset(cdev->gadget);
+
+#ifdef CONFIG_USB_GADGET_FORCE_DCD_RENEG
+	{
+		struct usb_phy *phy =
+			devm_usb_get_phy(&gadget->dev, USB_PHY_TYPE_USB2);
+		if (phy->chg_state == USB_CHARGER_PRESENT) {
+			phy->chg_state = USB_CHARGER_DEFAULT;
+			usb_phy_set_charger_state(phy, USB_CHARGER_PRESENT);
+		}
+	}
+#endif
+
 	return 0;
 
 err_purge_funcs:
