@@ -104,7 +104,7 @@ static inline void cc_val_set(struct usb_charger_cc *cc,
 			      uint16_t n_cc1,
 			      uint16_t n_cc2)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	spin_lock_irqsave(&cc->lock, flags);
 	cc->cc1 = n_cc1;
@@ -117,9 +117,9 @@ static inline bool cc_val_get(struct usb_charger_cc *cc,
 			      uint16_t *n_cc1,
 			      uint16_t *n_cc2)
 {
-	unsigned long flags;
-	bool cc_is_set;
-	int tries;
+	unsigned long flags = 0;
+	bool cc_is_set = false;
+	int tries = 0;
 
 	do {
 		spin_lock_irqsave(&cc->lock, flags);
