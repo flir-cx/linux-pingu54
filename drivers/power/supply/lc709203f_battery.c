@@ -58,6 +58,7 @@
 #define LC709203F 0x1
 #define LC709204F 0x2
 
+#define LC709203F_BATTERY_DISCONNECT_RETRIES 3
 
 enum battery_charger_status {
 	BATTERY_DISCHARGING,
@@ -108,8 +109,12 @@ struct lc709203f_chip {
 	int shutdown_complete;
 	int charge_complete;
 	struct mutex mutex;
-	int read_failed;
+	int read_fail_count;
+	bool battery_disconnected;
 };
+
+static int lc709203f_apply_config(struct i2c_client *client,
+		struct lc709203f_chip *chip);
 
 int lc709203f_get_adjusted_soc(int min_soc, int max_soc, int actual_soc_semi)
 {
@@ -132,6 +137,7 @@ static int lc709203f_read_word(struct i2c_client *client, u8 reg)
 	ret = i2c_smbus_read_word_data(client, reg);
 	if (ret < 0)
 		dev_err(&client->dev, "err reading reg: 0x%x, %d\n", reg, ret);
+
 	return ret;
 }
 
@@ -184,18 +190,20 @@ static int lc709203f_update_soc_voltage(struct lc709203f_chip *chip)
 	int val;
 
 	val = lc709203f_read_word(chip->client, LC709203F_VOLTAGE);
-	if (val < 0)
+	if (val < 0) {
 		dev_err(&chip->client->dev, "%s: err %d\n", __func__, val);
-	else
-		chip->vcell = val;
+		return val;
+	}
+	chip->vcell = val;
 
 	val = lc709203f_read_word(chip->client, LC709203F_RSOC);
-	if (val < 0)
+	if (val < 0) {
 		dev_err(&chip->client->dev, "%s: err %d\n", __func__, val);
-	else
-		chip->soc = lc709203f_get_adjusted_soc(
-				chip->pdata->threshold_soc,
-				chip->pdata->maximum_soc, val * 100);
+		return val;
+	}
+	chip->soc = lc709203f_get_adjusted_soc(
+			chip->pdata->threshold_soc,
+			chip->pdata->maximum_soc, val * 100);
 
 	if (chip->soc == LC709203F_BATTERY_FULL && chip->charge_complete) {
 		chip->status = POWER_SUPPLY_STATUS_FULL;
@@ -218,6 +226,7 @@ static int lc709203f_update_soc_voltage(struct lc709203f_chip *chip)
 static void lc709203f_work(struct work_struct *work)
 {
 	struct lc709203f_chip *chip;
+	int ret;
 	
 	chip = container_of(to_delayed_work(work), struct lc709203f_chip, work);
 
@@ -227,7 +236,21 @@ static void lc709203f_work(struct work_struct *work)
 		return;
 	}
 
-	lc709203f_update_soc_voltage(chip);
+	ret = lc709203f_update_soc_voltage(chip);
+	if (ret < 0) {
+		if (!chip->battery_disconnected) {
+			chip->read_fail_count++;
+			if (chip->read_fail_count >= LC709203F_BATTERY_DISCONNECT_RETRIES) {
+				dev_err(&chip->client->dev, "Battery disconnected\n");
+				chip->battery_disconnected = true;
+				chip->read_fail_count = 0;
+			}
+		}
+	} else if (chip->battery_disconnected) {
+		dev_err(&chip->client->dev, "Battery attached\n");
+		lc709203f_apply_config(chip->client, chip);
+		chip->battery_disconnected = false;
+	}
 
 	if (chip->soc != chip->lasttime_soc ||
 		chip->status != chip->lasttime_status) {
@@ -241,29 +264,16 @@ static void lc709203f_work(struct work_struct *work)
 
 static int lc709203f_get_temperature(struct lc709203f_chip *chip)
 {
-	int val;
-	int retries = 2;
-	int i;
+	int ret;
 
 	if (chip->shutdown_complete)
-		return chip->temperature;
+		return -1;
 
-	for (i = 0; i < retries; i++) {
-		val = lc709203f_read_word(chip->client, LC709203F_TEMPERATURE);
-		if (val < 0)
-			continue;
-	}
+	ret = lc709203f_read_word(chip->client, LC709203F_TEMPERATURE);
+	if (ret < 0)
+		dev_err(&chip->client->dev, "%s: err %d\n", __func__, ret);
 
-	if (val < 0) {
-		chip->read_failed++;
-		dev_err(&chip->client->dev, "%s: err %d\n", __func__, val);
-		if (chip->read_failed > 50)
-			return val;
-		return chip->temperature;
-	}
-	chip->read_failed = 0;;
-	chip->temperature = val;
-	return val;
+	return ret;
 }
 
 static enum power_supply_property lc709203f_battery_props[] = {
@@ -296,7 +306,10 @@ static int lc709203f_get_property(struct power_supply *psy,
 		val->intval = 1000 * chip->vcell;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		val->intval = lc709203f_get_battery_soc(chip);
+		ret =  lc709203f_get_battery_soc(chip);
+		if (ret >= 0)
+			val->intval = ret;
+
 		if (chip->soc == 15)
 			dev_warn(&chip->client->dev,
 			"System Running low on battery - 15 percent\n");
@@ -317,13 +330,16 @@ static int lc709203f_get_property(struct power_supply *psy,
 		val->intval = chip->capacity_level;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		temperature = lc709203f_get_temperature(chip);
-		/*
-		   Temp ready by device is deci-kelvin
-		   C = K -273.2
-		   Report temp in dec-celcius.
-		*/
-		val->intval = temperature - 2732;
+		ret = lc709203f_get_temperature(chip);
+		if (ret >= 0) {
+			temperature = ret;
+			/*
+			 * Temp ready by device is deci-kelvin
+			 * C = K -273.2
+			 * Report temp in dec-celcius.
+			 */
+		    val->intval = temperature - 2732;
+		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -482,19 +498,141 @@ static int lc709203f_debugfs_init(struct i2c_client *client)
 }
 #endif
 
+static int lc709203f_apply_config(struct i2c_client *client,
+				  struct lc709203f_chip *chip)
+{
+	int ret;
+
+	if (chip->pdata->initial_rsoc) {
+		ret = lc709203f_write_word(client,
+			LC709203F_INITIAL_RSOC,
+			chip->pdata->initial_rsoc);
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"INITIAL_RSOC write failed: %d\n", ret);
+			return ret;
+		}
+		dev_info(&client->dev, "initial-rsoc: 0x%04x\n",
+			chip->pdata->initial_rsoc);
+	}
+
+	ret = lc709203f_write_word(client,
+		LC709203F_ALARM_LOW_CELL_RSOC,
+		chip->pdata->alert_low_rsoc);
+	if (ret < 0) {
+		dev_err(&client->dev, "LOW_RSOC write failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = lc709203f_write_word(client,
+		LC709203F_ALARM_LOW_CELL_VOLT,
+		chip->pdata->alert_low_voltage);
+	if (ret < 0) {
+		dev_err(&client->dev, "LOW_VOLT write failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = lc709203f_write_word(client,
+		LC709203F_ADJUSTMENT_PACK_APPLI,
+		chip->pdata->appli_adjustment);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"ADJUSTMENT_APPLI write failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = lc709203f_write_word(client,
+		LC709203F_EMPTY_CELL_VOLT,
+		chip->pdata->empty_cell_voltage);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"EMPTY_CELL_VOLT write failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = lc709203f_write_word(client,
+		LC709203F_ITE_OFFSET,
+		chip->pdata->ite_offset);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"ITE_OFFSET write failed: %d\n", ret);
+		return ret;
+	}
+
+	/*
+	 * Check if battery profile already is selected
+	 * Every write to this register will recalibrate the fuelgauge,
+	 * which we only want to do once.
+	 */
+	ret = lc709203f_read_word(client,
+		LC709203F_CHANGE_OF_THE_PARAM);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"CHANGE_OF_THE_PARAM read failed: %d\n", ret);
+		return ret;
+	}
+	if (ret != chip->pdata->battery_profile) {
+		ret = lc709203f_write_word(client,
+			LC709203F_CHANGE_OF_THE_PARAM,
+			chip->pdata->battery_profile);
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"CHANGE_OF_THE_PARAM write failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = lc709203f_write_word(client,
+		LC709203F_TERM_CURRENT_RATE,
+		chip->pdata->term_current_rate);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"TERM_CURRENT_RATE write failed: %d\n", ret);
+		return ret;
+	}
+
+	if (chip->pdata->tz_name || !chip->pdata->thermistor_beta)
+		return ret;
+
+	if (chip->pdata->therm_adjustment) {
+		ret = lc709203f_write_word(client,
+			LC709203F_ADJUSTMENT_PACK_THERM,
+			chip->pdata->therm_adjustment);
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"ADJUSTMENT_THERM write failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = lc709203f_write_word(client,
+		LC709203F_THERMISTOR_B,
+		chip->pdata->thermistor_beta);
+	if (ret < 0) {
+		dev_err(&client->dev, "THERMISTOR_B write failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = lc709203f_write_word(client,
+			LC709203F_STATUS_BIT, 0x1);
+	if (ret < 0) {
+		dev_err(&client->dev, "STATUS_BIT write failed: %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
 static int lc709203f_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct lc709203f_chip *chip;
 	int ret;
-	u32 type;
-	u32 param;
-	u32 param_val;
 
 	/* Required PEC functionality */
-	client->flags = client->flags | I2C_CLIENT_PEC;    
+	client->flags = client->flags | I2C_CLIENT_PEC;
 
-    ret = lc709203f_wakeup(client);
+	ret = lc709203f_wakeup(client);
 	if (ret < 0) {
 		dev_err(&client->dev, "device is not responding, %d\n", ret);
 		return ret;
@@ -524,118 +662,8 @@ static int lc709203f_probe(struct i2c_client *client,
 	chip->shutdown_complete = 0;
 	i2c_set_clientdata(client, chip);
 
-	if (chip->pdata->initial_rsoc) {
-		ret = lc709203f_write_word(chip->client,
-			LC709203F_INITIAL_RSOC, chip->pdata->initial_rsoc);
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"INITIAL_RSOC write failed: %d\n", ret);
-			return ret;
-		}
-		dev_info(&client->dev, "initial-rsoc: 0x%04x\n",
-			chip->pdata->initial_rsoc);
-	}
+	lc709203f_apply_config(client, chip);
 
-	ret = lc709203f_write_word(chip->client,
-		LC709203F_ALARM_LOW_CELL_RSOC, chip->pdata->alert_low_rsoc);
-	if (ret < 0) {
-		dev_err(&client->dev, "LOW_RSOC write failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = lc709203f_write_word(chip->client,
-		LC709203F_ALARM_LOW_CELL_VOLT, chip->pdata->alert_low_voltage);
-	if (ret < 0) {
-		dev_err(&client->dev, "LOW_VOLT write failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = lc709203f_write_word(chip->client,
-		LC709203F_ADJUSTMENT_PACK_APPLI,
-		chip->pdata->appli_adjustment);
-	if (ret < 0) {
-		dev_err(&client->dev,
-			"ADJUSTMENT_APPLI write failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = lc709203f_write_word(chip->client,
-		LC709203F_EMPTY_CELL_VOLT,
-		chip->pdata->empty_cell_voltage);
-	if (ret < 0) {
-		dev_err(&client->dev,
-			"EMPTY_CELL_VOLT write failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = lc709203f_write_word(chip->client,
-		LC709203F_ITE_OFFSET,
-		chip->pdata->ite_offset);
-	if (ret < 0) {
-		dev_err(&client->dev,
-			"ITE_OFFSET write failed: %d\n", ret);
-		return ret;
-	}
-
-	/*
-	 * Check if battery profile already is selected
-	 * Every write to this register will recalibrate the fuelgauge,
-	 * which we only want to do once.
-	 */
-	ret = lc709203f_read_word(chip->client, LC709203F_CHANGE_OF_THE_PARAM);
-	if (ret < 0) {
-		dev_err(&client->dev,
-			"CHANGE_OF_THE_PARAM read failed: %d\n", ret);
-		return ret;
-	}
-	if (ret != chip->pdata->battery_profile) {
-		ret = lc709203f_write_word(chip->client,
-			LC709203F_CHANGE_OF_THE_PARAM,
-			chip->pdata->battery_profile);
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"CHANGE_OF_THE_PARAM write failed: %d\n", ret);
-			return ret;
-		}
-	}
-
-	ret = lc709203f_write_word(chip->client,
-		LC709203F_TERM_CURRENT_RATE,
-		chip->pdata->term_current_rate);
-	if (ret < 0) {
-		dev_err(&client->dev,
-			"TERM_CURRENT_RATE write failed: %d\n", ret);
-		return ret;
-	}
-
-	if (chip->pdata->tz_name || !chip->pdata->thermistor_beta)
-		goto skip_thermistor_config;
-
-	if (chip->pdata->therm_adjustment) {
-		ret = lc709203f_write_word(chip->client,
-			LC709203F_ADJUSTMENT_PACK_THERM,
-			chip->pdata->therm_adjustment);
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"ADJUSTMENT_THERM write failed: %d\n", ret);
-			return ret;
-		}
-	}
-
-	ret = lc709203f_write_word(chip->client,
-		LC709203F_THERMISTOR_B, chip->pdata->thermistor_beta);
-	if (ret < 0) {
-		dev_err(&client->dev, "THERMISTOR_B write failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = lc709203f_write_word(chip->client, LC709203F_STATUS_BIT, 0x1);
-	if (ret < 0) {
-		dev_err(&client->dev, "STATUS_BIT write failed: %d\n", ret);
-		return ret;
-	}
-
-skip_thermistor_config:
 	lc709203f_update_soc_voltage(chip);
 
 	chip->battery_desc.name		= "battery";
