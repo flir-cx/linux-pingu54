@@ -52,6 +52,7 @@ uvc_send_response(struct uvc_device *uvc, struct uvc_request_data *data)
 
 #define V4L2_PIX_FMT_MJLS v4l2_fourcc('M', 'J', 'L', 'S') /* JPEG-LS 16-bit */
 #define V4L2_PIX_FMT_DFVI v4l2_fourcc('D', 'F', 'V', 'I') /* Dual frame */
+#define V4L2_PIX_FMT_F7M0 v4l2_fourcc('F', '7', 'M', '0') /* FLIR raw IR data */
 
 struct uvc_format {
 	u8 bpp;
@@ -61,6 +62,7 @@ struct uvc_format {
 static struct uvc_format uvc_formats[] = {
 	{ 16, V4L2_PIX_FMT_YUYV  },
 	{ 16, V4L2_PIX_FMT_UYVY  },
+	{ 16, V4L2_PIX_FMT_F7M0  },
 	{ 0,  V4L2_PIX_FMT_MJPEG },
 	{ 0,  V4L2_PIX_FMT_MJLS  },
 	{ 0,  V4L2_PIX_FMT_DFVI  },
