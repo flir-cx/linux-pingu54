@@ -213,7 +213,7 @@
 
 #ifdef CONFIG_USB_PHY_EXT_CC
 /* Threshold for CC ADC to be considered a DCP (dedicated charging port) */
-#define CC_ADC_DCP_THRESHOLD        1000
+#define CC_ADC_DCP_THRESHOLD        700
 #endif
 
 struct mxs_phy_data {
