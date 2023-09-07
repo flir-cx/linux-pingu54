@@ -1,0 +1,30 @@
+* Rohm BM1422 magnetometer
+
+Required properties:
+	- compatible - One of:
+		"rohm,bm1422" - BM1422
+	- reg -  I2C slave address
+	- axis-map-x
+	- axis-map-y
+	- axis-map-z
+
+Optional properties:
+	- negate-x
+	- negate-y
+	- negate-z
+
+Example:
+
+	  evlc4_mag_bm1422: evlc4_mag_bm1422@0F {
+		compatible = "rohm,bm1422";
+		reg = <0x0F>;
+		// Remap axes for appcore
+		axis-map-x = <2>; // X = -Z
+		negate-x;
+		axis-map-y = <0>; // Y = X
+		axis-map-z = <1>; // Z = -Y
+		negate-z;
+	  };
+
+
+

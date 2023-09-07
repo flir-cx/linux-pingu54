@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 Kionix, Inc.
  * Copyright (C) 2021 TeledyneFlir
@@ -30,18 +31,16 @@
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 
-
 #define NAME			"bm1422"
 /* OUTPUT REGISTERS */
 #define WHO_AM_I		0x0F
 /* INPUT_ABS CONSTANTS */
-#define FUZZ			0 //10
-#define FLAT			0 //3
+#define FUZZ			0	//10
+#define FLAT			0	//3
 #define MAG_MAX         8000
 
-
-#define BM1422AGMV_DEVICE_ADDRESS_0E   (0x0E)    // 7bit Addrss
-#define BM1422AGMV_DEVICE_ADDRESS_0F   (0x0F)    // 7bit Address
+#define BM1422AGMV_DEVICE_ADDRESS_0E   (0x0E)	// 7bit Addrss
+#define BM1422AGMV_DEVICE_ADDRESS_0F   (0x0F)	// 7bit Address
 #define BM1422AGMV_WIA_VAL             (0x41)
 
 #define BM1422AGMV_WIA                 (0x0F)
@@ -83,17 +82,15 @@
 #define BM1422AGMV_14BIT_SENS          (24)
 #define BM1422AGMV_12BIT_SENS          (6)
 
-
 #define	SENSOR_IOCTL_BASE		'S'
 #define	SENSOR_GET_MODEL_NAME		_IOR(SENSOR_IOCTL_BASE, 0, char *)
 #define	SENSOR_GET_POWER_STATUS		_IOR(SENSOR_IOCTL_BASE, 2, int)
 #define	SENSOR_SET_POWER_STATUS		_IOR(SENSOR_IOCTL_BASE, 3, int)
 #define	SENSOR_GET_DELAY_TIME		_IOR(SENSOR_IOCTL_BASE, 4, int)
 #define	SENSOR_SET_DELAY_TIME		_IOR(SENSOR_IOCTL_BASE, 5, int)
-#define	SENSOR_GET_RAW_DATA			_IOR(SENSOR_IOCTL_BASE, 6, short[3])
-#define SENSOR_ACC_ENABLE_SELFTEST 	_IOW(SENSOR_IOCTL_BASE,13, int)
-#define SENSOR_ACC_SELFTEST 		_IOR(SENSOR_IOCTL_BASE,14, int)
-
+#define	SENSOR_GET_RAW_DATA		_IOR(SENSOR_IOCTL_BASE, 6, short[3])
+#define SENSOR_ACC_ENABLE_SELFTEST	_IOW(SENSOR_IOCTL_BASE, 13, int)
+#define SENSOR_ACC_SELFTEST		_IOR(SENSOR_IOCTL_BASE, 14, int)
 
 struct bm1422_mag_data {
 	s16 x;
@@ -106,66 +103,66 @@ struct bm1422_data {
 	struct input_dev *input_dev;
 	struct input_polled_dev *poll_dev;
 
-    unsigned int axis_map_x;
-    unsigned int axis_map_y;
-    unsigned int axis_map_z;
+	unsigned int axis_map_x;
+	unsigned int axis_map_y;
+	unsigned int axis_map_z;
 
-    bool negate_x;
-    bool negate_y;
-    bool negate_z;
+	bool negate_x;
+	bool negate_y;
+	bool negate_z;
 
-    unsigned int off_x;
-    unsigned int off_y;
-    unsigned int off_z;
+	unsigned int off_x;
+	unsigned int off_y;
+	unsigned int off_z;
 	bool offsets_set;
 
 	struct miscdevice miscdev;
-	char name [20];
+	char name[20];
 };
 
 static int bm1422_power_on_and_start(struct bm1422_data *bm);
 static int bm1422_power_off(struct bm1422_data *bm);
 
-
 static int bm1422_i2c_read(struct bm1422_data *bm, u8 addr, u8 *data, int len)
 {
 	struct i2c_msg msgs[] = {
 		{
-			.addr = bm->client->addr,
-			.flags = bm->client->flags,
-			.len = 1,
-			.buf = &addr,
-		},
+		 .addr = bm->client->addr,
+		 .flags = bm->client->flags,
+		 .len = 1,
+		 .buf = &addr,
+		  },
 		{
-			.addr = bm->client->addr,
-			.flags = bm->client->flags | I2C_M_RD,
-			.len = len,
-			.buf = data,
-		},
+		 .addr = bm->client->addr,
+		 .flags = bm->client->flags | I2C_M_RD,
+		 .len = len,
+		 .buf = data,
+		  },
 	};
 
 	return i2c_transfer(bm->client->adapter, msgs, 2);
 }
 
-static int bm1422_read_magnetometer_data(struct bm1422_data *bm, struct bm1422_mag_data *data)
+static int bm1422_read_magnetometer_data(struct bm1422_data *bm,
+					 struct bm1422_mag_data *data)
 {
-	s16 mag_data[3]; /* Data bytes from hardware xL, xH, yL, yH, zL, zH */
+	s16 mag_data[3];	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */
 	s16 x, y, z;
 	int err;
-    u8 stat;
+	u8 stat;
 
-    /* Wait for RD_DRDY */
-    stat = i2c_smbus_read_byte_data(bm->client, BM1422AGMV_STA1);
-    while (stat == 0) {
-        usleep_range(50,70);
-        stat = i2c_smbus_read_byte_data(bm->client, BM1422AGMV_STA1);
-    }
+	/* Wait for RD_DRDY */
+	stat = i2c_smbus_read_byte_data(bm->client, BM1422AGMV_STA1);
+	while (stat == 0) {
+		usleep_range(50, 70);
+		stat = i2c_smbus_read_byte_data(bm->client, BM1422AGMV_STA1);
+	}
 
-	err = bm1422_i2c_read(bm, BM1422AGMV_DATAX, (u8 *)mag_data, 6);
+	err = bm1422_i2c_read(bm, BM1422AGMV_DATAX, (u8 *) mag_data, 6);
 	if (err < 0) {
 		dev_err(&bm->client->dev, "magnetometer data read failed\n");
-        return err;
-    }
+		return err;
+	}
 
 	x = le16_to_cpu(mag_data[bm->axis_map_x]);
 	y = le16_to_cpu(mag_data[bm->axis_map_y]);
@@ -177,7 +174,6 @@ static int bm1422_read_magnetometer_data(struct bm1422_data *bm, struct bm1422_m
 
 	return 0;
 }
-
 
 static void bm1422_report_magnetometer_data(struct bm1422_data *bm)
 {
@@ -197,13 +193,11 @@ static void bm1422_report_magnetometer_data(struct bm1422_data *bm)
 static void bm1422_enable(struct bm1422_data *bm)
 {
 	//kxtj9_device_power_off(tj9);
-    return;
 }
 
 static void bm1422_disable(struct bm1422_data *bm)
 {
 	//kxtj9_device_power_off(tj9);
-    return;
 }
 
 static void bm1422_poll(struct input_polled_dev *dev)
@@ -214,7 +208,7 @@ static void bm1422_poll(struct input_polled_dev *dev)
 }
 
 static void bm1422_init_input_device(struct bm1422_data *bm,
-					      struct input_dev *input_dev)
+				     struct input_dev *input_dev)
 {
 	__set_bit(EV_ABS, input_dev->evbit);
 	input_set_abs_params(input_dev, ABS_X, -MAG_MAX, MAG_MAX, FUZZ, FLAT);
@@ -244,11 +238,10 @@ static int bm1422_setup_polled_device(struct bm1422_data *bm)
 {
 	int err;
 	struct input_polled_dev *poll_dev;
-	poll_dev = input_allocate_polled_device();
 
+	poll_dev = input_allocate_polled_device();
 	if (!poll_dev) {
-		dev_err(&bm->client->dev,
-			"Failed to allocate polled device\n");
+		dev_err(&bm->client->dev, "Failed to allocate polled device\n");
 		return -ENOMEM;
 	}
 
@@ -279,7 +272,6 @@ static void bm1422_teardown_polled_device(struct bm1422_data *bm)
 	input_free_polled_device(bm->poll_dev);
 }
 
-
 static int bm1422_verify(struct bm1422_data *bm)
 {
 	int retval;
@@ -307,28 +299,26 @@ static long bm1422_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	bm = container_of(mdev, struct bm1422_data, miscdev);
 
 	if (!bm) {
-		printk(KERN_ERR "bm1422_data struct is NULL.");
+		dev_err(&bm->client->dev, "bm1422_data struct is NULL.");
 		return -EFAULT;
 	}
 
 	switch (cmd) {
 	case SENSOR_GET_MODEL_NAME:
 		if (copy_to_user(argp, bm->name, strlen(bm->name) + 1)) {
-			printk(KERN_ERR "SENSOR_GET_MODEL_NAME copy_to_user failed.");
+			dev_err(&bm->client->dev, "SENSOR_GET_MODEL_NAME copy_to_user failed.");
 			ret = -EFAULT;
 		}
 		break;
 	case SENSOR_SET_POWER_STATUS:
 		if (copy_from_user(&enable, argp, sizeof(int))) {
-			printk(KERN_ERR "SENSOR_SET_POWER_STATUS copy_to_user failed.");
+			dev_err(&bm->client->dev, "SENSOR_SET_POWER_STATUS copy_to_user failed.");
 			ret = -EFAULT;
 		}
-		if (enable) {
+		if (enable)
 			ret = bm1422_power_on_and_start(bm);
-		}
-		else {
+		else
 			ret = bm1422_power_off(bm);
-		}
 		break;
 	case SENSOR_GET_RAW_DATA:
 		ret = bm1422_read_magnetometer_data(bm, &data);
@@ -337,7 +327,7 @@ static long bm1422_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			sdata[1] = data.y;
 			sdata[2] = data.z;
 			if (copy_to_user(argp, sdata, sizeof(sdata))) {
-				printk(KERN_ERR "SENSOR_GET_RAW_DATA copy_to_user failed.");
+				dev_err(&bm->client->dev, "SENSOR_GET_RAW_DATA copy_to_user failed.");
 				ret = -EFAULT;
 			}
 		}
@@ -366,19 +356,18 @@ static const struct file_operations bm1422_fops = {
 	.unlocked_ioctl = bm1422_ioctl,
 };
 
-
 #ifdef CONFIG_OF
 static const struct of_device_id bm1422_of_match[] = {
-	{ .compatible = "rohm,bm1422", },
+	{.compatible = "rohm,bm1422", },
 	{ }
 };
+
 MODULE_DEVICE_TABLE(of, bm1422_of_match);
 
-static int bm1422_parse_dt(struct device *dev, 
-                            struct bm1422_data *bm)
+static int bm1422_parse_dt(struct device *dev, struct bm1422_data *bm)
 {
 	const struct of_device_id *of_id =
-				of_match_device(bm1422_of_match, dev);
+	    of_match_device(bm1422_of_match, dev);
 	struct device_node *np = dev->of_node;
 	unsigned int mapx = 0;
 	unsigned int mapy = 1;
@@ -405,231 +394,242 @@ static int bm1422_parse_dt(struct device *dev,
 	dev_dbg(dev, "negate_y is %s\n", bm->negate_y ? "set" : "not set");
 	dev_dbg(dev, "negate_z is %s\n", bm->negate_z ? "set" : "not set");
 
-    return 0;
+	return 0;
 }
 #else
-static inline void bm1422_parse_dt(struct device *dev,
-                                struct bm1422_data *bm)
+static inline void bm1422_parse_dt(struct device *dev, struct bm1422_data *bm)
 {
 	return 0;
 }
 #endif
 
-static int bm1422_axis_offset(struct bm1422_data *bm, 
-                                    u8 data_reg, 
-                                    u8 offset_reg, 
-                                    unsigned int * offset)
+static int bm1422_axis_offset(struct bm1422_data *bm,
+			      u8 data_reg, u8 offset_reg, unsigned int *offset)
 {
-    int retval = 0;
-    s16 wk_dat = 1;
-    u16 diff_axis = 9999;
-    u8 reg;
+	int retval = 0;
+	s16 wk_dat = 1;
+	u16 diff_axis = 9999;
+	u8 reg;
 
-    /* Step 0 - Power off reset with default CNTL1 setting 0x22*/
-    reg = 0;
-    reg |= BM1422AGMV_CNTL1_RST_LV;
-    reg |= BM1422AGMV_CNTL1_FS1;
-    i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL1, reg);
+	/* Step 0 - Power off reset with default CNTL1 setting 0x22 */
+	reg = 0;
+	reg |= BM1422AGMV_CNTL1_RST_LV;
+	reg |= BM1422AGMV_CNTL1_FS1;
+	i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL1, reg);
 	dev_dbg(&bm->client->dev, "Step 0: Wrote 0x%x to CNTL1\n", reg);
-    usleep_range(1000,1200);
+	usleep_range(1000, 1200);
 
-    /* Step 1 */ 
-    reg = 0;
-    reg |= BM1422AGMV_CNTL1_PC1; // Power control
-    reg |= BM1422AGMV_CNTL1_OUT_BIT; // 14 bit resolution
-    reg |= BM1422AGMV_CNTL1_FS1; // Single mode measurement
-    // BM1422AGMV_CNTL1_RST_LV=0 -> Logic reset control, reset release
-	retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL1, reg); 
-    if (retval < 0) {
+	/* Step 1 */
+	reg = 0;
+	reg |= BM1422AGMV_CNTL1_PC1;	// Power control
+	reg |= BM1422AGMV_CNTL1_OUT_BIT;	// 14 bit resolution
+	reg |= BM1422AGMV_CNTL1_FS1;	// Single mode measurement
+	// BM1422AGMV_CNTL1_RST_LV=0 -> Logic reset control, reset release
+	retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL1, reg);
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error writing CNTL1\n");
-        return retval;
-    }
+		return retval;
+	}
 	dev_dbg(&bm->client->dev, "Step 1: Wrote 0x%x to CNTL1\n", reg);
 
-    /* Delay here since that is what they do in example code */
-    usleep_range(1000,1200);
+	/* Delay here since that is what they do in example code */
+	usleep_range(1000, 1200);
 
-    /* Write to RSTB_LV. Just write anything to RSTB_LV. I have tried 0/1/0x0101 with the same results. */
-    retval = i2c_smbus_write_word_data(bm->client, BM1422AGMV_CNTL4, cpu_to_le16((s16)0/*((1<<8) + 1)*/));
-    if (retval < 0) {
+	/* Write to RSTB_LV. Just write anything to RSTB_LV.
+	 * I have tried 0/1/0x0101 with the same results.
+	 */
+	retval =
+	    i2c_smbus_write_word_data(bm->client, BM1422AGMV_CNTL4,
+				      cpu_to_le16((s16) 0));
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error writing CNTL4\n");
-        return retval;
-    }
+		return retval;
+	}
 
-    usleep_range(1000,1200);
+	usleep_range(1000, 1200);
 
-    /* Step 2 */
-    retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL2, \
-                BM1422AGMV_CNTL2_DREN); 
-    if (retval < 0) {
+	/* Step 2 */
+	retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL2,
+					   BM1422AGMV_CNTL2_DREN);
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error writing DREN to CNTL2\n");
-        return retval;
-    }
+		return retval;
+	}
 
-    while (wk_dat < 96) {
-    	s16 mag_data;
-	    s16 data, abs_data;
-        s32 stat;
+	while (wk_dat < 96) {
+		s16 mag_data;
+		s16 data, abs_data;
+		s32 stat;
 
-        /* Step 3 */
-        retval = i2c_smbus_write_word_data(bm->client, offset_reg, cpu_to_le16(wk_dat));
-        if (retval < 0) {
-	    	dev_err(&bm->client->dev, "Error writing offset reg\n");
-            return retval;
-        }
+		/* Step 3 */
+		retval =
+		    i2c_smbus_write_word_data(bm->client, offset_reg,
+					      cpu_to_le16(wk_dat));
+		if (retval < 0) {
+			dev_err(&bm->client->dev, "Error writing offset reg\n");
+			return retval;
+		}
 
-        /* Step 4 */
-        retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL3, BM1422AGMV_CNTL3_FORCE);
-        if (retval < 0) {
-	    	dev_err(&bm->client->dev, "Error writing CNTL3 reg\n");
-            return retval;
-        }
+		/* Step 4 */
+		retval =
+		    i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL3,
+					      BM1422AGMV_CNTL3_FORCE);
+		if (retval < 0) {
+			dev_err(&bm->client->dev, "Error writing CNTL3 reg\n");
+			return retval;
+		}
 
-        /* Wait for DRDY in STA1 */
-        stat = i2c_smbus_read_byte_data(bm->client, BM1422AGMV_STA1);
-        if (stat < 0) {
-	    	dev_err(&bm->client->dev, "Error %d reading STA1 reg\n", stat);
-            return stat;
-        }
-        while (stat == 0) {
-            usleep_range(50,200);
-            stat = i2c_smbus_read_byte_data(bm->client, BM1422AGMV_STA1);
-            if (stat < 0) {
-	        	dev_err(&bm->client->dev, "Error %d reading STA1 reg\n", stat);
-                return stat;
-            }
-        }
+		/* Wait for DRDY in STA1 */
+		stat = i2c_smbus_read_byte_data(bm->client, BM1422AGMV_STA1);
+		if (stat < 0) {
+			dev_err(&bm->client->dev, "Error %d reading STA1 reg\n",
+				stat);
+			return stat;
+		}
+		while (stat == 0) {
+			usleep_range(50, 200);
+			stat =
+			    i2c_smbus_read_byte_data(bm->client,
+						     BM1422AGMV_STA1);
+			if (stat < 0) {
+				dev_err(&bm->client->dev,
+					"Error %d reading STA1 reg\n", stat);
+				return stat;
+			}
+		}
 
-        /* Step 5 */
-	    retval = bm1422_i2c_read(bm, data_reg, (u8 *)&mag_data, 2);
-	    data = le16_to_cpu(mag_data);
+		/* Step 5 */
+		retval = bm1422_i2c_read(bm, data_reg, (u8 *) &mag_data, 2);
+		data = le16_to_cpu(mag_data);
 
-        abs_data = (data > 0 ? data : -data);
-        if (diff_axis > abs_data) {
-            *offset = wk_dat;
-            diff_axis = abs_data;
-        }
+		abs_data = (data > 0 ? data : -data);
+		if (diff_axis > abs_data) {
+			*offset = wk_dat;
+			diff_axis = abs_data;
+		}
 
-        wk_dat++;
-    }
+		wk_dat++;
+	}
 
-    i2c_smbus_write_word_data(bm->client, offset_reg, cpu_to_le16(*offset));
+	i2c_smbus_write_word_data(bm->client, offset_reg, cpu_to_le16(*offset));
 
-    return 0;
+	return 0;
 }
 
 static int bm1422_compute_offsets(struct bm1422_data *bm)
 {
-    int retval = 0;
-	
+	int retval = 0;
+
 	/* Skip offset calculation for now */
 	return retval;
 
-    retval = bm1422_axis_offset(bm, BM1422AGMV_DATAX, 
-                                BM1422AGMV_OFF_X, 
-                                &bm->off_x);
-    if (retval < 0) {
-		dev_err(&bm->client->dev, "Error computing offset for X axis\n");
-        return retval;
-    }
-    else
-        dev_dbg(&bm->client->dev, "New x offset is %d (%x)\n", bm->off_x, bm->off_x);
+	retval = bm1422_axis_offset(bm, BM1422AGMV_DATAX,
+				    BM1422AGMV_OFF_X, &bm->off_x);
+	if (retval < 0) {
+		dev_err(&bm->client->dev,
+			"Error computing offset for X axis\n");
+		return retval;
+	}
 
-    retval = bm1422_axis_offset(bm, BM1422AGMV_DATAY, 
-                                BM1422AGMV_OFF_Y, 
-                                &bm->off_y);
-    if (retval < 0) {
-		dev_err(&bm->client->dev, "Error computing offset for Y axis\n");
-        return retval;
-    }
-    else
-        dev_dbg(&bm->client->dev, "New y offset is %d (%x)\n", bm->off_y, bm->off_y);
+	dev_dbg(&bm->client->dev, "New x offset is %d (%x)\n", bm->off_x, bm->off_x);
 
-    retval = bm1422_axis_offset(bm, BM1422AGMV_DATAZ, 
-                                BM1422AGMV_OFF_Z, 
-                                &bm->off_z);
-    if (retval < 0) {
-		dev_err(&bm->client->dev, "Error computing offset for Z axis\n");
-        return retval;
-    }
-    else
-        dev_dbg(&bm->client->dev, "New z offset is %d (%x)\n", bm->off_z, bm->off_z);
+	retval = bm1422_axis_offset(bm, BM1422AGMV_DATAY,
+				    BM1422AGMV_OFF_Y, &bm->off_y);
+	if (retval < 0) {
+		dev_err(&bm->client->dev,
+			"Error computing offset for Y axis\n");
+		return retval;
+	}
+
+	dev_dbg(&bm->client->dev, "New y offset is %d (%x)\n", bm->off_y, bm->off_y);
+
+	retval = bm1422_axis_offset(bm, BM1422AGMV_DATAZ,
+				    BM1422AGMV_OFF_Z, &bm->off_z);
+	if (retval < 0) {
+		dev_err(&bm->client->dev,
+			"Error computing offset for Z axis\n");
+		return retval;
+	}
+
+	dev_dbg(&bm->client->dev, "New z offset is %d (%x)\n", bm->off_z, bm->off_z);
 
 	bm->offsets_set = true;
-    return 0;
+	return 0;
 }
 
 static int bm1422_power_on_and_start(struct bm1422_data *bm)
 {
 	int retval = 0;
 
-    /* Step 1 */ 
-    /* 14 bit output, Power control, Cont mode with FS1=0 */
-	retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL1, \
-        BM1422AGMV_CNTL1_OUT_BIT | BM1422AGMV_CNTL1_PC1 | BM1422AGMV_CNTL1_ODR_20Hz); 
-    if (retval < 0) {
+	/* Step 1 */
+	/* 14 bit output, Power control, Cont mode with FS1=0 */
+	retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL1,
+					   BM1422AGMV_CNTL1_OUT_BIT |
+					   BM1422AGMV_CNTL1_PC1 |
+					   BM1422AGMV_CNTL1_ODR_20Hz);
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error writing CNTL1\n");
-        return retval;
-    }
+		return retval;
+	}
 
-    /* Delay here since that is what they do in example code */
-    usleep_range(1000, 1200);
+	/* Delay here since that is what they do in example code */
+	usleep_range(1000, 1200);
 
-    /* Set RSTB_LV = 0 */
-    retval = i2c_smbus_write_word_data(bm->client, BM1422AGMV_CNTL4, 0);
-    if (retval < 0) {
+	/* Set RSTB_LV = 0 */
+	retval = i2c_smbus_write_word_data(bm->client, BM1422AGMV_CNTL4, 0);
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error writing CNTL4\n");
-        return retval;
-    }
+		return retval;
+	}
 
-    /* Step 2 */
-    retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL2, \
-				BM1422AGMV_CNTL2_DREN); 
-    if (retval < 0) {
+	/* Step 2 */
+	retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL2,
+					   BM1422AGMV_CNTL2_DREN);
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error writing CNTL2\n");
-        return retval;
-    }
+		return retval;
+	}
 
-    /* Average X times */
-    retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_AVE_A, \
-				BM1422AGMV_AVE_A_AVE4); 
-    if (retval < 0) {
+	/* Average X times */
+	retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_AVE_A,
+					   BM1422AGMV_AVE_A_AVE4);
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error writing AVE_A\n");
-        return retval;
-    }
+		return retval;
+	}
 
-    /* Step 3 */
-    /* Set offsets */
+	/* Step 3 */
+	/* Set offsets */
 	if (bm->offsets_set) {
-		retval = i2c_smbus_write_word_data(bm->client, BM1422AGMV_OFF_X, \
-					cpu_to_le16(bm->off_x));
+		retval = i2c_smbus_write_word_data(bm->client, BM1422AGMV_OFF_X,
+						   cpu_to_le16(bm->off_x));
 		if (retval < 0) {
 			dev_err(&bm->client->dev, "Error writing OFF_X\n");
 			return retval;
 		}
 
-		retval = i2c_smbus_write_word_data(bm->client, BM1422AGMV_OFF_Y, \
-					cpu_to_le16(bm->off_y));
+		retval = i2c_smbus_write_word_data(bm->client, BM1422AGMV_OFF_Y,
+						   cpu_to_le16(bm->off_y));
 		if (retval < 0) {
 			dev_err(&bm->client->dev, "Error writing OFF_Y\n");
 			return retval;
 		}
 
-		retval = i2c_smbus_write_word_data(bm->client, BM1422AGMV_OFF_Z, \
-					cpu_to_le16(bm->off_z));
+		retval = i2c_smbus_write_word_data(bm->client, BM1422AGMV_OFF_Z,
+						   cpu_to_le16(bm->off_z));
 		if (retval < 0) {
 			dev_err(&bm->client->dev, "Error writing OFF_Z\n");
 			return retval;
 		}
 	}
 
-    /* Step 4 */
-    retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL3, \
-					BM1422AGMV_CNTL3_FORCE); 
-    if (retval < 0) {
+	/* Step 4 */
+	retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL3,
+					   BM1422AGMV_CNTL3_FORCE);
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error writing CNTL3\n");
-        return retval;
-    }
+		return retval;
+	}
 
 	return 0;
 }
@@ -639,73 +639,70 @@ static int bm1422_power_off(struct bm1422_data *bm)
 	int retval;
 	u8 reg;
 
-    /* Power off reset with default CNTL1 setting 0x22*/
+	/* Power off reset with default CNTL1 setting 0x22 */
 	reg = BM1422AGMV_CNTL1_RST_LV | BM1422AGMV_CNTL1_FS1;
-    retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL1, reg);
+	retval = i2c_smbus_write_byte_data(bm->client, BM1422AGMV_CNTL1, reg);
 
 	return retval;
 }
 
 static int bm1422_init(struct bm1422_data *bm)
 {
-    int retval;
-    
-    bm->off_x = 0;
-    bm->off_y = 0;
-    bm->off_z = 0;
+	int retval;
+
+	bm->off_x = 0;
+	bm->off_y = 0;
+	bm->off_z = 0;
 	bm->offsets_set = false;
 
-    /* Compute offsets for all axes */
-    retval = bm1422_compute_offsets(bm);
-    if (retval < 0)
+	/* Compute offsets for all axes */
+	retval = bm1422_compute_offsets(bm);
+	if (retval < 0)
 		return retval;
 
-	/* Step 0 - Power off first to ensure we are in a known state (after 
-	*  offset calculations)
-	*/
+	/* Step 0 - Power off first to ensure we are in a known state
+	 * (after offset calculations)
+	 */
 	retval = bm1422_power_off(bm);
-    if (retval < 0) {
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error powering off\n");
-        return retval;
-    }
-    /* END of step 0 */
+		return retval;
+	}
+	/* END of step 0 */
 
-    usleep_range(1000,1200);
+	usleep_range(1000, 1200);
 
 	retval = bm1422_power_on_and_start(bm);
-    if (retval < 0) {
+	if (retval < 0) {
 		dev_err(&bm->client->dev, "Error powering on\n");
-        return retval;
-    }
+		return retval;
+	}
 
-    return 0;
+	return 0;
 }
 
 static int bm1422_probe(struct i2c_client *client,
-				 const struct i2c_device_id *id)
+			const struct i2c_device_id *id)
 {
-	/*const struct bm1422_platform_data *pdata = dev_get_platdata(&client->dev);*/
+	/*const struct bm1422_platform_data *pdata = dev_get_platdata(&client->dev); */
 	struct bm1422_data *bm;
 	int err;
 
 	if (!i2c_check_functionality(client->adapter,
-				I2C_FUNC_I2C | I2C_FUNC_SMBUS_BYTE_DATA)) {
+				     I2C_FUNC_I2C | I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&client->dev, "client is not i2c capable\n");
 		return -ENXIO;
 	}
 
 	bm = kzalloc(sizeof(*bm), GFP_KERNEL);
-	if (!bm) {
-		dev_err(&client->dev,
-			"failed to allocate memory for module data\n");
+	if (!bm)
 		return -ENOMEM;
-	}
 
-    err = bm1422_parse_dt(&client->dev, bm);
-    if (err < 0) {
+	err = bm1422_parse_dt(&client->dev, bm);
+	if (err < 0) {
 		dev_err(&client->dev, "parse dt failed %d\n", err);
 		goto err_free_mem;
-    }
+	}
 
 	bm->client = client;
 	strcpy(bm->name, "BM1422");
@@ -728,9 +725,9 @@ static int bm1422_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, bm);
 
-    bm1422_init(bm);
+	bm1422_init(bm);
 
-    err = bm1422_setup_polled_device(bm);
+	err = bm1422_setup_polled_device(bm);
 	if (err)
 		goto err_free_mem;
 
@@ -791,18 +788,19 @@ static const struct i2c_device_id bm1422_id[] = {
 	{ NAME, 0 },
 	{ },
 };
+
 MODULE_DEVICE_TABLE(i2c, bm1422_id);
 
 static struct i2c_driver bm1422_driver = {
 	.driver = {
-		.name	= NAME,
-		.owner	= THIS_MODULE,
-		.of_match_table = bm1422_of_match,
-		.pm	= &bm1422_pm_ops,
-	},
-	.probe		= bm1422_probe,
-	.remove		= bm1422_remove,
-	.id_table	= bm1422_id,
+		   .name = NAME,
+		   .owner = THIS_MODULE,
+		   .of_match_table = bm1422_of_match,
+		   .pm = &bm1422_pm_ops,
+		    },
+	.probe = bm1422_probe,
+	.remove = bm1422_remove,
+	.id_table = bm1422_id,
 };
 
 module_i2c_driver(bm1422_driver);
