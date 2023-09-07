@@ -777,14 +777,14 @@ static int bm1422_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bm1422_data *bm = i2c_get_clientdata(client);
 	struct input_dev *input_dev = bm->input_dev;
+	int ret;
 
-	mutex_lock(&input_dev->mutex);
-
-	if (input_dev->users)
-		bm1422_disable(bm);
-
-	mutex_unlock(&input_dev->mutex);
-	return 0;
+	if (bm->power) {
+		mutex_lock(&input_dev->mutex);
+		ret = bm1422_power_off(bm);
+		mutex_unlock(&input_dev->mutex);
+	}
+	return ret;
 }
 
 static int bm1422_resume(struct device *dev)
@@ -792,15 +792,15 @@ static int bm1422_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bm1422_data *bm = i2c_get_clientdata(client);
 	struct input_dev *input_dev = bm->input_dev;
-	int retval = 0;
+	int ret;
 
-	mutex_lock(&input_dev->mutex);
+	if (bm->power) {
+		mutex_lock(&input_dev->mutex);
+		ret = bm1422_power_on_and_start(bm);
+		mutex_unlock(&input_dev->mutex);
+	}
 
-	if (input_dev->users)
-		bm1422_enable(bm);
-
-	mutex_unlock(&input_dev->mutex);
-	return retval;
+	return ret;
 }
 #endif
 
