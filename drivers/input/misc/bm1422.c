@@ -118,7 +118,11 @@ struct bm1422_data {
 
 	struct miscdevice miscdev;
 	char name[20];
+	int users;
+	bool power;
 };
+
+static DEFINE_SPINLOCK(users_lock);
 
 static int bm1422_power_on_and_start(struct bm1422_data *bm);
 static int bm1422_power_off(struct bm1422_data *bm);
@@ -213,11 +217,17 @@ static void bm1422_init_input_device(struct bm1422_data *bm,
 static void bm1422_polled_input_open(struct input_polled_dev *dev)
 {
 	struct bm1422_data *bm = dev->private;
+	spin_lock(&users_lock);
+	bm->users++;
+	spin_unlock(&users_lock);
 }
 
 static void bm1422_polled_input_close(struct input_polled_dev *dev)
 {
 	struct bm1422_data *bm = dev->private;
+	spin_lock(&users_lock);
+	bm->users--;
+	spin_unlock(&users_lock);
 }
 
 static int bm1422_setup_polled_device(struct bm1422_data *bm)
@@ -284,11 +294,6 @@ static long bm1422_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	bm = container_of(mdev, struct bm1422_data, miscdev);
 
-	if (!bm) {
-		dev_err(&bm->client->dev, "bm1422_data struct is NULL.");
-		return -EFAULT;
-	}
-
 	switch (cmd) {
 	case SENSOR_GET_MODEL_NAME:
 		if (copy_to_user(argp, bm->name, strlen(bm->name) + 1)) {
@@ -301,10 +306,23 @@ static long bm1422_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			dev_err(&bm->client->dev, "SENSOR_SET_POWER_STATUS copy_to_user failed.");
 			ret = -EFAULT;
 		}
-		if (enable)
-			ret = bm1422_power_on_and_start(bm);
-		else
-			ret = bm1422_power_off(bm);
+
+		if (enable) {
+			if (!bm->power) {
+				ret = bm1422_power_on_and_start(bm);
+				bm->power = true;
+			}
+		} else {
+			if (bm->power) {
+				if (bm->users == 0) {
+					ret = bm1422_power_off(bm);
+					bm->power = false;
+				} else if (bm->users < 0) {
+					dev_err(&bm->client->dev, "bm1422 mismatch in SET_POWER_STATUS toggling, number of users less than zero...!!");
+					ret = -EFAULT;
+				}
+			}
+		}
 		break;
 	case SENSOR_GET_RAW_DATA:
 		ret = bm1422_read_magnetometer_data(bm, &data);
@@ -319,19 +337,31 @@ static long bm1422_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	default:
-		ret = -1;
+		dev_err(&bm->client->dev, "Undefined ioctl call called for bm1422 driver");
+		ret = -ENOIOCTLCMD;
 	}
 	return ret;
 }
 
 static int bm1422_open(struct inode *inode, struct file *file)
 {
+	struct miscdevice *mdev = (struct miscdevice *)file->private_data;
+	struct bm1422_data *bm = container_of(mdev, struct bm1422_data, miscdev);
+
+	spin_lock(&users_lock);
+	bm->users++;
+	spin_unlock(&users_lock);
 	return nonseekable_open(inode, file);
 }
 
 static int bm1422_release(struct inode *inode, struct file *file)
 {
-	/* FIXME */
+	struct miscdevice *mdev = (struct miscdevice *)file->private_data;
+	struct bm1422_data *bm = container_of(mdev, struct bm1422_data, miscdev);
+
+	spin_lock(&users_lock);
+	bm->users--;
+	spin_unlock(&users_lock);
 	return 0;
 }
 
@@ -543,6 +573,7 @@ static int bm1422_compute_offsets(struct bm1422_data *bm)
 	return 0;
 }
 
+//TODO: static int bm1422_power_set(struct bm1422_data *bm, int enable)
 static int bm1422_power_on_and_start(struct bm1422_data *bm)
 {
 	int retval = 0;
@@ -716,8 +747,13 @@ static int bm1422_probe(struct i2c_client *client,
 	err = bm1422_setup_polled_device(bm);
 	if (err)
 		goto err_free_mem;
+	/* err = bm1422_create_sysfs_attributes(dev); */
+	/* if (err) */
+	/*	goto err_teardown_polled_device; */
+	return err;
 
-	return 0;
+/* err_teardown_polled_device: */
+/*	bm1422_teardown_polled_device(bm); */
 
 err_free_mem:
 	kfree(bm);
