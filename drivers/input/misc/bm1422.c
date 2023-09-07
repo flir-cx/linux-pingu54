@@ -190,16 +190,6 @@ static void bm1422_report_magnetometer_data(struct bm1422_data *bm)
 	input_sync(bm->input_dev);
 }
 
-static void bm1422_enable(struct bm1422_data *bm)
-{
-	//kxtj9_device_power_off(tj9);
-}
-
-static void bm1422_disable(struct bm1422_data *bm)
-{
-	//kxtj9_device_power_off(tj9);
-}
-
 static void bm1422_poll(struct input_polled_dev *dev)
 {
 	struct bm1422_data *bm = dev->private;
@@ -223,15 +213,11 @@ static void bm1422_init_input_device(struct bm1422_data *bm,
 static void bm1422_polled_input_open(struct input_polled_dev *dev)
 {
 	struct bm1422_data *bm = dev->private;
-
-	bm1422_enable(bm);
 }
 
 static void bm1422_polled_input_close(struct input_polled_dev *dev)
 {
 	struct bm1422_data *bm = dev->private;
-
-	bm1422_disable(bm);
 }
 
 static int bm1422_setup_polled_device(struct bm1422_data *bm)
