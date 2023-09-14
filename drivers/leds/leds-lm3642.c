@@ -479,6 +479,32 @@ err_out:
 	return err;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int lm3642_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lm3642_chip_data *chip = i2c_get_clientdata(client);
+
+	/* Switch the torch off at suspend, if it was on */
+	if (chip->br_torch != 0)
+		lm3642_control(chip, 0, MODES_TORCH);
+
+	return 0;
+}
+
+static int lm3642_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lm3642_chip_data *chip = i2c_get_clientdata(client);
+
+	/* Restore the torch state after resume */
+	if (chip->br_torch != 0)
+		lm3642_control(chip, chip->br_torch, MODES_TORCH);
+
+	return 0;
+}
+#endif
+
 static void lm3642_shutdown(struct i2c_client *client)
 {
 	struct lm3642_chip_data *chip = i2c_get_clientdata(client);
@@ -497,6 +523,12 @@ static int lm3642_remove(struct i2c_client *client)
 	return 0;
 }
 
+#if CONFIG_PM
+static const struct dev_pm_ops lm3642_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(lm3642_suspend, lm3642_resume)
+};
+#endif
+
 static const struct i2c_device_id lm3642_id[] = {
 	{LM3642_NAME, 0},
 	{}
@@ -507,8 +539,10 @@ MODULE_DEVICE_TABLE(i2c, lm3642_id);
 static struct i2c_driver lm3642_i2c_driver = {
 	.driver = {
 		   .name = LM3642_NAME,
-		   .pm = NULL,
-		   },
+#if CONFIG_PM
+		   .pm = &lm3642_pm,
+#endif
+	},
 	.probe = lm3642_probe,
 	.remove = lm3642_remove,
 	.shutdown = lm3642_shutdown,

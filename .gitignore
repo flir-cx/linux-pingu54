@@ -151,6 +151,9 @@ x509.genkey
 # Kdevelop4
 *.kdev4
 
+# emacs ide settings
+.dir-locals.el
+
 # Clang's compilation database file
 /compile_commands.json
 
