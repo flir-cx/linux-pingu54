@@ -32,6 +32,18 @@
 
 #define PF1550_MAX_REGULATOR 7
 
+/* PWRCTRL2 */
+/* Rising and falling thresholds */
+#define PF1550_PWRCTRL2_UVDET_R265_F255	(0x0 << 0) /* 2.65V and 2.55V */
+#define PF1550_PWRCTRL2_UVDET_R28_F27	(0x1 << 0) /* 2.8V and 2.7V */
+#define PF1550_PWRCTRL2_UVDET_R30_F29	(0x2 << 0) /* 3.0V and 2.9V */
+#define PF1550_PWRCTRL2_UVDET_R31_F30	(0x3 << 0) /* 3.1V and 3.0V */
+/* Rising and falling warnings */
+#define PF1550_PWRCTRL2_LOW_SYS_WARN_R33_F31 (0x0 << 2) /* 3.3V and 3.1V */
+#define PF1550_PWRCTRL2_LOW_SYS_WARN_R35_F33 (0x1 << 2) /* 3.5V and 3.3V */
+#define PF1550_PWRCTRL2_LOW_SYS_WARN_R37_F35 (0x2 << 2) /* 3.7V and 3.5V */
+#define PF1550_PWRCTRL2_LOW_SYS_WARN_R39_F37 (0x3 << 2) /* 3.9V and 3.7V */
+
 struct pf1550_desc {
 	struct regulator_desc desc;
 	unsigned char stby_reg;
@@ -43,6 +55,7 @@ struct pf1550_regulator_info {
 	struct pf1550_dev *pf1550;
 	struct pf1550_desc regulator_descs[PF1550_MAX_REGULATOR];
 	int irq;
+	u32 pwrctrl2;
 };
 
 static struct pf1550_irq_info pf1550_regulator_irqs[] = {
@@ -312,6 +325,22 @@ read_err:
 	return ret;
 }
 
+static int pf1550_dt_init(struct device *dev, struct pf1550_regulator_info *regulator)
+{
+	struct device_node *np = dev->of_node;
+
+	if (!np) {
+		dev_err(dev, "no regulator OF node\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32(np, "pwrctrl2", &regulator->pwrctrl2))
+		regulator->pwrctrl2 = PF1550_PWRCTRL2_UVDET_R30_F29 |
+			PF1550_PWRCTRL2_LOW_SYS_WARN_R33_F31;
+
+	return 0;
+}
+
 static int pf1550_regulator_probe(struct platform_device *pdev)
 {
 	struct pf1550_dev *iodev = dev_get_drvdata(pdev->dev.parent);
@@ -363,6 +392,10 @@ static int pf1550_regulator_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
+	ret = pf1550_dt_init(&pdev->dev, info);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < ARRAY_SIZE(pf1550_regulator_irqs); i++) {
 		struct pf1550_irq_info *regulator_irq =
 						&pf1550_regulator_irqs[i];
@@ -392,6 +425,9 @@ static int pf1550_regulator_probe(struct platform_device *pdev)
 	regmap_write(info->pf1550->regmap, PF1550_PMIC_REG_SW_INT_MASK1, 0);
 	regmap_write(info->pf1550->regmap, PF1550_PMIC_REG_LDO_INT_MASK0, 0);
 	regmap_write(info->pf1550->regmap, PF1550_PMIC_REG_TEMP_INT_MASK0, 0);
+
+	/* Set pmic voltage threshold */
+	regmap_write(info->pf1550->regmap, PF1550_PMIC_REG_PWRCTRL2, (u8)info->pwrctrl2);
 
 	return 0;
 }
