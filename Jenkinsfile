@@ -16,7 +16,14 @@ pipeline {
     stage ('Run Checkpatch script') {
       steps {
         // For some reason the base branch remote is called 'upstream'
-        sh 'scripts/checkpatch.pl --git upstream/FLIR_lf-5.10.y..HEAD'
+        script {
+          if (env.CHANGE_TARGET) {
+            sh 'scripts/checkpatch.pl --git upstream/${CHANGE_TARGET}..HEAD'
+          }
+          else {
+            sh 'scripts/checkpatch.pl --git HEAD'
+          }
+        }
       }
     }
   }
