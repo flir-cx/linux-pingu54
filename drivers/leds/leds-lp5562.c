@@ -11,6 +11,7 @@
 #include <linux/firmware.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -586,6 +587,38 @@ static int lp5562_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int lp5562_suspend(struct device *dev)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+
+	if (led->chip->pdata->enable_gpiod) {
+		gpio_set_value(led->chip->pdata->enable_gpiod, 0);
+	}
+
+	return 0;
+}
+
+static int lp5562_resume(struct device *dev)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+
+	if (led->chip->pdata->enable_gpiod) {
+		gpio_set_value(led->chip->pdata->enable_gpiod, 1);
+	}
+
+	lp55xx_write(led->chip, LP5562_REG_ENABLE, LP5562_ENABLE_DEFAULT);
+	lp5562_wait_enable_done();
+
+	return 0;
+}
+#else
+#define lp5562_suspend		NULL
+#define lp5562_resume		NULL
+#endif
+
+static SIMPLE_DEV_PM_OPS(lp5562_pm_ops, lp5562_suspend, lp5562_resume);
+
 static const struct i2c_device_id lp5562_id[] = {
 	{ "lp5562", 0 },
 	{ }
@@ -605,6 +638,7 @@ static struct i2c_driver lp5562_driver = {
 	.driver = {
 		.name	= "lp5562",
 		.of_match_table = of_match_ptr(of_lp5562_leds_match),
+		.pm = &lp5562_pm_ops,
 	},
 	.probe		= lp5562_probe,
 	.remove		= lp5562_remove,
