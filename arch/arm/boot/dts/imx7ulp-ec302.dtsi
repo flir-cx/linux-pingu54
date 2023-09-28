@@ -208,36 +208,23 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "spi-gpio";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_spi3>;
 		status = "okay";
 		sck-gpios = <&gpio_ptc 18 0>;
 		mosi-gpios = <&gpio_ptc 17 0>;
 		miso-gpios = <&gpio_ptc 16 0>;
-		num-chipselects = <2>;
-		cs-gpios = <&gpio_ptc 19 GPIO_ACTIVE_LOW>,
-			<&gpio_ptc 13 GPIO_ACTIVE_LOW>;
+		num-chipselects = <1>;
+		cs-gpios = <&gpio_ptc 13 GPIO_ACTIVE_LOW>;
 
-		mapcomm_gpio: okeanos@0 {
-			reg = <0>;
-			compatible = "flir,okeanos";
-			status = "okay";
-			// pinctrl-names = "default";
-			// pinctrl-0 = <&okeanos_interrupt>;
-			spi-max-frequency = <2000000>;
-			interrupt-parent = <&gpio_ptc>;
-			interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-name = "okeanos";
-		};
-
-		/* Bootrom on REMI */
+		// Bootrom on REMI
 		bootromflash@cs1 {
 			compatible = "winbond,w25q64", "jedec,spi-nor";
 			spi-max-frequency = <20000000>;
-			reg = <1>;
+			reg = <0>;
 			status = "okay";
 			#address-cells = <1>;
 			#size-cells = <1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi3>;
 
 			partition@0 {
 				label = "fpga";
@@ -309,12 +296,25 @@
 	pinctrl_spi3: spi3 {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC11__PTC11	0x3
-			IMX7ULP_PAD_PTC13__PTC13	0x3
-			IMX7ULP_PAD_PTC14__PTC14	0x2
-			IMX7ULP_PAD_PTC16__PTC16	0x0
+			IMX7ULP_PAD_PTC13__PTC13	0x20103
+			IMX7ULP_PAD_PTC14__PTC14	0x10102
+			IMX7ULP_PAD_PTC16__PTC16	0x10100
 			IMX7ULP_PAD_PTC17__PTC17	0x3
-			IMX7ULP_PAD_PTC18__PTC18	0x3
+			IMX7ULP_PAD_PTC18__PTC18	0x20103
 			IMX7ULP_PAD_PTC19__PTC19	0x3
+			>;
+	};
+
+	pinctrl_lpspi3: lpspi3grp {
+		fsl,pins = <
+			IMX7ULP_PAD_PTC11__PTC11        0x3 /* SPI_IRQ_0 */
+			IMX7ULP_PAD_PTC12__LPSPI3_PCS1  0x0 /* SPI_CS_1 */
+			IMX7ULP_PAD_PTC13__LPSPI3_PCS2  0x0 /* SPI_CS_2 */
+			IMX7ULP_PAD_PTC14__PTC14        0x3 /* SPI_IRQ_1 */
+			IMX7ULP_PAD_PTC16__LPSPI3_SIN   0x0 /* SPI_MISO */
+			IMX7ULP_PAD_PTC17__LPSPI3_SOUT  0x0 /* SPI_MOSI */
+			IMX7ULP_PAD_PTC18__LPSPI3_SCK   0x0 /* SPI_SCK */
+			IMX7ULP_PAD_PTC19__LPSPI3_PCS0  0x0 /* SPI_CS_0 */
 			>;
 	};
 
@@ -521,6 +521,31 @@
 			IMX7ULP_PAD_PTF16__PTF16    0x20043  /* CAMERA 1V8 ENABLE*/
 			IMX7ULP_PAD_PTF17__PTF17    0x20043  /* CAMERA 2V8 ENABLE */
 			>;
+	};
+};
+
+&lpspi3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	fsl,spi-num-chipselects = <1>;
+
+	/delete-property/ dmas;
+	/delete-property/ dma-names;
+
+	mapcomm_lpspi: okeanos@0 {
+		reg = <0>;
+		compatible = "flir,okeanos";
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lpspi3>;
+
+		spi-max-frequency = <2000000>;
+		interrupt-parent = <&gpio_ptc>;
+		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-name = "okeanos";
 	};
 };
 
