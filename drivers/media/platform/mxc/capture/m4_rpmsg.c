@@ -331,10 +331,11 @@ static int rpmsg_enum_framesizes(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
-	pr_info("%s: width:%d  height:%d", __func__, fse->max_width, fse->max_height);
+	if (fse->max_width || fse->max_height)
+		pr_info("%s: width:%d  height:%d", __func__, fse->max_width, fse->max_height);
+
 	if (fse->index > ovRpmsg_mode_MAX)
 		return -EINVAL;
-
 
 	fse->max_width = IR_RESOLUTION_DEFAULT_WIDTH;
 	fse->min_width = fse->max_width;
