@@ -11,7 +11,7 @@
 #include <linux/firmware.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -593,7 +593,7 @@ static int lp5562_suspend(struct device *dev)
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 
 	if (led->chip->pdata->enable_gpiod) {
-		gpio_set_value(led->chip->pdata->enable_gpiod, 0);
+		gpiod_set_value(led->chip->pdata->enable_gpiod, 0);
 	}
 
 	return 0;
@@ -604,7 +604,7 @@ static int lp5562_resume(struct device *dev)
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 
 	if (led->chip->pdata->enable_gpiod) {
-		gpio_set_value(led->chip->pdata->enable_gpiod, 1);
+		gpiod_set_value(led->chip->pdata->enable_gpiod, 1);
 	}
 
 	lp55xx_write(led->chip, LP5562_REG_ENABLE, LP5562_ENABLE_DEFAULT);
