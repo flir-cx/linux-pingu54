@@ -687,9 +687,6 @@ static void imx_rpmsg_stop_streaming(struct vb2_queue *q)
 
 	spin_lock_irqsave(&rpmsg_dev->slock, flags);
 
-	if (list_empty(&rpmsg_dev->active_queue))
-		WARN_ON(1);
-
 	list_for_each_entry_safe(pos, tmp,
 			&rpmsg_dev->active_queue, internal.queue) {
 
