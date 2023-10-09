@@ -23,6 +23,7 @@
 #include <linux/regmap.h>
 #include <asm/unaligned.h>
 #include <linux/regulator/consumer.h>
+#include <linux/leds.h>
 
 #define CYTTSP5_NAME				"cyttsp5"
 #define CY_I2C_DATA_SIZE			(2 * 256)
@@ -172,6 +173,7 @@ struct cyttsp5_sysinfo {
 	struct cyttsp5_tch_abs_params tch_hdr;
 	struct cyttsp5_tch_abs_params tch_abs[CY_TCH_NUM_ABS];
 	u32 key_code[HID_SYSINFO_MAX_BTN];
+	struct led_classdev *led_key[5];
 };
 
 struct cyttsp5_hid_desc {
@@ -210,6 +212,7 @@ struct cyttsp5 {
 	struct touchscreen_properties prop;
 	struct regulator *vdd;
 	bool is_wakeup_source;
+	bool detected_leds;
 };
 
 static ssize_t cyttsp5_rotate_store(struct device *dev,
@@ -460,6 +463,54 @@ static int cyttsp5_parse_dt_key_code(struct device *dev)
 					      si->key_code, si->num_btns);
 }
 
+static void detect_leds(struct device *dev)
+{
+	extern struct list_head leds_list;
+	extern struct rw_semaphore leds_list_lock;
+	struct led_classdev *led_cdev;
+	struct cyttsp5 *ts = dev_get_drvdata(dev);
+	struct cyttsp5_sysinfo *si = &ts->sysinfo;
+
+	if (!ts->detected_leds) {
+		down_read(&leds_list_lock);
+		list_for_each_entry(led_cdev, &leds_list, node) {
+			if (led_cdev->name &&
+			    strncmp(led_cdev->name, "ledlist", strlen("ledlist")) == 0) {
+
+				dev_info(dev, "Found %s %u\n",
+					 led_cdev->name, led_cdev->brightness);
+				if (led_cdev->name[8] == '1')
+					si->led_key[0] = led_cdev;
+				else if (led_cdev->name[8] == '2')
+					si->led_key[1] = led_cdev;
+				else if (led_cdev->name[8] == '3')
+					si->led_key[2] = led_cdev;
+				else if (led_cdev->name[8] == '4')
+					si->led_key[3] = led_cdev;
+				else if (led_cdev->name[8] == '5')
+					si->led_key[4] = led_cdev;
+			}
+		}
+		up_read(&leds_list_lock);
+		ts->detected_leds = 1;
+	}
+}
+
+static bool cyttsp5_btn_enabled(struct device *dev, int btn)
+{
+	struct cyttsp5 *ts = dev_get_drvdata(dev);
+	struct cyttsp5_sysinfo *si = &ts->sysinfo;
+	struct led_classdev *led_cdev = si->led_key[btn];
+
+	detect_leds(dev);
+	if (led_cdev)
+		return led_cdev->brightness != 0;
+
+	// We don't have a led for this button, it is enabled by being
+	// defined in device tree and not having an override by led brightness
+	return true;
+}
+
 static int cyttsp5_btn_attention(struct device *dev)
 {
 	struct cyttsp5 *ts = dev_get_drvdata(dev);
@@ -485,9 +536,11 @@ static int cyttsp5_btn_attention(struct device *dev)
 		cur_btn_state = (ts->input_buf[offset] >> (cur_btn * CY_BITS_PER_BTN))
 				& CY_NUM_BTN_EVENT_ID;
 
-		input_report_key(ts->input, si->key_code[cur_btn],
-				 cur_btn_state);
-		input_sync(ts->input);
+		if (cyttsp5_btn_enabled(dev, cur_btn)) {
+			input_report_key(ts->input, si->key_code[cur_btn],
+					 cur_btn_state);
+			input_sync(ts->input);
+		}
 	}
 
 	return 0;
