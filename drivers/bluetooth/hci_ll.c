@@ -569,6 +569,18 @@ static int download_firmware(struct ll_device *lldev)
 		case ACTION_WAIT_EVENT:  /* wait */
 			/* no need to wait as command was synchronous */
 			bt_dev_dbg(lldev->hu.hdev, "W");
+
+			// UGLY: This is to remedy a timeout which we get
+			// from the wl18 module on some cameras when
+			// all the data has been loaded and the last
+			// 0xfd06, codec change, is sent after 0xfe38,
+			// stop_VS_Lock. See:
+			// https://www.ti.com/lit/ug/swru442b/swru442b.pdf?ts=1697181222696&ref_url=https%253A%252F%252Fwww.ti.com%252Ftool%252FWL18XX-BT-SP
+			// This is hw dependendent and a hack to make a
+			// special case work for FLIR. This should be removed
+			// when we have working application on top that does not
+			// rely on bt being up when started.
+			msleep(0);
 			break;
 		case ACTION_DELAY:	/* sleep */
 			bt_dev_info(lldev->hu.hdev, "sleep command in scr");
