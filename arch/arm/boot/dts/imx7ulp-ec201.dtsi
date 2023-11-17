@@ -47,28 +47,6 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		wlan_en_reg: wlan_en_reg {
-			compatible = "regulator-fixed";
-			regulator-name = "wl";
-			regulator-min-microvolt = <2700000>;
-			regulator-max-microvolt = <2700000>;
-			gpios = <&gpio_pte 6 GPIO_ACTIVE_HIGH>;
-			startup-delay-us = <70000>;
-			enable-active-high;
-		};
-
-		bt_en_reg: bt_en_reg {
-			compatible = "regulator-fixed";
-			regulator-name = "bt_en";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpios = <&gpio_pte 15 GPIO_ACTIVE_HIGH>;
-			startup-delay-us = <70000>;
-			enable-active-high;
-			regulator-boot-on;
-			regulator-always-on;
-		};
-
 		vcam_en_reg_dovdd: vcam_en_reg_dovdd {
 			compatible = "regulator-fixed";
 			regulator-name = "vcam_en_reg_dovdd";
@@ -119,6 +97,7 @@
 		compatible = "gpio-reset";
 		reset-gpios = <&gpio_ptc 7 GPIO_ACTIVE_LOW>;
 		reset-delay-us = <5000>;
+		initially-in-reset;
 		#reset-cells = <0>;
 	};
 
@@ -733,9 +712,8 @@
 
 /* emmc */
 &usdhc0 {
-	pinctrl-names = "default", "sleep";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc0>;
-	pinctrl-1 = <&pinctrl_usdhc0>;
 	resets = <&emmc_reset>;
 	bus-width = <8>;
 	non-removable;
@@ -749,12 +727,9 @@
 	pinctrl-1 = <&pinctrl_usdhc1_sleep>;
 	bus-width = <4>;
 	pm-ignore-notify;
-	keep-power-in-suspend;
 	non-removable;
 	wifi-host;
 	status = "okay";
-
-	vmmc-supply = <&wlan_en_reg>;
 	#address-cells = <1>;
 	#size-cells = <0>;
 	max-frequency = <12500000>;
