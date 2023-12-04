@@ -2077,6 +2077,18 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+	case MXCFB_GET_LOC_ALP_BUF:
+		{
+			uint32_t buf;
+
+			buf = mxc_fbi->cur_ipu_alpha_buf ?
+					mxc_fbi->alpha_phy_addr0 :
+					mxc_fbi->alpha_phy_addr1;
+			if (put_user(buf, argp))
+				return -EFAULT;
+			break;
+		}
+
 	case MXCFB_SET_CLR_KEY:
 		{
 			struct mxcfb_color_key key;
