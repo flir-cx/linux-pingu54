@@ -1149,6 +1149,10 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	if (mxs_phy->data->flags & MXS_PHY_HARDWARE_CONTROL_PHY2_CLK)
 		mxs_phy->hardware_control_phy2_clk = true;
 
+	#ifdef CONFIG_USB_PHY_EXT_CC
+		mxs_phy->phy.chg_cc.trigger_callback = NULL;
+	#endif
+
 	platform_set_drvdata(pdev, mxs_phy);
 
 	device_set_wakeup_capable(&pdev->dev, true);

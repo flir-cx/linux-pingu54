@@ -98,6 +98,7 @@ struct usb_charger_cc {
 	uint16_t cc2;
 	bool cc_is_set;
 	spinlock_t lock;
+	void (*trigger_callback)(void);
 };
 
 static inline void cc_val_set(struct usb_charger_cc *cc,
@@ -130,11 +131,20 @@ static inline bool cc_val_get(struct usb_charger_cc *cc,
 		spin_unlock_irqrestore(&cc->lock, flags);
 		if (!cc_is_set) {
 			tries++;
+			/* If no cable charge interrupt is triggered, trigger a read of CC pins */
+			if (tries == 10 && cc->trigger_callback)
+				cc->trigger_callback();
 			msleep(50);
 		}
-	} while ((tries < 10) && !cc_is_set);
+	} while ((tries < 12) && !cc_is_set);
 	return cc_is_set;
 }
+
+static inline void usb_charger_cc_set_callback(struct usb_charger_cc *cc, void (*trigger)(void))
+{
+	cc->trigger_callback = trigger;
+}
+
 #endif
 
 struct usb_phy {
