@@ -309,16 +309,6 @@ static int lc709203f_get_property(struct power_supply *psy,
 		ret =  lc709203f_get_battery_soc(chip);
 		if (ret >= 0)
 			val->intval = ret;
-
-		if (chip->soc == 15)
-			dev_warn(&chip->client->dev,
-			"System Running low on battery - 15 percent\n");
-		if (chip->soc == 10)
-			dev_warn(&chip->client->dev,
-			"System Running low on battery - 10 percent\n");
-		if (chip->soc == 5)
-			dev_warn(&chip->client->dev,
-			"System Running low on battery - 5 percent\n");
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = chip->health;
