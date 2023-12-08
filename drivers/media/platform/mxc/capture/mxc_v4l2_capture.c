@@ -39,6 +39,70 @@
 
 #define init_MUTEX(sem)         sema_init(sem, 1)
 
+
+static ssize_t videoflow_method_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct video_device *video_dev = container_of(dev,
+						struct video_device, dev);
+	cam_data *cam = video_get_drvdata(video_dev);
+	unsigned long val;
+
+	if (cam->capture_on) {
+		dev_err(dev, "capture is active");
+		return -EACCES;
+	}
+
+	if (cam->overlay_on) {
+		dev_err(dev, "overlay is active");
+		return -EACCES;
+	}
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	cam->videoflow_method = val;
+	return count;
+}
+
+static ssize_t videoflow_method_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct video_device *video_dev = container_of(dev,
+						struct video_device, dev);
+	cam_data *cam = video_get_drvdata(video_dev);
+
+	sprintf(buf, "Videoflow method: %i\n", cam->videoflow_method);
+	return strlen(buf);
+}
+
+static DEVICE_ATTR_RW(videoflow_method);
+
+static struct attribute *v4l2_capture_attrs[] = {
+	&dev_attr_videoflow_method.attr,
+	NULL
+};
+
+static const struct attribute_group v4l2_capture_groups = {
+	.attrs = v4l2_capture_attrs,
+};
+
+static int v4l2_capture_create_sysfs_attributes(struct device *dev)
+{
+	int ret;
+
+	ret = sysfs_create_group(&dev->kobj, &v4l2_capture_groups);
+	if (ret)
+		pr_err("failed to add sys fs entry\n");
+	return ret;
+}
+
+static void v4l2_capture_remove_sysfs_attributes(struct device *dev)
+{
+	sysfs_remove_group(&dev->kobj, &v4l2_capture_groups);
+}
+
+
+
 static struct platform_device_id imx_v4l2_devtype[] = {
 	{
 		.name = "v4l2-capture-imx5",
@@ -665,16 +729,103 @@ int start_preview(cam_data *cam)
 
 	pr_debug("MVC: start_preview\n");
 
-	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY)
+#ifndef CONFIG_FLIR_FB_VIDEOFLOW
+	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY) {
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
+		dev_err(cam->dev, "prp vf sdc select\n");
 		err = prp_vf_sdc_select(cam);
+	#elif CONFIG_MXC_IPU_DEVICE_QUEUE_SDC
+		dev_err(cam->dev, "foreground sdc select\n");
 		err = foreground_sdc_select(cam);
+	#else
+		dev_err(cam->dev, "No capture flow available\n");
 	#endif
-	else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY)
+	} else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY) {
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
+		dev_err(cam->dev, "prp vf sdc select bg\n");
 		err = prp_vf_sdc_select_bg(cam);
+	#elif CONFIG_MXC_IPU_DEVICE_QUEUE_SDC
+		dev_err(cam->dev, "bg overlay sdc select\n");
 		err = bg_overlay_sdc_select(cam);
+	#else
+		dev_err(cam->dev, "No capture flow available\n");
 	#endif
+	}
+#endif
+
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW
+	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY) {
+		switch (cam->videoflow_method) {
+
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_0
+		case 0:
+			dev_dbg(cam->dev, "Selecting videoflow method 0 FBUF_FLAG_OVERLAY");
+			err = foreground_sdc_select(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_1
+		case 1: //Bellatrix
+			dev_dbg(cam->dev, "Selecting videoflow method 1 FBUF_FLAG_OVERLAY");
+			err = prp_vf_ninjago_select(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_2
+		case 2: //Evander, Lennox
+			dev_dbg(cam->dev, "Selecting videoflow method 2 FBUF_FLAG_OVERLAY");
+			err = prp_vf_flir_select(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_3
+		case 3: //
+			dev_dbg(cam->dev, "Selecting videoflow method 3 FBUF_FLAG_OVERLAY");
+			err = prp_vf_sdc_select(cam);
+			break;
+#endif
+		default:
+			dev_err(cam->dev, "Unknown or disabled videoflow method %u, selecting default",
+				cam->videoflow_method);
+			dev_dbg(cam->dev, "Selecting videoflow method default FBUF_FLAG_OVERLAY");
+			err = foreground_sdc_select(cam);
+			break;
+		}
+	} else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY) {
+		switch (cam->videoflow_method) {
+
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_0
+		case 0:
+			dev_dbg(cam->dev, "Selecting videoflow method 0 FBUF_FLAG_PRIMARY");
+			err = bg_overlay_sdc_select(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_1
+		case 1: //Bellatrix
+			dev_dbg(cam->dev, "Selecting videoflow method 1 FBUF_FLAG_PRIMARY");
+			err = prp_vf_ninjago_select(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_2
+		case 2: //Evander, Lennox
+			dev_dbg(cam->dev, "Selecting videoflow method 2 FBUF_FLAG_PRIMARY");
+			err = prp_vf_flir_select(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_3
+		case 3: //
+			dev_dbg(cam->dev, "Selecting videoflow method 3 FBUF_FLAG_PRIMARY");
+			err = prp_vf_sdc_select_bg(cam);
+			break;
+#endif
+		default:
+			dev_err(cam->dev, "Unknown or disabled videoflow method %u, selecting default",
+				cam->videoflow_method);
+			dev_dbg(cam->dev, "Selecting videoflow method default FBUF_FLAG_PRIMARY");
+			err = bg_overlay_sdc_select(cam);
+			break;
+		}
+	}
+
+
+#endif
 	if (err != 0)
 		return err;
 
@@ -732,17 +883,102 @@ static int stop_preview(cam_data *cam)
 			return err;
 	}
 
-	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY)
-	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
-		err = prp_vf_sdc_deselect(cam);
-		err = foreground_sdc_deselect(cam);
-	#endif
-	else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY)
-	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
-		err = prp_vf_sdc_deselect_bg(cam);
-		err = bg_overlay_sdc_deselect(cam);
-	#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW
+	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY) {
+		switch (cam->videoflow_method) {
 
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_0
+		case 0:
+			dev_dbg(cam->dev, "deselecting videoflow method 0 FBUF_FLAG_OVERLAY");
+			err = foreground_sdc_deselect(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_1
+		case 1: //Bellatrix
+			dev_dbg(cam->dev, "deselecting videoflow method 1 FBUF_FLAG_OVERLAY");
+			err = prp_vf_ninjago_deselect(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_2
+		case 2: //Evander, Lennox
+			dev_dbg(cam->dev, "deselecting videoflow method 2 FBUF_FLAG_OVERLAY");
+			err = prp_vf_flir_deselect(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_3
+		case 3: //
+			dev_dbg(cam->dev, "deselecting videoflow method 3 FBUF_FLAG_OVERLAY");
+			err = prp_vf_sdc_deselect(cam);
+			break;
+#endif
+		default:
+			dev_err(cam->dev, "Unknown or disabled videoflow method %u, deselecting default",
+				cam->videoflow_method);
+			dev_dbg(cam->dev, "deselecting videoflow method default FBUF_FLAG_OVERLAY");
+			err = foreground_sdc_deselect(cam);
+			break;
+		}
+	} else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY) {
+		switch (cam->videoflow_method) {
+
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_0
+		case 0:
+			dev_dbg(cam->dev, "deselecting videoflow method 0 FBUF_FLAG_PRIMARY");
+			err = bg_overlay_sdc_deselect(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_1
+		case 1: //Bellatrix
+			dev_dbg(cam->dev, "deselecting videoflow method 1 FBUF_FLAG_PRIMARY");
+			err = prp_vf_ninjago_deselect(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_2
+		case 2: //Evander, Lennox
+			dev_dbg(cam->dev, "deselecting videoflow method 2 FBUF_FLAG_PRIMARY");
+			err = prp_vf_flir_deselect(cam);
+			break;
+#endif
+#ifdef CONFIG_FLIR_FB_VIDEOFLOW_METHOD_3
+		case 3: //
+			dev_dbg(cam->dev, "deselecting videoflow method 3 FBUF_FLAG_PRIMARY");
+			err = prp_vf_sdc_deselect_bg(cam);
+			break;
+#endif
+		default:
+			dev_err(cam->dev, "Unknown or disabled videoflow method %u, deselecting default",
+				cam->videoflow_method);
+			dev_dbg(cam->dev, "deselecting videoflow method default FBUF_FLAG_PRIMARY");
+			err = bg_overlay_sdc_deselect(cam);
+			break;
+		}
+	}
+
+#endif
+
+#ifndef CONFIG_FLIR_FB_VIDEOFLOW
+	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY) {
+	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
+		dev_err(cam->dev, "prp vf sdc deselect\n");
+		err = prp_vf_sdc_deselect(cam);
+	#elif CONFIG_MXC_IPU_DEVICE_QUEUE_SDC
+		dev_err(cam->dev, "foreground sdc deselect\n");
+		err = foreground_sdc_deselect(cam);
+	#else
+		dev_err(cam->dev, "No videoflow available\n");
+	#endif
+	} else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY) {
+	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
+		dev_err(cam->dev, "bg overlay sdc deselect\n");
+		err = prp_vf_sdc_deselect_bg(cam);
+	#elif CONFIG_MXC_IPU_DEVICE_QUEUE_SDC
+		dev_err(cam->dev, "bg overlay sdc deselect\n");
+		err = bg_overlay_sdc_deselect(cam);
+	#else
+		dev_err(cam->dev, "No videoflow available\n");
+	#endif
+	}
+#endif
 	return err;
 }
 
@@ -2689,6 +2925,13 @@ static int init_camera_struct(cam_data *cam, struct platform_device *pdev)
 	/* Default everything to 0 */
 	memset(cam, 0, sizeof(cam_data));
 
+	//Select between Xxx640 Videoflow, and Ex501 videoflow
+	ret = of_property_read_u32(np, "videoflow_method", &cam->videoflow_method);
+	if (ret) {
+		dev_err(&pdev->dev, "videoflow_method missing, set to default\n");
+		cam->videoflow_method = 0;
+	}
+
 	/* get devtype to distinguish if the cpu is imx5 or imx6
 	 * IMX5_V4L2 specify the cpu is imx5
 	 * IMX6_V4L2 specify the cpu is imx6q or imx6sdl
@@ -2880,7 +3123,7 @@ static int mxc_v4l2_probe(struct platform_device *pdev)
 			&dev_attr_fsl_csi_property))
 		dev_err(&pdev->dev, "Error on creating sysfs file"
 			" for csi number\n");
-
+	v4l2_capture_create_sysfs_attributes(&cam->video_dev->dev);
 	return 0;
 }
 
@@ -2901,6 +3144,7 @@ static int mxc_v4l2_remove(struct platform_device *pdev)
 		return -EBUSY;
 	} else {
 		struct v4l2_device *v4l2_dev = cam->video_dev->v4l2_dev;
+		v4l2_capture_remove_sysfs_attributes(&cam->video_dev->dev);
 		device_remove_file(&cam->video_dev->dev,
 			&dev_attr_fsl_v4l2_capture_property);
 		device_remove_file(&cam->video_dev->dev,

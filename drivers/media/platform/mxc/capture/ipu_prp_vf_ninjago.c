@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2004-2014 Freescale Semiconductor, Inc. All Rights Reserved.
  */
@@ -24,13 +24,13 @@ static int buffer_num;
 static struct ipu_soc *disp_ipu;
 
 #if defined(CONFIG_MXC_CAMERA_FLIR)
-#define IPU_DEF_FORMAT	IPU_PIX_FMT_RGB32
-#define IPU_PIX_SIZE 	4
-#define HEIGHTFACTOR    3
+#define IPU_PIX_DEF_FORMAT	IPU_PIX_FMT_RGB32
+#define IPU_PIX_SIZE	4
+#define IPU_PIX_HEIGHTFACTOR	3
 #else
-#define IPU_DEF_FORMAT 	IPU_PIX_FMT_UYVY
-#define IPU_PIX_SIZE 	2
-#define HEIGHTFACTOR    2
+#define IPU_PIX_DEF_FORMAT	IPU_PIX_FMT_UYVY
+#define IPU_PIX_SIZE	2
+#define IPU_PIX_HEIGHTFACTOR	2
 #endif
 
 static void get_disp_ipu(cam_data *cam)
@@ -44,6 +44,7 @@ static void get_disp_ipu(cam_data *cam)
 static irqreturn_t prpvf_rot_eof_callback(int irq, void *dev_id)
 {
 	cam_data *cam = dev_id;
+
 	pr_debug_ratelimited("buffer_num %d\n",  buffer_num);
 
 	if (cam->vf_rotation >= IPU_ROTATE_VERT_FLIP) {
@@ -89,7 +90,7 @@ static int prpvf_start(void *private)
 
 	buffer_num = 0;
 	if (!cam) {
-		printk(KERN_ERR "private is NULL\n");
+		dev_err(cam->dev, "private is NULL\n");
 		return -EIO;
 	}
 
@@ -103,6 +104,7 @@ static int prpvf_start(void *private)
 
 	for (i = 0; i < num_registered_fb; i++) {
 		char *idstr = registered_fb[i]->fix.id;
+
 		if (((strcmp(idstr, "DISP3 FG") == 0) && (cam->output < 3)) ||
 		    ((strcmp(idstr, "DISP4 FG") == 0) && (cam->output >= 3))) {
 			fbi = registered_fb[i];
@@ -111,7 +113,7 @@ static int prpvf_start(void *private)
 	}
 
 	if (fbi == NULL) {
-		printk(KERN_ERR "DISP FG fb not found\n");
+		dev_err(cam->dev, "DISP FG fb not found\n");
 		return -EPERM;
 	}
 
@@ -122,7 +124,7 @@ static int prpvf_start(void *private)
 
 	if (cam->devtype == IMX5_V4L2 || cam->devtype == IMX6_V4L2) {
 		/* Use DP to do CSC so that we can get better performance */
-		vf_out_format = IPU_DEF_FORMAT;
+		vf_out_format = IPU_PIX_DEF_FORMAT;
 		fbvar.nonstd = vf_out_format;
 		color = 0x80;
 	} else {
@@ -134,13 +136,13 @@ static int prpvf_start(void *private)
 	fbvar.bits_per_pixel = IPU_PIX_SIZE * 8;
 	fbvar.xres = fbvar.xres_virtual = cam->win.w.width;
 	fbvar.yres = cam->win.w.height;
-	fbvar.yres_virtual = cam->win.w.height * HEIGHTFACTOR;
+	fbvar.yres_virtual = cam->win.w.height * IPU_PIX_HEIGHTFACTOR;
 	fbvar.yoffset = 0;
 	fbvar.accel_flags = FB_ACCEL_DOUBLE_FLAG;
 	fbvar.activate |= FB_ACTIVATE_FORCE;
 	err = fb_set_var(fbi, &fbvar);
 	if (err)
-		printk(KERN_WARNING "fb_set_var err code %d\n", err);
+		dev_warn(cam->dev, "fb_set_var err code %d\n", err);
 
 	ipu_disp_set_window_pos(disp_ipu, MEM_FG_SYNC, cam->win.w.left,
 			cam->win.w.top);
@@ -165,7 +167,7 @@ static int prpvf_start(void *private)
 	memset(&vf, 0, sizeof(ipu_channel_params_t));
 	ipu_csi_get_window_size(cam->ipu, &vf.csi_prp_vf_mem.in_width,
 				&vf.csi_prp_vf_mem.in_height, cam->csi);
-	vf.csi_prp_vf_mem.in_pixel_fmt = IPU_DEF_FORMAT;
+	vf.csi_prp_vf_mem.in_pixel_fmt = IPU_PIX_DEF_FORMAT;
 	vf.csi_prp_vf_mem.out_width = cam->win.w.width;
 	vf.csi_prp_vf_mem.out_height = cam->win.w.height;
 	vf.csi_prp_vf_mem.csi = cam->csi;
@@ -221,26 +223,26 @@ static int prpvf_start(void *private)
 				  (dma_addr_t) cam->vf_bufs[1]);
 	}
 	cam->vf_bufs_size[0] = PAGE_ALIGN(size);
-	cam->vf_bufs_vaddr[0] = (void *)dma_alloc_coherent(cam->dev,
+	cam->vf_bufs_vaddr[0] = dma_alloc_coherent(cam->dev,
 							   cam->vf_bufs_size[0],
 							   (dma_addr_t *) &
 							   cam->vf_bufs[0],
 							   GFP_DMA |
 							   GFP_KERNEL);
 	if (cam->vf_bufs_vaddr[0] == NULL) {
-		printk(KERN_ERR "Error to allocate vf buffer\n");
+		dev_err(cam->dev, "Error to allocate vf buffer\n");
 		err = -ENOMEM;
 		goto out_4;
 	}
 	cam->vf_bufs_size[1] = PAGE_ALIGN(size);
-	cam->vf_bufs_vaddr[1] = (void *)dma_alloc_coherent(cam->dev,
+	cam->vf_bufs_vaddr[1] = dma_alloc_coherent(cam->dev,
 							   cam->vf_bufs_size[1],
 							   (dma_addr_t *) &
 							   cam->vf_bufs[1],
 							   GFP_DMA |
 							   GFP_KERNEL);
 	if (cam->vf_bufs_vaddr[1] == NULL) {
-		printk(KERN_ERR "Error to allocate vf buffer\n");
+		dev_err(cam->dev, "Error to allocate vf buffer\n");
 		err = -ENOMEM;
 		goto out_3;
 	}
@@ -261,7 +263,7 @@ static int prpvf_start(void *private)
 
 		err = ipu_init_channel(cam->ipu, MEM_ROT_VF_MEM, NULL);
 		if (err != 0) {
-			printk(KERN_ERR "Error MEM_ROT_VF_MEM channel\n");
+			dev_err(cam->dev, "Error MEM_ROT_VF_MEM channel\n");
 			goto out_3;
 		}
 
@@ -276,7 +278,7 @@ static int prpvf_start(void *private)
 					      cam->vf_bufs[1],
 					      0, 0, 0);
 		if (err != 0) {
-			printk(KERN_ERR "Error MEM_ROT_VF_MEM input buffer\n");
+			dev_err(cam->dev, "Error MEM_ROT_VF_MEM input buffer\n");
 			goto out_2;
 		}
 
@@ -300,7 +302,7 @@ static int prpvf_start(void *private)
 					      fbi->fix.smem_start, 0, 0, 0);
 
 		if (err != 0) {
-			printk(KERN_ERR "Error MEM_ROT_VF_MEM output buffer\n");
+			dev_err(cam->dev, "Error MEM_ROT_VF_MEM output buffer\n");
 			goto out_2;
 		}
 
@@ -309,14 +311,14 @@ static int prpvf_start(void *private)
 				      prpvf_rot_eof_callback,
 			      0, "Mxc Camera", cam);
 		if (err < 0) {
-			printk(KERN_ERR "Error request irq:IPU_IRQ_PRP_VF_ROT_OUT_EOF\n");
+			dev_err(cam->dev, "Error request irq:IPU_IRQ_PRP_VF_ROT_OUT_EOF\n");
 			goto out_2;
 		}
 
 		err = ipu_link_channels(cam->ipu,
 					CSI_PRP_VF_MEM, MEM_ROT_VF_MEM);
 		if (err < 0) {
-			printk(KERN_ERR
+			dev_err(cam->dev,
 			       "Error link CSI_PRP_VF_MEM-MEM_ROT_VF_MEM\n");
 			goto out_1;
 		}
@@ -342,7 +344,7 @@ static int prpvf_start(void *private)
 					       fbi->var.yres),
 					      fbi->fix.smem_start, 0, 0, 0);
 		if (err != 0) {
-			printk(KERN_ERR "Error initializing CSI_PRP_VF_MEM\n");
+			dev_err(cam->dev, "Error initializing CSI_PRP_VF_MEM\n");
 			goto out_4;
 		}
 		ipu_clear_irq(cam->ipu, IPU_IRQ_PRP_VF_OUT_EOF);
@@ -350,7 +352,7 @@ static int prpvf_start(void *private)
 				      prpvf_rot_eof_callback,
 			      0, "Mxc Camera", cam);
 		if (err < 0) {
-			printk(KERN_ERR "Error request irq:IPU_IRQ_PRP_VF_OUT_EOF\n");
+			dev_err(cam->dev, "Error request irq:IPU_IRQ_PRP_VF_OUT_EOF\n");
 			goto out_4;
 		}
 
@@ -407,11 +409,14 @@ static int prpvf_stop(void *private)
 	int csi_id;
 #endif
 
+	dev_dbg(cam->dev, "%s\n", __func__);
+
 	if (cam->overlay_active == false)
 		return 0;
 
 	for (i = 0; i < num_registered_fb; i++) {
 		char *idstr = registered_fb[i]->fix.id;
+
 		if (((strcmp(idstr, "DISP3 FG") == 0) && (cam->output < 3)) ||
 		    ((strcmp(idstr, "DISP4 FG") == 0) && (cam->output >= 3))) {
 			fbi = registered_fb[i];
@@ -420,7 +425,7 @@ static int prpvf_stop(void *private)
 	}
 
 	if (fbi == NULL) {
-		printk(KERN_ERR "DISP FG fb not found\n");
+		dev_err(cam->dev, "DISP FG fb not found\n");
 		return -EPERM;
 	}
 
@@ -448,7 +453,7 @@ static int prpvf_stop(void *private)
 	fbvar.activate |= FB_ACTIVATE_FORCE;
 	err = fb_set_var(fbi, &fbvar);
 	if (err) {
-		printk(KERN_WARNING "fb_set_var err code %d\n", err);
+		dev_warn(cam->dev, "fb_set_var err code %d", err);
 		err = 0;
 	}
 
@@ -496,6 +501,7 @@ static int prp_vf_enable_csi(void *private)
 {
 	cam_data *cam = (cam_data *) private;
 
+	dev_dbg(cam->dev, "%s\n", __func__);
 	return ipu_enable_csi(cam->ipu, cam->csi);
 }
 
@@ -511,7 +517,9 @@ static int prp_vf_disable_csi(void *private)
 
 	/* free csi eof irq firstly.
 	 * when disable csi, wait for idmac eof.
-	 * it requests eof irq again */
+	 * it requests eof irq again
+	 */
+	dev_dbg(cam->dev, "%s\n", __func__);
 	if (cam->vf_rotation < IPU_ROTATE_VERT_FLIP)
 		ipu_free_irq(cam->ipu, IPU_IRQ_PRP_VF_OUT_EOF, cam);
 
@@ -525,10 +533,11 @@ static int prp_vf_disable_csi(void *private)
  *
  * @return  status
  */
-int prp_vf_sdc_select(void *private)
+int prp_vf_ninjago_select(void *private)
 {
 	cam_data *cam;
 	int err = 0;
+
 	if (private) {
 		cam = (cam_data *) private;
 		cam->vf_start_sdc = prpvf_start;
@@ -541,7 +550,7 @@ int prp_vf_sdc_select(void *private)
 
 	return err;
 }
-EXPORT_SYMBOL(prp_vf_sdc_select);
+EXPORT_SYMBOL(prp_vf_ninjago_select);
 
 /*!
  * function to de-select PRP-VF as the working path
@@ -550,7 +559,7 @@ EXPORT_SYMBOL(prp_vf_sdc_select);
  *
  * @return  int
  */
-int prp_vf_sdc_deselect(void *private)
+int prp_vf_ninjago_deselect(void *private)
 {
 	cam_data *cam;
 
@@ -563,14 +572,14 @@ int prp_vf_sdc_deselect(void *private)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(prp_vf_sdc_deselect);
+EXPORT_SYMBOL(prp_vf_ninjago_deselect);
 
 /*!
  * Init viewfinder task.
  *
  * @return  Error code indicating success or failure
  */
-__init int prp_vf_sdc_init(void)
+__init int prp_vf_ninjago_init(void)
 {
 	return 0;
 }
@@ -580,12 +589,12 @@ __init int prp_vf_sdc_init(void)
  *
  * @return  Error code indicating success or failure
  */
-void __exit prp_vf_sdc_exit(void)
+void __exit prp_vf_ninjago_exit(void)
 {
 }
 
-module_init(prp_vf_sdc_init);
-module_exit(prp_vf_sdc_exit);
+module_init(prp_vf_ninjago_init);
+module_exit(prp_vf_ninjago_exit);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("IPU PRP VF SDC Driver");

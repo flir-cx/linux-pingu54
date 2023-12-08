@@ -33,6 +33,46 @@ config VIDEO_MXC_RPMSG_CAMERA
 	help
 		FLIR specific V4l2 capture driver based on RPMSG from M4.
 
+config FLIR_FB_VIDEOFLOW
+       bool "FLIR Framebuffer videoflow"
+       depends on FLIR_EVCO_MXC_IPU_PRP_VF_SDC
+       select FB_SIMPLE
+       help
+	       Selects FLIR Framebuffer videoflow methods
+
+menu "FLIR FB Videoflow methods"
+
+config FLIR_FB_VIDEOFLOW_METHOD_0
+       bool "Videoflow Method 0"
+       depends on FLIR_FB_VIDEOFLOW
+       help
+		Enables support for FLIR Framebuffer videoflow method 0
+		ipu_[fb]g_overlay*
+
+config FLIR_FB_VIDEOFLOW_METHOD_1
+       bool "Videoflow Method 1"
+       depends on FLIR_FB_VIDEOFLOW
+       help
+		Enables support for FLIR Framebuffer videoflow method 1
+		Supports Bellatrix
+
+
+config FLIR_FB_VIDEOFLOW_METHOD_2
+       bool "Videoflow Method 2"
+       depends on FLIR_FB_VIDEOFLOW
+       help
+		Enables support for FLIR Framebuffer videoflow method 2
+		Supports Evander, Lennox, etc
+
+config FLIR_FB_VIDEOFLOW_METHOD_3
+       bool "Videoflow Method 3"
+       depends on FLIR_FB_VIDEOFLOW
+       help
+		Enables support for FLIR Framebuffer videoflow method 3
+		ipu_prp_vf_sdc*
+endmenu
+
+
 menu "MXC Camera/V4L2 PRP Features support"
 config VIDEO_MXC_IPU_CAMERA
 	tristate "MXC IPU Camera"
@@ -123,6 +163,12 @@ config MXC_IPU_PRP_VF_SDC
 		CSI -> IC (PRP VF) -> MEM
 		MEM -> IC (ROT) -> MEM
 		MEM -> SDC (FG/BG)
+
+config FLIR_EVCO_MXC_IPU_PRP_VF_SDC
+       bool "FLIR Framebuffer videoflow"
+       depends on VIDEO_MXC_IPU_CAMERA
+       help
+	       Selects FLIR Framebuffer videoflow methods
 
 endchoice
 
