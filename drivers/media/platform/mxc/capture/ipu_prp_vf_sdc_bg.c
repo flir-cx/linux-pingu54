@@ -25,10 +25,12 @@ static struct ipu_soc *disp_ipu;
 
 #if defined(CONFIG_MXC_CAMERA_FLIR)
 #define IPU_DEF_FORMAT	IPU_PIX_FMT_RGB32
-#define IPU_PIX_SIZE 	4
+#define IPU_PIX_SIZE	4
+/* #define IPU_PIX_DEF_FORMAT	IPU_PIX_FMT_UYVY */
+/* #define IPU_PIX_SIZE	2 */
 #else
-#define IPU_DEF_FORMAT 	IPU_PIX_FMT_UYVY
-#define IPU_PIX_SIZE 	2
+#define IPU_DEF_FORMAT	IPU_PIX_FMT_UYVY
+#define IPU_PIX_SIZE	2
 #endif
 
 
@@ -120,27 +122,34 @@ static int prpvf_start(void *private)
 
 	format = cam->v4l2_fb.fmt.pixelformat;
 	if (cam->v4l2_fb.fmt.pixelformat == IPU_PIX_FMT_BGR24) {
-		bpp = 3, size = 3;
+		bpp = 3;
+		size = 3;
 		pr_info("BGR24\n");
 	} else if (cam->v4l2_fb.fmt.pixelformat == IPU_PIX_FMT_RGB565) {
-		bpp = 2, size = 2;
+		bpp = 2;
+		size = 2;
 		pr_info("RGB565\n");
 	} else if (cam->v4l2_fb.fmt.pixelformat == IPU_PIX_FMT_BGR32) {
-		bpp = 4, size = 4;
+		bpp = 4;
+		size = 4;
 		pr_info("BGR32\n");
 	} else {
 		printk(KERN_ERR
-		       "unsupported fix format from the framebuffer.\n");
-		return -EINVAL;
+		       "unsupported fix format (0x%x) from the framebuffer", format);
+		bpp = 4;
+		size = 4;
+		pr_info("BGR32\n");
 	}
 
 	offset = cam->v4l2_fb.fmt.bytesperline * cam->win.w.top +
 	    size * cam->win.w.left;
 
-	if (cam->v4l2_fb.base == 0)
+	if (cam->v4l2_fb.base == 0) {
 		printk(KERN_ERR "invalid frame buffer address.\n");
-	else
+		return -EINVAL;
+	} else {
 		offset += (u32) cam->v4l2_fb.base;
+	}
 
 	memset(&vf, 0, sizeof(ipu_channel_params_t));
 	ipu_csi_get_window_size(cam->ipu, &vf.csi_prp_vf_mem.in_width,

@@ -142,8 +142,8 @@
 	};
 
 	u-boot{
-		version = "Unkown";
-		reset-cause = "Unkown";
+		version = "Unknown";
+		reset-cause = "Unknown";
 	};
 
 
