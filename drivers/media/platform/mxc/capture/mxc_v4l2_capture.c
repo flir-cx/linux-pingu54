@@ -668,17 +668,11 @@ int start_preview(cam_data *cam)
 	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY)
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
 		err = prp_vf_sdc_select(cam);
-	#elif CONFIG_FLIR_EVCO_MXC_IPU_PRP_VF_SDC
-		err = flir_evco_prp_vf_sdc_select(cam);
-	#else
 		err = foreground_sdc_select(cam);
 	#endif
 	else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY)
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
 		err = prp_vf_sdc_select_bg(cam);
-	#elif CONFIG_FLIR_EVCO_MXC_IPU_PRP_VF_SDC
-		err = flir_evco_prp_vf_sdc_select_bg(cam);
-	#else
 		err = bg_overlay_sdc_select(cam);
 	#endif
 	if (err != 0)
@@ -741,17 +735,11 @@ static int stop_preview(cam_data *cam)
 	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY)
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
 		err = prp_vf_sdc_deselect(cam);
-	#elif CONFIG_FLIR_EVCO_MXC_IPU_PRP_VF_SDC
-		err = flir_evco_prp_vf_sdc_deselect(cam);
-	#else
 		err = foreground_sdc_deselect(cam);
 	#endif
 	else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY)
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
 		err = prp_vf_sdc_deselect_bg(cam);
-	#elif CONFIG_FLIR_EVCO_MXC_IPU_PRP_VF_SDC
-		err = flir_evco_prp_vf_sdc_deselect_bg(cam);
-	#else
 		err = bg_overlay_sdc_deselect(cam);
 	#endif
 
