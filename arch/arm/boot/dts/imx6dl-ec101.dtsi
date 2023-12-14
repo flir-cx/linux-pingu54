@@ -16,8 +16,7 @@
 / {
 	aliases {
 		mxcfb0 = &mxcfb1;
-		mxcfb1 = &mxcfb2;
-
+		mxcfb2 = &mxcfb3;
 		i2c3 = &i2c4;
 
 		/* FLIR - overwrite imx6qdl standard. Compatible with ROCO  */
@@ -110,7 +109,7 @@
 		status = "okay";
 	};
 
-	mxcfb2: fb@1 {
+	mxcfb3: fb@2 {
 		compatible = "fsl,mxc_sdc_fb";
 		interface_pix_fmt = "RGB24";
 		default_bpp = <32>;
