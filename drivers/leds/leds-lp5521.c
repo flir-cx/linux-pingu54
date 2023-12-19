@@ -100,6 +100,10 @@
 #define LP5521_RUN_G			0x08
 #define LP5521_RUN_B			0x02
 
+struct wakeup_source *get_suspend_wakup_source(void);
+
+static int lp5521_suspend(struct device *dev);
+static int lp5521_resume(struct device *dev);
 static inline void lp5521_wait_opmode_done(void)
 {
 	/* operation mode change needs to be longer than 153 us */
@@ -619,10 +623,68 @@ static const struct of_device_id of_lp5521_leds_match[] = {
 
 MODULE_DEVICE_TABLE(of, of_lp5521_leds_match);
 #endif
+
+
+//lp5521_suspend disable device, so we are sure that the attached
+//leds are deactivated in suspend
+static int lp5521_suspend(struct device *dev)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+
+	lp55xx_deinit_device(chip);
+	return 0;
+}
+
+//lp5521_resume resume device, so the attached leds are reactivated
+//
+//NOTE: cannot see that poweroff is called when system goes from
+//suspend -> rtc wakeup -> fad driver -> orderly_poweroff,
+//Thus adding read of suspend_wakeup_source in lp5521_resume, to know
+//if the system resumed from RTC
+//See the fad driver for how this is implemented there in function
+//get_wake_reason, there are two states, one for when
+//standby_on_timer is 0, and one from where it is defined
+//these do two different things, and in this function, we handle
+//both states as one state...
+//
+//
+//
+static int lp5521_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+
+	struct wakeup_source *ws;
+
+	ws = get_suspend_wakup_source();
+	if (!ws) {
+		dev_err(dev, "No suspend wakeup source\n");
+		return lp55xx_init_device(chip);
+	}
+
+	if (strstr(ws->name, "rtc")) {
+		//disable reinitialization of lp5521, so LEDS do not turn on
+		dev_info(dev, "Wakeup reason rtc, system going to poweroff\n");
+		return 0;
+	}
+
+	return lp55xx_init_device(chip);
+}
+
+
+static const struct dev_pm_ops lp5521_pm_ops = {
+	.suspend = lp5521_suspend,
+	.resume = lp5521_resume,
+	.poweroff = lp5521_suspend,
+};
+
 static struct i2c_driver lp5521_driver = {
 	.driver = {
 		.name	= "lp5521",
 		.of_match_table = of_match_ptr(of_lp5521_leds_match),
+		.pm = &lp5521_pm_ops,
 	},
 	.probe		= lp5521_probe,
 	.remove		= lp5521_remove,
