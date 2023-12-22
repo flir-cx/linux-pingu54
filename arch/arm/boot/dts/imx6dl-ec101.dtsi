@@ -248,7 +248,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rmii";
-	status = "okay";
+	// Disabled saves 200 ms on boot. This is only used when
+	// connected to debug card, so uncomment for debug
+	// status = "okay";
 
 };
 
