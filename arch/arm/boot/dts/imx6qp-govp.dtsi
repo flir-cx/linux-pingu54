@@ -14,11 +14,12 @@
 &i2c1 {
 	flir_ema100080: flir_ema100080@32 {
 		compatible = "flir,ema100080";
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&pinctrl_viewfinder>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_viewfinder_enabled>;
 
 		eoco-fvm-psave-gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
-		//eoco-fvm-pwr-en-gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
+
 		vin-supply = <&reg_govp>;
 		adc-supply = <&reg_eoco_3v3a_enable>; //supply to ADC converter on EOCO board
 
@@ -49,6 +50,7 @@
 					<0x18 0x80>, // ATB (power control through PWDN register)
 					<0x1A 0x08>; // TRIM (automatic and periodic calibration)
 	};
+
 	backlight: backlight_vf@30 {
 		reg = <0x30>;
 		compatible = "flir,max5380";
@@ -67,12 +69,15 @@
 };
 
 &iomuxc {
-		pinctrl_viewfinder: vfgrp {
+	imx6qp-eoco {
+		pinctrl_viewfinder_enabled: vfgrp {
+		// GPIO4 IO20 is VFM_PWR_EN, configured as GPIO pin
+		// GPIO4 IO17 is VFM_PSAVE_n configured as GPIO pin
 			fsl,pins = <
-				MX6QDL_PAD_DI0_PIN15__GPIO4_IO17	0x100b1
-				MX6QDL_PAD_DI0_PIN4__GPIO4_IO20     0x100b1
+				MX6QDL_PAD_DI0_PIN4__GPIO4_IO20     0x8
+				MX6QDL_PAD_DI0_PIN15__GPIO4_IO17    0x8
 			>;
 		};
-
+	};
 };
 
