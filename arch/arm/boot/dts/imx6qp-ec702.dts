@@ -1,0 +1,33 @@
+/*
+ * Copyright 2022 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+
+#include "imx6qp.dtsi"
+#include "imx6qp-ec702.dtsi"
+
+/* For work with eoco debug board: */
+#include "imx6qp-eodc.dtsi"
+#include "imx6qp-eohp.dtsi"
+#include "imx6qp-eopc.dtsi"
+#include "imx6qp-eowi.dtsi"
+#include "imx6qp-eoxi.dtsi"
+#include "imx6qp-eobb.dtsi"
+#include "imx6qp-eodp.dtsi"
+#include "imx6qp-govp.dtsi"
+
+/ {
+	model = "Teledyne FLIR i.MX6 Dual Plus ec702 Board";
+	compatible = "fsl,imx6qp-ec702", "fsl,imx6qp-eoco", "fsl,imx6qp-flir", "fsl,imx6qp";
+	chosen {
+		bootargs = "console=ttymxc0,115200 earlyprintk";
+	};
+};
