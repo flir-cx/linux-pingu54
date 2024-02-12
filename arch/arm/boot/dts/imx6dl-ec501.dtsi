@@ -18,7 +18,6 @@
 / {
 	aliases {
 		mxcfb0 = &mxcfb1;
-		mxcfb1 = &mxcfb2;
 		i2c3 = &i2c4;
 
 		/* FLIR - overwrite imx6qdl standard. Compatible with ROCO  */
