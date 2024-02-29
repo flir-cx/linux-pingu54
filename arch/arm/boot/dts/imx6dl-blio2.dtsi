@@ -1,0 +1,184 @@
+/*
+ * Copyright 2018 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/input/input.h>
+/* This file represents blio-a */
+
+/ {
+	vcam {
+		compatible = "flir,vcam";
+		vcam_pwdn-gpio = <&blio_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
+		vcam_reset-gpio = <&blio_pca9534_0x46 3 GPIO_ACTIVE_LOW>;
+		vcam_clk_en-gpio = <&blio_pca9534_0x46 1 GPIO_ACTIVE_LOW>;
+		flip-image;
+		/*dvdd-supply = <&reg_vcm_dovdd_1v8>;
+		  avdd-supply = <&reg_vcm_avdd_2v8>;*/
+		flipped_sensor = <0>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+	        reg_vcm_dovdd_1v8: reg_vcm_dovdd_1v8 {
+			compatible = "regulator-fixed";
+			regulator-name = "VCM_DOVDD";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&blio_pca9534_0x46 0 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};		
+	};
+
+	/* DIG_OUT */
+	dig-out {
+		compatible = "gpio-leds";
+
+		ledr_on {
+			label = "LEDR_ON";
+			gpios = <&blio_pca9534_0x42 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		ledb_on {
+			label = "LEDB_ON";
+			gpios = <&blio_pca9534_0x42 4 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+		};
+
+		fault_wd {
+			label = "FAULT_WD";
+			gpios = <&blio_pca9534_0x42 5 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		serial_en {
+			label = "SERIAL_EN";
+			gpios = <&blio_pca9534_0x42 6 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		// TEMPORARY definition for DIG_OUT_CPU
+		// Should be handled by who? should be defined by -ec501.dtsi!
+		dig_out_cpu_0 {
+			label = "DIG_OUT_CPU_0";
+			gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		dig_out_cpu_1 {
+			label = "DIG_OUT_CPU_1";
+			gpios = <&gpio3 15 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
+	/* DIG_IN */
+	dig-in {
+		compatible = "gpio-keys";
+
+		cam_clr {
+			label = "CAM_CLR_n";
+			gpios = <&blio_pca9534_0x42 0 GPIO_ACTIVE_LOW>;
+			linux,input-type = <5>; /* EV_SW */
+			linux,code = <2>;
+			debounce-interval = <5>;
+		};
+	};
+};
+
+&i2c3 {
+	/* ID-EEPROM */
+	blio_24c02: blio_24c02@55 {
+		compatible = "atmel,24c02";
+		reg = <0x55>;
+		pagesize = <16>;
+	};
+
+	/* I/O Expander */
+	blio_pca9534_0x42: blio_pca9534_0x42@21 {
+		compatible = "nxp,pca9534";
+		reg = <0x21>;
+		gpio-controller;
+		interrupt-parent = <&gpio4>; //I2C3_ALERT_n
+		interrupts = <5 0x2>;
+		interrupt-controller;
+		interrupts-shared;
+		#interrupt-cells = <2>;
+		#gpio-cells = <2>;
+		//B0 CAM_CLR_n input
+		//B3 LEDR_ON output
+		//B4 LEDB_ON output
+		//B5 FAULT_WD output
+		//B6 SERIAL_EN output
+	};
+};
+
+&i2c4 {
+	/* TempSensor */
+	beia_tmp116: beia_tmp116@4a {
+		compatible = "ti,tmp116";
+		reg = <0x4a>;
+	};
+	
+	/* I/O Expander */
+	blio_pca9534_0x46: blio_pca9534_0x46@23 {
+		compatible = "nxp,pca9534";
+		reg = <0x23>;
+		gpio-controller;
+                #gpio-cells = <2>;
+		//B0 VCM_DOVDD_EN output
+		//B1 VCM_CLK_EN output
+		//B2 VCM_PWDN output
+		//B3 VCM_RESET_n output
+	};
+};
+
+/* Wi-Fi */
+
+/* RS232/RS485 */
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+	flir,rs485-enable-gpios = <&gpio3 31 GPIO_ACTIVE_HIGH>;
+	flir,rs485-txen-gpios = <&gpio3 30 GPIO_ACTIVE_HIGH>;
+	flir,rs485-gpio-delays = <0 0 2>;  // txen on/txen off/enable switch delay (ms)
+	//flir,rs485-gpio-delays = <2 1 2>;  // BEIA rev A
+	linux,rs485-enabled-at-boot-time;
+};
+
+&iomuxc {
+	imx6dl-ec {
+		pinctrl_usdhc2: usdhc2grp {
+			fsl,pins = <
+				/* Use 22 kohm pull up on SD signals */
+				MX6QDL_PAD_SD2_CMD__SD2_CMD		0x1f020
+				MX6QDL_PAD_SD2_CLK__SD2_CLK		0x10020
+				MX6QDL_PAD_SD2_DAT0__SD2_DATA0		0x1f020
+				MX6QDL_PAD_SD2_DAT1__SD2_DATA1		0x1f020
+				MX6QDL_PAD_SD2_DAT2__SD2_DATA2		0x1f020
+				MX6QDL_PAD_SD2_DAT3__SD2_DATA3		0x1f020
+				MX6QDL_PAD_NANDF_D6__GPIO2_IO06		0x40000010
+				MX6QDL_PAD_NANDF_D5__GPIO2_IO05		0x1b010
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
+				MX6QDL_PAD_EIM_D25__UART3_RX_DATA	0x1b0b1
+				MX6QDL_PAD_EIM_D30__GPIO3_IO30		0x40000010
+				MX6QDL_PAD_EIM_D31__GPIO3_IO31		0x40000010
+			>;
+		};
+	};
+};
