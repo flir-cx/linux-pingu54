@@ -78,6 +78,9 @@ Optional properties:
 		   cannot reboot properly if the flash is left in the "wrong"
 		   state. This boolean flag can be used on such systems, to
 		   denote the absence of a reliable reset mechanism.
+- soft-reset-before-probe : If the flash is in performance enhance mode, or XiP,
+        it will not respond to JEDEC bytes request. Soft reset of the flash will
+        make sure that it is in the correct state before getting flash info.
 
 Example:
 
