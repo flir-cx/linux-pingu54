@@ -94,10 +94,13 @@ static ssize_t boottime_store(struct kobject *kobj,
 			      struct kobj_attribute *attr,
 			      const char *buf, size_t count)
 {
-	char a[count+1];
+	char a[50];
 	char *b;
 
-	strcpy(a, buf);
+	//limit message length
+	strncpy(a, buf, 49);
+	a[49] = 0;
+
 	b = strchr(a, '\n');
 	if (b)
 		*b = '\0';

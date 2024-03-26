@@ -654,6 +654,7 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ocotp_priv *priv;
 	struct nvmem_device *nvmem;
+	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -680,7 +681,7 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 	clk_disable_unprepare(priv->clk);
 
 	/* Update system serial */
-	int ret = update_serial_number(priv);
+	ret = update_serial_number(priv);
 	if (ret != 0) {
 		dev_err(priv->dev, "Failed to set device serial: %d.\n", ret);
 		system_serial_low = 0xDEADBEA1;

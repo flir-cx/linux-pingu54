@@ -923,10 +923,10 @@ static enum usb_charger_type mxs_phy_dcd_flow(struct usb_phy *phy)
 	u32 value;
 	int i = 0;
 	enum usb_charger_type chgr_type;
+#ifdef CONFIG_USB_PHY_EXT_CC
 	bool cc_is_set;
 	uint16_t cc1, cc2;
 
-#ifdef CONFIG_USB_PHY_EXT_CC
 	cc_is_set = cc_val_get(&phy->chg_cc, &cc1, &cc2);
 #endif
 

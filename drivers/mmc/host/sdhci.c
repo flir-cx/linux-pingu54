@@ -2425,7 +2425,7 @@ static int sdhci_get_cd(struct mmc_host *mmc)
 
 static int sdhci_check_ro(struct sdhci_host *host)
 {
-	unsigned long flags;
+	//unsigned long flags;
 	int is_readonly;
 
 	//Removed the spinlock due to WP pin on Flir Evander board which
