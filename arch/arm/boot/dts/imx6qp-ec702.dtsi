@@ -1009,6 +1009,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
 	status = "okay";
+
+	gnss {
+		compatible = "u-blox,neo-m8";
+
+		/* TODO vcc-supply = <&reg_gps_en>; */
+		current-speed = <4800>;
+	};
 };
 
 
