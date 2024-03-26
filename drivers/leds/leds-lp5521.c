@@ -541,7 +541,7 @@ static int lp5521_probe(struct i2c_client *client,
 			pdata = lp55xx_of_populate_pdata(&client->dev, np,
 							 chip);
 			if (IS_ERR(pdata)) {
-    			dev_err(&client->dev, "failed to populate %d\n", pdata);
+				dev_err(&client->dev, "failed to populate %p\n", pdata);
 				return PTR_ERR(pdata);
             }
 		} else {
@@ -652,7 +652,6 @@ static int lp5521_suspend(struct device *dev)
 //
 static int lp5521_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 	struct lp55xx_chip *chip = led->chip;
 

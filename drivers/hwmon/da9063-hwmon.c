@@ -152,7 +152,7 @@ static int da9063_adc_manual_read(struct da9063_hwmon *hwmon, int channel)
 		goto err_mread;
 
 	/* data value is not ready */
-	if (adc_man & DA9063_ADC_MAN == 0) {
+	if ((adc_man & DA9063_ADC_MAN) == 0) {
 		ret = -EINVAL;
 		goto err_mread;
 	}
