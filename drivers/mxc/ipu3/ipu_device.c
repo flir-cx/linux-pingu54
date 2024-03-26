@@ -42,6 +42,8 @@
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
+#include <linux/of.h>
+#include <linux/fb.h>
 
 #include <asm/cacheflush.h>
 #include <asm/outercache.h>
@@ -2037,6 +2039,8 @@ static int init_ic(struct ipu_soc *ipu, struct ipu_task_entry *t)
 	int out_w = 0, out_h = 0, out_stride;
 	int out_fmt;
 	u32 vdi_frame_idx = 0;
+	static int index;
+	struct device *dev = t->dev;
 
 	memset(&params, 0, sizeof(params));
 
@@ -2088,13 +2092,76 @@ static int init_ic(struct ipu_soc *ipu, struct ipu_task_entry *t)
 			params.mem_prp_vf_mem.key_color_en = 1;
 			params.mem_prp_vf_mem.key_color = t->overlay.colorkey.value;
 		}
-		if (t->overlay.paddr == IPU_LATEST_SAVED_ADDRESS) {
-			if (stored_overlay_address)
-				t->overlay.paddr = stored_overlay_address;
-			else
-				t->overlay.paddr = stored_alt_overlay_address;
+
+		if (of_machine_is_compatible("fsl,imx6qp-eoco")) {
+			/* the method of handling the framebuffer for EOCO differs from EVCO and
+			 * other platforms due to EOCO uses a 640x480 LCD and 800x600 viewfinder
+			 * When toggling the recording overlay to the viewfinder, and
+			 * simultanesouly recording the stream to mmc or streaming it over
+			 * network, the UI overlay was lost.
+			 *
+			 * The overlay was lost due to the framebuffer sending the
+			 * stored_alt_overlay_address here,
+			 * but when toggling the active display from LCD to Viewfinder,
+			 * the framebuffer addresses are changed from fb0 to fb2, and
+			 * as fb0 is 640x480 resolution, the fb2 is 800x600, and also
+			 * contains 0 in the alpha channel.
+			 *
+			 * Well, that is not the full truth, It is also depending on
+			 * the chosen method of videoflow,
+			 * The fb0 framebuffer (containing the CSI+UI overlayed)  is rescaled
+			 * using the IPU, from 640x480 to 800x600. When we move the record symbol
+			 * overlay from FB0 to FB2, not the record symbol is 640x480,
+			 * and it is moved to FB2 unscaled. Then, the framebuffer will change
+			 * the address... And any recording will not be able to overlay using the
+			 * new address receieved from the framebuffer driver.
+			 * It could be better to also start a new process scaling the FB1 record
+			 * symbol to 800x600, and using that But It is probable that we will
+			 * run in to the same problem anyways..
+			 *
+			 *
+			 * Thus, we are unable to use the same method as used in evander
+			 * for this reason.
+			 * Instead, we are using this, maybe naive way of handling the
+			 * framebuffer combination, were we calculate a probable useable
+			 * framebuffer address for the overlay.
+			 *
+			 * Note, the underlay is the CSI video flow, and the overlay
+			 * is the FB0 framebuffer where the FB0 framebuffer already
+			 * contains the CSI video flow.
+			 * Dropouts will appear as the framebuffer has lost
+			 * the overlay only...
+			 */
+			static int framebuffer;
+			struct fb_info *fbi = registered_fb[framebuffer];
+
+			t->overlay.paddr = fbi->fix.smem_start + index *
+				fbi->var.xres * fbi->var.yres * 4;
+		} else {
+			if (t->overlay.paddr == IPU_LATEST_SAVED_ADDRESS) {
+				if (stored_overlay_address)
+					t->overlay.paddr = stored_overlay_address;
+				else
+					t->overlay.paddr = stored_alt_overlay_address;
+			}
 		}
+	} else if (of_machine_is_compatible("fsl,imx6qp-eoco")) {
+		/* If fb0 is accessed, in any IPU process without overlaying, keep the index
+		 * of the last accessed subbuffer, for use above on Eowyn platforms
+		 */
+		static int framebuffer;
+		struct fb_info *fbi = registered_fb[framebuffer];
+
+		if (t->input.paddr == fbi->fix.smem_start)
+			index = 0;
+		else if (t->input.paddr == (fbi->fix.smem_start +
+					    fbi->var.xres * fbi->var.yres * 4))
+			index = 1;
+		else if (t->input.paddr == (fbi->fix.smem_start +
+					    fbi->var.xres * fbi->var.yres * 4 * 2))
+			index = 2;
 	}
+
 
 	if (t->input.deinterlace.enable) {
 		if (t->input.deinterlace.field_fmt & IPU_DEINTERLACE_FIELD_MASK)
