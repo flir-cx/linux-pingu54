@@ -337,7 +337,7 @@ static int bg_overlay_start(void *private)
 
 	get_disp_ipu(cam);
 
-	out_format = IPU_PIX_FMT_BGR32;
+	out_format = cam->v4l2_fb.fmt.pixelformat;
 	if (cam->v4l2_fb.fmt.pixelformat == IPU_PIX_FMT_BGR24) {
 		bpp = 3, csi_mem_bufsize = 3;
 		pr_info("BGR24\n");

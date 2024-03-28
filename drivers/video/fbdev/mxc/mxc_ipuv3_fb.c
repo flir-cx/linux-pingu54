@@ -70,6 +70,7 @@ static int get_active_panel(struct fb_info *fbi);
 
 /* Display port number */
 #define MXCFB_PORT_NUM	2
+#define MAX_FB_NO	8
 
 #define RGB565_16bpp_to_24bpp(pxl) ((((pxl >> 11) & 0x1f) << (16+3)) |	\
 				    (((pxl >>  5) & 0x3f) <<  (8+2)) |	\
@@ -136,7 +137,7 @@ struct mxcfb_info {
 	uint32_t cur_fb_pfmt;
 	bool cur_prefetch;
 
-	bool do_clone[FB_MAX];
+	bool do_clone[MAX_FB_NO];
 	spinlock_t spin_lock;	/* for PRE small yres cases */
 	struct ipu_pre_context *pre_config;
 	struct backlight_device * bd;

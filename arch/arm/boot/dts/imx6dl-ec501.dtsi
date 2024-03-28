@@ -74,8 +74,8 @@
 	};
 
 	u-boot{
-		version = "Unknown";
-		reset-cause = "Unknown";
+		version = "Unkown";
+		reset-cause = "Unkown";
 	};
 
 	mxcfb1: fb@0 {

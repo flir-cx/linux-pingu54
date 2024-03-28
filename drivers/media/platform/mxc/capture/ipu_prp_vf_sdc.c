@@ -44,7 +44,7 @@ static void get_disp_ipu(cam_data *cam)
 static irqreturn_t prpvf_rot_eof_callback(int irq, void *dev_id)
 {
 	cam_data *cam = dev_id;
-	pr_debug_ratelimited("buffer_num %d\n",  buffer_num);
+	pr_debug("buffer_num %d\n",  buffer_num);
 
 	if (cam->vf_rotation >= IPU_ROTATE_VERT_FLIP) {
 		ipu_select_buffer(disp_ipu, MEM_FG_SYNC,
@@ -87,7 +87,6 @@ static int prpvf_start(void *private)
 	int csi_id;
 #endif
 
-	buffer_num = 0;
 	if (!cam) {
 		printk(KERN_ERR "private is NULL\n");
 		return -EIO;
@@ -427,6 +426,7 @@ static int prpvf_stop(void *private)
 		ipu_unlink_channels(cam->ipu, CSI_PRP_VF_MEM, MEM_ROT_VF_MEM);
 		ipu_free_irq(cam->ipu, IPU_IRQ_PRP_VF_ROT_OUT_EOF, cam);
 	}
+	buffer_num = 0;
 
 	ipu_disable_channel(cam->ipu, CSI_PRP_VF_MEM, true);
 
