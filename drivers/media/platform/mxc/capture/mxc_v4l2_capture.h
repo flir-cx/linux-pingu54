@@ -108,7 +108,6 @@ typedef struct _cam_data {
 	struct semaphore busy_lock;
 
 	int open_count;
-	int videoflow_method;
 
 	/* params lock for this camera */
 	struct semaphore param_lock;

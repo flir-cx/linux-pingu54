@@ -93,7 +93,6 @@ static int prpvf_start(void *private)
 		return -EIO;
 	}
 
-	dev_dbg(cam->dev, "Selecting %s from %s\n", __func__, __FILE__);
 	if (cam->overlay_active == true) {
 		pr_debug("already started.\n");
 		return 0;
