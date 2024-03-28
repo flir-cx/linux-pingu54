@@ -179,9 +179,8 @@ static int prpvf_start(void *private)
 		     ((strcmp(idstr, "DISP4 FG") == 0) && (cam->output >= 3)))) {
 			fbi_out = registered_fb[i];
 		} else if ((fbi_ovl == NULL) &&
-			 (((strcmp(idstr, "DISP3 XX") == 0) && (cam->output < 3)) ||
-			  ((strcmp(idstr, "DISP4 XX") == 0) && (cam->output >= 3)) ||
-			  ((strcmp(idstr, "simple") == 0)))) {
+		    (((strcmp(idstr, "DISP3 XX") == 0) && (cam->output < 3)) ||
+		     ((strcmp(idstr, "DISP4 XX") == 0) && (cam->output >= 3)))) {
 			fbi_ovl = registered_fb[i];
 		} else if ((fbi_dp == NULL) &&
 		    (((strcmp(idstr, "DISP3 BG") == 0) && (cam->output < 3)) ||

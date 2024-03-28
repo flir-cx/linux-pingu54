@@ -28,22 +28,6 @@
 		ethernet0 = &fec;
 	};
 
-	chosen {
-	    ranges;
-		framebuffer@2f800000 {
-		compatible = "simple-framebuffer";
-		reg = <0x2f800000 (640*480*4)>;
-		//memory-region = <&fb_reserved>;
-		//not applicable?? gives output message in log ->
-		//simple-framebuffer chosen:framebuffer@2f800000: No memory resource
-		width = <640>;
-		height = <480>;
-		stride = <(640*4)>;
-		format = "a8r8g8b8";
-		status = "okay";
-		};
-	};
-
 	memory {
 		reg = <0x10000000 0x20000000>;
 	};
@@ -51,13 +35,6 @@
 	reserved-memory {
 		linux,cma {
 			size = <0xC000000>;
-		};
-
-		fb_reserved: fb@2f800000 {
-			     linux,contiguous-region;
-			     reg = <0x2f800000 (640 * 480 * 4)>;
-//			     no-map;
-			     no-map-fixup;
 		};
 	};
 
