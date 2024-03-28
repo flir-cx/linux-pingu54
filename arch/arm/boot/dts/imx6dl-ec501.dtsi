@@ -89,6 +89,17 @@
 		status = "okay";
 	};
 
+	mxcfb2: fb@1 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "fake";
+		interface_pix_fmt = "RGB24";
+		mode_str ="640x480M@60";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
+
 	pwm1_tbd {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 200000>; //0.2ms
@@ -144,6 +155,30 @@
 		spi-mosi-gpio		= <&gpio5 23 GPIO_ACTIVE_HIGH>;
 		spi-miso-gpio		= <&gpio5 24 GPIO_ACTIVE_HIGH>;
 		spi-cs-gpio		= <&gpio5 28 GPIO_ACTIVE_HIGH>;
+	};
+
+	fake {
+		compatible = "fsl,imx6q-fake";
+		display = <&fakedisp>;
+		ipu_id = <0>;
+		disp_id = <2>;
+		status = "okay";
+	};
+
+	fakedisp: fake-vga {
+		display-timings {
+			timing {
+				clock-frequency = <40000000>;
+				hactive = <640>;
+				vactive = <480>;
+				hfront-porch = <40>;
+				hback-porch = <88>;
+				hsync-len = <128>;
+				vback-porch = <23>;
+				vfront-porch = <1>;
+				vsync-len = <40>;
+			};
+		};
 	};
 
 	imx-thermal-values {
