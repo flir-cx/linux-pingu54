@@ -15,6 +15,7 @@
 / {
 	aliases {
 		mxcfb0 = &mxcfb1;
+		mxcfb1 = &mxcfb2;
 		mxcfb2 = &mxcfb3;
 		mxcfb3 = &mxcfb4;
 
@@ -123,7 +124,18 @@
 		status = "okay";
 	};
 
-	mxcfb3: fb@1 {
+	mxcfb2: fb@1 {
+		compatible = "fsl,mxc_sdc_fb";
+		disp_dev = "fake";
+		interface_pix_fmt = "RGB24";
+		mode_str ="640x480M@60";
+		default_bpp = <32>;
+		int_clk = <0>;
+		late_init = <0>;
+		status = "okay";
+	};
+
+	mxcfb3: fb@2 {
 		compatible = "fsl,mxc_sdc_fb";
 		interface_pix_fmt = "RGB24";
 		default_bpp = <32>;
@@ -134,7 +146,7 @@
 		mode_str ="FLIR-VF";
 	};
 
-	mxcfb4: fb@2 {
+	mxcfb4: fb@3 {
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "hdmi";
 		interface_pix_fmt = "RGB24";
