@@ -665,16 +665,17 @@ int start_preview(cam_data *cam)
 
 	pr_debug("MVC: start_preview\n");
 
-	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY)
+	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY) {
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
 		err = prp_vf_sdc_select(cam);
 		err = foreground_sdc_select(cam);
 	#endif
-	else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY)
+	} else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY) {
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
 		err = prp_vf_sdc_select_bg(cam);
 		err = bg_overlay_sdc_select(cam);
 	#endif
+	}
 	if (err != 0)
 		return err;
 
@@ -732,16 +733,17 @@ static int stop_preview(cam_data *cam)
 			return err;
 	}
 
-	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY)
+	if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY) {
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
 		err = prp_vf_sdc_deselect(cam);
 		err = foreground_sdc_deselect(cam);
 	#endif
-	else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY)
+	} else if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_PRIMARY) {
 	#ifdef CONFIG_MXC_IPU_PRP_VF_SDC
 		err = prp_vf_sdc_deselect_bg(cam);
 		err = bg_overlay_sdc_deselect(cam);
 	#endif
+	}
 
 	return err;
 }
