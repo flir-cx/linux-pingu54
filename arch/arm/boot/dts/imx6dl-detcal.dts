@@ -14,9 +14,9 @@
 /dts-v1/;
 
 #include "imx6dl.dtsi"
-#include "imx6dl-detcal.dtsi"
 #include "imx6dl-ec101.dtsi"
 #include "imx6dl-ec101-d.dtsi"
+#include "imx6dl-detcal.dtsi"
 
 / {
         model = "FLIR i.MX6 Solo Detector Calibration Board";

@@ -40,6 +40,8 @@
 	fad {
 		compatible = "flir,fad";
 		hasTrigger = <1>;
+		hasLaser = <0>;
+		hasGPS = <0>;
 		trigger-gpio = <&gpio7 12 GPIO_ACTIVE_LOW>;
 	};
 };
