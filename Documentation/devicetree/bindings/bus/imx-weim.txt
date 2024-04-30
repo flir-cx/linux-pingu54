@@ -48,6 +48,11 @@ Optional properties:
 			devices, the presence of this property indicates that
 			the weim bus should operate in Burst Clock Mode.
 
+ - fsl,burst-clk-div:	The General Burst Clock Divisor (GBCD) is a number in
+			the range [1..4]. It is only relevant in Burst Clock
+			Mode. The continuous burst clock will have a frequency
+			that is (EIMclk / GBCD).
+
 Timing property for child nodes. It is mandatory, not optional.
 
  - fsl,weim-cs-timing:	The timing array, contains timing values for the
