@@ -195,7 +195,7 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 	struct device_node *child;
 	int ret, have_child = 0;
 	struct cs_timing_state ts = {};
-	u32 reg;
+	u32 reg, gbcd;
 
 	if (devtype == &imx50_weim_devtype) {
 		ret = imx_weim_gpr_setup(pdev);
@@ -205,9 +205,33 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 
 	if (of_property_read_bool(pdev->dev.of_node, "fsl,burst-clk-enable")) {
 		if (devtype->wcr_bcm) {
+			dev_info(&pdev->dev, "Enable Burst Clock Mode\n");
 			reg = readl(base + devtype->wcr_offset);
 			writel(reg | devtype->wcr_bcm,
 				base + devtype->wcr_offset);
+		} else {
+			dev_err(&pdev->dev, "burst clk mode not supported.\n");
+			return -EINVAL;
+		}
+	}
+
+	if (!of_property_read_u32(pdev->dev.of_node, "fsl,burst-clk-div", &gbcd)) {
+		if (gbcd < 1) {
+			dev_err(&pdev->dev, "GBCD %d too small\n", gbcd);
+			gbcd = 1;
+		} else if (gbcd > 4) {
+			dev_err(&pdev->dev, "GBCD %d too large\n", gbcd);
+			gbcd = 4;
+		}
+		gbcd -= 1;
+		if (devtype->wcr_bcm) {
+			u32 mask = 3 << 1;
+
+			dev_info(&pdev->dev, "Set GBCD reg to %d\n", gbcd);
+			reg = readl(base + devtype->wcr_offset) & (~mask);
+			reg |= (gbcd << 1);
+			writel(reg | devtype->wcr_bcm,
+			       base + devtype->wcr_offset);
 		} else {
 			dev_err(&pdev->dev, "burst clk mode not supported.\n");
 			return -EINVAL;
