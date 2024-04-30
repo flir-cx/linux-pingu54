@@ -1021,6 +1021,33 @@
 				MX6QDL_PAD_KEY_COL0__GPIO4_IO06            0x0001B0B0
 			>;
 		};
+
+		pinctrl_weim_fpga: weimfpgagrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_CS0__EIM_CS0_B		0xb0b1
+				MX6QDL_PAD_EIM_CS1__EIM_CS1_B		0xb0b1
+				MX6QDL_PAD_EIM_LBA__EIM_LBA_B		0xb0b1
+				MX6QDL_PAD_EIM_OE__EIM_OE_B		0xb0b1
+				MX6QDL_PAD_EIM_RW__EIM_RW		0xb0b1
+				MX6QDL_PAD_EIM_BCLK__EIM_BCLK		0xb0b1
+				MX6QDL_PAD_EIM_DA15__EIM_AD15		0xb0b1
+				MX6QDL_PAD_EIM_DA14__EIM_AD14		0xb0b1
+				MX6QDL_PAD_EIM_DA13__EIM_AD13		0xb0b1
+				MX6QDL_PAD_EIM_DA12__EIM_AD12		0xb0b1
+				MX6QDL_PAD_EIM_DA11__EIM_AD11		0xb0b1
+				MX6QDL_PAD_EIM_DA10__EIM_AD10		0xb0b1
+				MX6QDL_PAD_EIM_DA9__EIM_AD09		0xb0b1
+				MX6QDL_PAD_EIM_DA8__EIM_AD08		0xb0b1
+				MX6QDL_PAD_EIM_DA7__EIM_AD07		0xb0b1
+				MX6QDL_PAD_EIM_DA6__EIM_AD06		0xb0b1
+				MX6QDL_PAD_EIM_DA5__EIM_AD05		0xb0b1
+				MX6QDL_PAD_EIM_DA4__EIM_AD04		0xb0b1
+				MX6QDL_PAD_EIM_DA3__EIM_AD03		0xb0b1
+				MX6QDL_PAD_EIM_DA2__EIM_AD02		0xb0b1
+				MX6QDL_PAD_EIM_DA1__EIM_AD01		0xb0b1
+				MX6QDL_PAD_EIM_DA0__EIM_AD00		0xb0b1
+			>;
+		};
 	};
 };
 
@@ -1140,4 +1167,35 @@
 	fsl,phy_reg_cksymtx = <0x800d>;
 	HDMI-supply = <&reg_hdmi>;
 	status = "okay";
+};
+
+&weim {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim_fpga>;
+	/* CS 0 Physical_address Size */
+	ranges = <0 0 0x08000000 0x02000000
+		  1 0 0x0A000000 0x02000000
+		  2 0 0x0C000000 0x02000000
+		  3 0 0x0E000000 0x02000000>;
+	/* Burst Clock Mode (BCM) */
+	/* Ironically, BCM means "run bclk whenever axiclk is running", */
+	/* which is basically a continuous clock. */
+	fsl,burst-clk-enable;
+	/* BCLK is EIM clock (99MHz), divided by 2 */
+	fsl,burst-clk-div = <2>;
+	status = "disabled";
+
+	/* CS1, synchronous FPGA memory access */
+	imx-weim@1,0 {
+		compatible = "fsl,imx6q-weim";
+		reg = <1 0 0x02000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#bank-width = <2>;
+		/* Set CS1 to synced muxed mode */
+		/* Note: CS Burst Clock settings are overridden by BCM */
+		fsl,weim-cs-timing = <0x1221a0bf 0x00000000
+				      0x06031100 0x00000000
+				      0x450c0000 0x00000000>;
+	};
 };
