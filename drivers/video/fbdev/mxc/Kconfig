@@ -132,6 +132,17 @@ config FB_MXC_HDMI
 	help
 	  Driver for the on-chip MXC HDMI controller.
 
+config FB_MXC_LCD_BOE_VX039
+	depends on FB_MXC_SYNC_PANEL
+	depends on MXC_IPU_V3
+	depends on I2C
+	tristate "BOE vx039 driver support"
+	help
+	  Driver for BOE VX039X0M-NH0 lcd which needs i2c setup.
+	  Select this if you have the LEIA veiwfinder.
+	  If unsure say N.
+	  To compile this driver as a module, choose M here.
+
 config FB_MXS_SII902X
 	tristate "Si Image SII9022 DVI/HDMI Interface Chip"
 	depends on FB_MXS && I2C
