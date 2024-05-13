@@ -10,6 +10,7 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/regulator/dlg,da9063-regulator.h>
 #include "imx6q-pinfunc.h"
@@ -57,6 +58,17 @@
 		standbyMinutes = <1440>;
 	};
 
+	/* Radio switch */
+	radio_switch {
+		compatible = "gpio-keys";
+		radio_on {
+			label = "3V8_BW_sense";
+			gpios = <&ec702_pca9534_0x46 4 GPIO_ACTIVE_HIGH>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_RFKILL_ALL>;
+		};
+	};
+
 	fvd {
 		compatible = "flir,fvd";
 		pinctrl-names = "default";
@@ -82,7 +94,7 @@
 			regulator-min-microvolt = <4000000>;
 			regulator-max-microvolt = <4000000>;
 			gpio = <&ec702_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
-			regulator-boot-on;
+			//regulator-boot-on;
 			startup-delay-us = <10000>;
 			enable-active-high;
 		};
