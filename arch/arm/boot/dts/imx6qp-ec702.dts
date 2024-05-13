@@ -13,16 +13,7 @@
 
 #include "imx6qp.dtsi"
 #include "imx6qp-ec702.dtsi"
-
-/* For work with eoco debug board: */
-#include "imx6qp-eodc.dtsi"
-#include "imx6qp-eohp.dtsi"
-#include "imx6qp-eopc.dtsi"
-#include "imx6qp-eowi.dtsi"
-#include "imx6qp-eoxi.dtsi"
-#include "imx6qp-eobb.dtsi"
-#include "imx6qp-eodp.dtsi"
-#include "imx6qp-govp.dtsi"
+#include "imx6qp-plwi.dtsi"
 
 / {
 	model = "Teledyne FLIR i.MX6 Dual Plus ec702 Board";

@@ -1,0 +1,233 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright 2024 FLIR Systems.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "imx6q-pinfunc.h"
+
+/ {
+	plwi_buttons {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		pb_left {
+			label = "Rocker Left";
+			gpio-key;
+			gpios = <&plwi_pca9534_0x42 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_LEFT>;
+		};
+		pb_right {
+			label = "Rocker Right";
+			gpio-key;
+			gpios = <&plwi_pca9534_0x42 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RIGHT>;
+		};
+		pb_front {
+			label = "Button Front";
+			gpio-key;
+			gpios = <&plwi_pca9534_0x42 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_ENTER>;
+		};
+		pb_trigger {
+			label = "Button Trig";
+			gpio-key;
+			gpios = <&plwi_pca9534_0x42 4 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_F6>;
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		wlan_en_reg: wlan_en_reg {
+			compatible = "regulator-fixed";
+			regulator-name = "wlan-en";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&gpio2 6 GPIO_ACTIVE_HIGH>;
+			regulator-boot-on;
+			startup-delay-us = <70000>;
+			enable-active-high;
+			vin-supply = <&reg_4va_bw_en>;
+		};
+	};
+};
+
+&i2c3 {
+	/* Accelerometer: DRDY and INTS are not connected */
+	plwi_lsm303agr_acc_0x32: plwi_lsm303agr_acc_0x32@19 {
+		compatible = "st,lsm303agr-accel";
+		reg = <0x19>;
+		//vdd-supply = <&DA9063_LDO11>;
+		status = "disabled";
+	};
+
+	/* Magnetometer: DRDY and INTS are not connected */
+	plwi_lsm303agr_mag_0x3c: plwi_lsm303agr_mag_0x3c@1e {
+		compatible = "st,lsm303agr-magn";
+		reg = <0x1e>;
+		//vdd-supply = <&DA9063_LDO11>;
+		status = "disabled";
+	};
+
+	/* EEPROM */
+	plwi_24c02_0xa6: plwi_24c02_0xa6@53 {
+		compatible = "atmel,24c02";
+		reg = <0x53>;
+		pagesize = <16>;
+		status = "okay";
+	};
+
+	/* GPIO-Expander for keypad */
+	plwi_pca9534_0x42: plwi_pca9534_0x42@21 {
+		compatible = "nxp,pca9534";
+		reg = <0x21>;
+		gpio-controller;
+		// Int: I2C3_ALERT_n, GPIO4.5
+		interrupt-parent = <&gpio4>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		interrupts-shared;
+		#interrupt-cells = <2>;
+		#gpio-cells = <2>;
+		status = "okay";
+	};
+
+	/* Temperature sensor */
+	/* TODO: Backport driver for tmp117/116 from kernel 6.8 */
+	plwi_tmp116_0x94: plwi_tmp116_0x94@4a {
+		compatible = "ti,tmp116";
+		reg = <0x4a>;
+		//vdd-supply = <&DA9063_LDO11>;
+		status = "disabled";
+	};
+};
+
+&iomuxc {
+	pinctrl_uart3: uart3grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
+			MX6QDL_PAD_EIM_D25__UART3_RX_DATA	0x1b0b1
+			MX6QDL_PAD_EIM_D30__UART3_CTS_B		0x1b0b1
+			MX6QDL_PAD_EIM_D31__UART3_RTS_B		0x1b0b1
+			/* BT_EN pin */
+			MX6QDL_PAD_NANDF_D4__GPIO2_IO04		0x10
+		>;
+	};
+
+	pinctrl_uart3_sleep: uart3grpsleep {
+		fsl,pins = <
+			// 100 kOhm pull down GPIO input
+			MX6QDL_PAD_EIM_D24__GPIO3_IO24		0x3010
+			MX6QDL_PAD_EIM_D25__GPIO3_IO25		0x3010
+			MX6QDL_PAD_EIM_D30__GPIO3_IO30		0x3010
+			MX6QDL_PAD_EIM_D31__GPIO3_IO31		0x3010
+		>;
+	};
+
+	pinctrl_uart5: uart5grp {
+		fsl,pins = <
+			MX6QDL_PAD_KEY_ROW1__UART5_RX_DATA	0x1b0b1
+			MX6QDL_PAD_KEY_COL1__UART5_TX_DATA	0x1b0b1
+		>;
+	};
+
+	pinctrl_usdhc3: usdhc3grp {
+		fsl,pins = <
+			/* Use 22 kohm pull up on SD signals */
+			MX6QDL_PAD_SD3_DAT0__SD3_DATA0		0x1f020
+			MX6QDL_PAD_SD3_DAT1__SD3_DATA1		0x1f020
+			MX6QDL_PAD_SD3_DAT2__SD3_DATA2		0x1f020
+			MX6QDL_PAD_SD3_DAT3__SD3_DATA3		0x1f020
+			MX6QDL_PAD_SD3_CMD__SD3_CMD		    0x1f020
+			MX6QDL_PAD_SD3_CLK__SD3_CLK		    0x10020
+			/* WLAN_EN pin */
+			MX6QDL_PAD_NANDF_D6__GPIO2_IO06		0x10
+			/* WLAN_IRQ pin */
+			MX6QDL_PAD_NANDF_D5__GPIO2_IO05	 0x1f010
+		>;
+	};
+
+	pinctrl_usdhc3_sleep: usdhc3grpsleep {
+		fsl,pins = <
+			// 100 kOhm pull down GPIO input
+			MX6QDL_PAD_SD3_CMD__GPIO7_IO02		0x3010
+			MX6QDL_PAD_SD3_CLK__GPIO7_IO03		0x3010
+			MX6QDL_PAD_SD3_DAT0__GPIO7_IO04		0x3010
+			MX6QDL_PAD_SD3_DAT1__GPIO7_IO05		0x3010
+			MX6QDL_PAD_SD3_DAT2__GPIO7_IO06		0x3010
+			MX6QDL_PAD_SD3_DAT3__GPIO7_IO07		0x3010
+			/* WLAN_IRQ pin */
+			MX6QDL_PAD_NANDF_D5__GPIO2_IO05		0x3010
+		>;
+	};
+};
+
+/* Bluetooth */
+&uart3 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_uart3>;
+	pinctrl-1 = <&pinctrl_uart3_sleep>;
+	uart-has-rtscts;
+	status = "okay";
+	dma-names = "rx","";
+
+	bluetooth {
+		compatible = "ti,wl1837-st";
+		max-speed = <3000000>;
+		enable-gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5>;
+	status = "okay";
+
+	/* GPS */
+	gnss {
+		compatible = "u-blox,neo-m8";
+
+		vcc-supply = <&DA9063_LDO7>;
+		current-speed = <9600>;
+	};
+};
+
+/* WiFi */
+&usdhc3 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	pinctrl-1 = <&pinctrl_usdhc3_sleep>;
+	vmmc-supply = <&wlan_en_reg>;
+	bus-width = <4>;
+	non-removable;
+	no-1-8-v;
+	keep-power-in-suspend;
+	cap-power-off-card;
+	max-frequency = <25000000>;
+	status = "disabled";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	wlcore: wlcore@3 {
+		compatible = "ti,wl1831";
+		reg = <2>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+		platform-quirks = <1>;
+		tcxo-clock-frequency = <26000000>;
+		ref-clock-frequency = <26000000>;
+	};
+};
+
