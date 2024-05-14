@@ -71,13 +71,17 @@
 
 	fvd {
 		compatible = "flir,fvd";
-		pinctrl-names = "default";
+		pinctrl-names = "default", "spi-default", "spi-idle";
 		pinctrl-0 = <&pinctrl_fvd>;
+		pinctrl-1 = <&pinctrl_ecspi1>;
+		pinctrl-2 = <&pinctrl_ecspi1_idle>;
 
-		fpga_ce_n = <&gpio5 25 GPIO_ACTIVE_LOW>;
+		/* _n low signals are interpreted by fvdk driver */
+		fpga_status_n = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		fpga_config_n = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		fpga_conf_done = <&gpio1 8 GPIO_ACTIVE_HIGH>;
-		fpga_config_n = <&gpio1 7 GPIO_ACTIVE_LOW>;
-		fpga_status_n = <&gpio1 2 GPIO_ACTIVE_LOW>;
+		fpga_ce_n = <&gpio5 25 GPIO_ACTIVE_HIGH>;
+		fpga-ready-gpio = <&gpio3 19 GPIO_ACTIVE_HIGH>;
 
 		spi-sclk-gpio = <&gpio5 22 GPIO_ACTIVE_HIGH>;
 		spi-mosi-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>;
@@ -96,6 +100,13 @@
 			gpio = <&ec702_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
 			//regulator-boot-on;
 			startup-delay-us = <10000>;
+			enable-active-high;
+		};
+
+		reg_ec702_4v0_fpa: ec702_4v0_fpa {
+			compatible = "regulator-fixed";
+			regulator-name = "4V0_fpa";
+			gpio = <&gpio2 1 0>;
 			enable-active-high;
 		};
 
@@ -169,8 +180,10 @@
 };
 
 &ecspi1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_ecspi1>;
+	// The fvdk driver sets this pinctrl when not
+	// programming fpga, thus commented out here
+	// pinctrl-names = "default";
+	// pinctrl-0 = <&pinctrl_ecspi1>;
 	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio5 28 0>, <&gpio5 29 0>;
 	status = "okay";
@@ -577,6 +590,14 @@
 			MX6QDL_PAD_CSI0_DAT4__ECSPI1_SCLK 0x100b1
 			MX6QDL_PAD_CSI0_DAT5__ECSPI1_MOSI 0x100b1
 			MX6QDL_PAD_CSI0_DAT6__ECSPI1_MISO 0x100b1
+		>;
+	};
+
+	pinctrl_ecspi1_idle: ecspi1grp-idle {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT4__GPIO5_IO22	0x100b1
+			MX6QDL_PAD_CSI0_DAT5__GPIO5_IO23	0x100b1
+			MX6QDL_PAD_CSI0_DAT6__GPIO5_IO24	0x100b1
 		>;
 	};
 
