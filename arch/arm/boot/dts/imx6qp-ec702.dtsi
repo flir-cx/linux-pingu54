@@ -152,12 +152,12 @@
 		csi_id = <0>;
 		videoflow_method = <1>;
 		mclk_source = <0>;
-		status = "disable";
+		status = "okay";
 	};
 
 	v4l2_out {
 		compatible = "fsl,mxc_v4l2_output";
-		status = "disable";
+		status = "okay";
 	};
 
 	// UBoot Info: Filled in by UBoot
@@ -545,6 +545,23 @@
 		reg = <0x50>;
 		pagesize = <16>;
 		status = "disabled";
+	};
+
+	/* FPGA CSI0 */
+	sensor_flir_csi0: csi0@3c {
+		compatible = "flir,flir_csi";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu1_csi0>;
+		clocks = <&clks 201>;
+		clock-names = "csi_mclk";
+		ipu_id = <0>;
+		csi_id = <0>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+		capturemode = <0>;
+		format = "RGB4";
+		status = "okay";
 	};
 };
 
