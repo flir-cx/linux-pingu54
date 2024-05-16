@@ -258,32 +258,30 @@
 		};
 
 		/*
-		 * Regulator				Voltage
+		 * Regulator                Signal      Voltage     Enabled
 		 * -------------------------------------------------------------
-		 * DA9063_BCORE1:bcore1		VCCARM	1V38
-		 * DA9063_BCORE2:bcore2		VCCSOC	1V38
-		 * DA9063_BIO:bio			1V8D
-		 * DA9063_BMEM:bmem			2V5D_FPGA
-		 * DA9063_BPERI:bperi		1V2D
-		 * DA9063_BPRO:bpro			1V1D_FPGA
-		 * DA9063_CORE_SW:core_sw	1V8D_FPGA
-		 * DA9063_LDO2:ldo2			1V2
-		 * DA9063_LDO3_BP:ldo3_bp	1V8D
-		 * DA9063_LDO4:ldo4			3V15/1V8
-		 * DA9063_LDO6:ldo6			2V5
-		 * DA9063_LDO7:ldo7			3V15_GP
-		 * DA9063_LDO8:ldo8			3V15D_FPGA
-		 * DA9063_LDO9:ldo9			VCCSNVS, 3V15
-		 * DA9063_LDO10:ldo10		2V5D_FPGA
-		 * DA9063_LDO11:ldo11		3V15D
-		 * DA9063_PERI_SW:peri_sw	1V2D
+		 * DA9063_BCORE1:bcore1     VCCARM      1V38        Yes, seq 3
+		 * DA9063_BCORE2:bcore2     VCCSOC      1V38        Yes, seq 3
+		 * DA9063_BIO:bio           1V8D                    Yes, seq 5
+		 * DA9063_BMEM:bmem         2V5D_FPGA               by uboot
+		 * DA9063_BPERI:bperi       1V2D                    Yes, seq 4
+		 * DA9063_BPRO:bpro         1V1D_FPGA               by uboot
+		 * DA9063_CORE_SW:core_sw   1V8D_FPGA               by uboot
+		 * DA9063_LDO2:ldo2         NC          1V2         No
+		 * DA9063_LDO3_BP:ldo3      Test only   1V8         No
+		 * DA9063_LDO4:ldo4         NC          3V15/1V8    Yes, seq 6, disabled in uboot
+		 * DA9063_LDO6:ldo6         NC          2V5         No
+		 * DA9063_LDO7:ldo7         3V15_GP                 No
+		 * DA9063_LDO8:ldo8         3V15D_FPGA              by uboot
+		 * DA9063_LDO9:ldo9         VCCSNVS     3V15        Yes, seq 1
+		 * DA9063_LDO10:ldo10       NC          2V5D_FPGA   No
+		 * DA9063_LDO11:ldo11       3V15D                   Yes, seq 6
+		 * DA9063_PERI_SW:peri_sw   1V2D_FPGA               by uboot
 		 */
 
 		/* For DA9063 revision AD */
 		regulators {
-			compatible = "dlg,da9063-regulators";
-			/*dlg,bcores_merged;*/
-			/*dlg,bmem_bio_merged;*/
+			compatible = "dlg,da9063-regulator";
 			interrupts = <8>;
 			interrupts-names = "LDO_LIM";
 			interrupt-parent = <&da9063>;
@@ -334,6 +332,7 @@
 				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
 					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -344,9 +343,7 @@
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
-				regulator-state-mem {
-					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
-				};
+				/* Suspend handled by FVDK */
 			};
 
 			/* 1V2D */
@@ -356,9 +353,6 @@
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
-				regulator-state-mem {
-					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
-				};
 			};
 
 			/* 1V1D_FPGA */
@@ -367,37 +361,19 @@
 				regulator-name = "DA9063_BPRO";
 				regulator-boot-on;
 				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
-				regulator-state-mem {
-					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
-				};
+				/* Suspend handled by FVDK */
 			};
 
 			/* 1V8D_FPGA */
 			DA9063_CORE_SW:core_sw  {
 				regulator-name = "DA9063_CORE_SW";
 				regulator-boot-on;
+				/* Suspend handled by FVDK */
 			};
 
-			/* 1V2 */
-			DA9063_LDO2:ldo2  {
-				regulator-name = "DA9063_LDO2";
-			};
-
-			/* 1V8D */
+			/* LDO3: 1V8 test point */
 			DA9063_LDO3_BP:ldo3_bp  {
 				regulator-name = "DA9063_LDO3_BP";
-			};
-
-			/* 3V15 */
-			DA9063_LDO4:ldo4  {
-				regulator-name = "DA9063_LDO4";
-				regulator-min-microvolt = <900000>;
-				regulator-max-microvolt = <3440000>;
-			};
-
-			/* 2V5 */
-			DA9063_LDO6:ldo6  {
-				regulator-name = "DA9063_LDO6";
 			};
 
 			/* 3V15_GP */
@@ -418,11 +394,6 @@
 				regulator-always-on;
 			};
 
-			/* 2V5D_FPGA, to be removed. Moved to BMEM */
-			DA9063_LDO10:ldo10  {
-				regulator-name = "DA9063_LDO10";
-			};
-
 			/* 3V15D */
 			DA9063_LDO11:ldo11  {
 				regulator-name = "DA9063_LDO11";
@@ -434,6 +405,7 @@
 			DA9063_PERI_SW:peri_sw  {
 				regulator-name = "DA9063_PERI_SW";
 				regulator-boot-on;
+				/* Suspend handled by FVDK */
 			};
 
 			DA9063_32K_OUT:out_32k  {
