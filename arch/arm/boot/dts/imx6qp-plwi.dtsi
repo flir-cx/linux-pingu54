@@ -20,10 +20,15 @@
 		compatible = "gpio-keys";
 		autorepeat;
 
+		/*
+		 * PLWI rev A has some bugs, only Right and Trig is mapped correctly.
+		 * We can swap Left and Front mappings, to get Left in correct place.
+		 * But PWR_ON_SW_n and Front are still swapped and need HW changes.
+		 */
 		pb_left {
 			label = "Rocker Left";
 			gpio-key;
-			gpios = <&plwi_pca9534_0x42 1 GPIO_ACTIVE_LOW>;
+			gpios = <&plwi_pca9534_0x42 3 GPIO_ACTIVE_LOW>; /* Should be 1 */
 			linux,code = <KEY_LEFT>;
 		};
 		pb_right {
@@ -35,7 +40,7 @@
 		pb_front {
 			label = "Button Front";
 			gpio-key;
-			gpios = <&plwi_pca9534_0x42 3 GPIO_ACTIVE_LOW>;
+			gpios = <&plwi_pca9534_0x42 1 GPIO_ACTIVE_LOW>; /* Should be 3 */
 			linux,code = <KEY_ENTER>;
 		};
 		pb_trigger {
@@ -64,12 +69,19 @@
 };
 
 &i2c3 {
+	/* This magnetometer is present in rev A, replaced with acc/mag below */
+	plwi_mag_bm1422_0x1e: plwi_mag_bm1422_0x1e@0F {
+		compatible = "rohm,bm1422";
+		reg = <0x0F>;
+		status = "disabled";
+	};
+
 	/* Accelerometer: DRDY and INTS are not connected */
 	plwi_lsm303agr_acc_0x32: plwi_lsm303agr_acc_0x32@19 {
 		compatible = "st,lsm303agr-accel";
 		reg = <0x19>;
 		//vdd-supply = <&DA9063_LDO11>;
-		status = "disabled";
+		status = "okay"; /* Present in rev B */
 	};
 
 	/* Magnetometer: DRDY and INTS are not connected */
@@ -77,7 +89,7 @@
 		compatible = "st,lsm303agr-magn";
 		reg = <0x1e>;
 		//vdd-supply = <&DA9063_LDO11>;
-		status = "disabled";
+		status = "okay"; /* Present in rev B */
 	};
 
 	/* EEPROM */
@@ -104,12 +116,11 @@
 	};
 
 	/* Temperature sensor */
-	/* TODO: Backport driver for tmp117/116 from kernel 6.8 */
 	plwi_tmp116_0x94: plwi_tmp116_0x94@4a {
 		compatible = "ti,tmp116";
 		reg = <0x4a>;
 		//vdd-supply = <&DA9063_LDO11>;
-		status = "disabled";
+		status = "okay";
 	};
 };
 
