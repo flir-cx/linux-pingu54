@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/boe,vx039x0m-nh0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: BOE vx039x0m-nh0 viewfinder
+
+maintainers:
+  - Flir
+
+properties:
+  compatible:
+    boe,vx039x0m-nh0
+
+  ipu_id:
+    description: which ipu to run on
+
+  disp_id:
+    description: which display interface to use
+
+  default_ifmt:
+    description: pixel format to use
+
+  pinctrl-names:
+    description: phandle to pin control of rgb interface
+
+  pinctrl-0:
+    description: phandle to pinctrl
+
+  i2c_bus:
+    description: i2c bus to which the display is connected
+
+  i2c_addr:
+    description: i2c address of the display
+
+
+required:
+  - compatible
+  - ipu_id
+  - disp_id
+  - default_ifmt
+  - pinctrl-names
+  - pinctrl-0
+  - i2c_bus
+  - i2c_addr
+
+additionalProperties: false
+
+examples:
+  - |
+    lcd_i2c@0 {
+      compatible = "boe,vx039x0m-nh0";
+      ipu_id = <0>;
+      disp_id = <0>;
+      default_ifmt = "RGB24";
+      pinctrl-names = "default";
+      pinctrl-0 = <&pinctrl_ipu1_di0>;
+      i2c_bus = <0x00>;
+      i2c_addr = <0x4c>;
+      status = "okay";
+    };
+
+...

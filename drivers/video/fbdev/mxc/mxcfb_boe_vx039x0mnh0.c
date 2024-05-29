@@ -12,55 +12,301 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/delay.h>
+#include <linux/fb.h>
+#include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/ipu.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mxcfb.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 
 #include "mxc_dispdrv.h"
 
-struct mxc_lcd_platform_data {
+//#define PLANTUML_DEBUG
+#ifdef PLANTUML_DEBUG
+#define LOG_ENTER()  pr_err("plantuml:\"%ps\" -> \"%s\"\n", (void *)_RET_IP_, __func__)
+#define LOG_EXIT()   pr_err("plantuml:\"%s\" --> \"%ps\"\n", __func__, (void *)_RET_IP_)
+#define LOG_EXITR(x) pr_err("plantuml:\"%s\" --> \"%ps\" : %d\n", __func__, (void *)_RET_IP_, x)
+#else
+#define LOG_ENTER()
+#define LOG_EXIT()
+#define LOG_EXITR(x)
+#endif
+
+//#define DEBUG_BOE_REG_SETUP
+
+struct boe_lcd_i2c_platform_data {
 	u32 default_ifmt;
 	u32 ipu_id;
 	u32 disp_id;
+	u8 i2c_bus;
+	u8 i2c_addr;
 };
 
-struct mxc_lcdif_data {
+struct boe_lcdif_data {
 	struct platform_device *pdev;
 	struct mxc_dispdrv_handle *disp_lcdif;
+	struct i2c_client *i2c_client;
 };
 
-#define DISPDRV_LCD	"lcd"
+#define DISPDRV_LCD_I2C	"lcd-i2c"
 
 static struct fb_videomode lcdif_modedb[] = {
 	{
-	/* 800x480 @ 57 Hz , pixel clk @ 27MHz */
-	"CLAA-WVGA", 57, 800, 480, 37037, 40, 60, 10, 10, 20, 10,
-	FB_SYNC_CLK_LAT_FALL,
-	FB_VMODE_NONINTERLACED,
-	0,},
-	{
-	/* 800x480 @ 60 Hz , pixel clk @ 32MHz */
-	"SEIKO-WVGA", 60, 800, 480, 29850, 89, 164, 23, 10, 10, 10,
-	FB_SYNC_CLK_LAT_FALL,
-	FB_VMODE_NONINTERLACED,
-	0,},
+		// 1024x768 @ 60 Hz , pixel clk @ 50,1MHz //
+		.name = "BOE-XGA",
+		.refresh = 60,
+		.xres = 1024,
+		.yres = 768,
+		.pixclock = 19921,
+		.left_margin = 8,
+		.right_margin = 4,
+		.upper_margin = 35,
+		.lower_margin = 3,
+		.hsync_len = 4,
+		.vsync_len = 6,
+		.sync = 0, // We don't have drdy FB_SYNC_OE_LOW_ACT,
+		.vmode = FB_VMODE_NONINTERLACED,
+		.flag = 0,
+	},
 };
-static int lcdif_modedb_sz = ARRAY_SIZE(lcdif_modedb);
 
-static int lcdif_init(struct mxc_dispdrv_handle *disp,
+struct setup_entry_4b {
+	// high part of reg addr
+	u8 reg_h;
+	u8 reg_l;
+	u8 val_h;
+	u8 val_l;
+};
+
+static struct setup_entry_4b vf_setup_4byte[] = {
+	{0x26, 0x00, 0x00, 0x20}, // Not described!
+	{0x53, 0x00, 0x00, 0x20}, // Not described!
+	{0x51, 0x00, 0x00, 0xFF}, // WRDISBV DBV[7:0]
+	{0x51, 0x01, 0x00, 0x03}, // WRDISBV DBV[9:8] 0x3FF Full brightness?
+	{0x80, 0x00, 0x00, 0x00}, // RESCTRL1 D0 => 45 MHz
+	{0x80, 0x01, 0x00, 0x00}, // RESCTRL1 NC[7:0] => x-axis resolution 0*4
+	{0x80, 0x02, 0x00, 0xC0}, // RESCTRL1 NL[7:0] => y-axis resolution 192*4=768 (NL[8]=0 below)
+	{0x80, 0x03, 0x00, 0x10}, // RESCTRL1 NC[8] = 1, NL[8] = 0, x-axis resolution 0x100*4=1024
+	{0x80, 0x04, 0x00, 0x00}, // RESCTRL1 NC_DEC[7:0] => 0
+	{0x80, 0x05, 0x00, 0x04}, // RESCTRL1 NC_DEC[10:8] => NC_DEC=0x0400 => 1024
+	{0x81, 0x00, 0x00, 0x01}, // RESCTRL2 T1A[9:8] = 1
+	{0x81, 0x01, 0x00, 0xD1}, // RESCTRL2 T1A[7:0] = 0xD1 => T1A=0x1D1 => 466 hsync dpclk
+	{0x81, 0x02, 0x00, 0x00}, // RESCTRL2 VBPDA[9:8] = 0
+	{0x81, 0x03, 0x00, 0x23}, // RESCTRL2 VBPDA[7:0] = 0x23 => 35
+	{0x81, 0x04, 0x00, 0x00}, // RESCTRL2 VBFDA[9:8] = 0
+	{0x81, 0x05, 0x00, 0x03}, // RESCTRL2 VBFDA[7:0] = 0x3 => 3
+	{0x81, 0x06, 0x00, 0x01}, // RESCTRL2 PSELA[2:0] = 1, (0h=>1 VBP line, 7h=>10 VBP line) 1h?
+	{0x82, 0x00, 0x00, 0x01}, // Not described!
+	{0x82, 0x01, 0x00, 0xD1}, // Not described!
+	{0x82, 0x02, 0x00, 0x00}, // Not described!
+	{0x82, 0x03, 0x00, 0x23}, // Not described!
+	{0x82, 0x04, 0x00, 0x00}, // Not described!
+	{0x82, 0x05, 0x00, 0x03}, // Not described!
+	{0x82, 0x06, 0x00, 0x03}, // Not described!
+	{0x83, 0x00, 0x00, 0x80}, // Set RGB_DE_OPT=1 for RGB video mode 2, no data enable used
+	{0x83, 0x01, 0x00, 0x0A}, // Set RGB_HBP, according to mail
+	{0x35, 0x00, 0x00, 0x00}, // Not described!
+	{0xFF, 0x00, 0x00, 0x5A}, // Not described!
+	{0xFF, 0x01, 0x00, 0x81}, // Not described!
+	{0xF9, 0x0D, 0x00, 0x40}, // Not described!
+	{0xF9, 0x0E, 0x00, 0x47}, // Not described!
+	{0xF9, 0x0F, 0x00, 0x4E}, // Not described!
+	{0xF9, 0x10, 0x00, 0x55}, // Not described!
+	{0xF9, 0x11, 0x00, 0x5C}, // Not described!
+	{0xF9, 0x12, 0x00, 0x5E}, // Not described!
+	{0xF9, 0x13, 0x00, 0x61}, // Not described!
+	{0xF9, 0x14, 0x00, 0x64}, // Not described!
+	{0xF9, 0x15, 0x00, 0x67}, // Not described!
+	{0xF9, 0x16, 0x00, 0x6A}, // Not described!
+	{0xF9, 0x17, 0x00, 0x6C}, // Not described!
+	{0xF9, 0x18, 0x00, 0x6F}, // Not described!
+	{0xF9, 0x19, 0x00, 0x72}, // Not described!
+	{0xF9, 0x1A, 0x00, 0x75}, // Not described!
+	{0xF9, 0x1B, 0x00, 0x78}, // Not described!
+	{0xF9, 0x1C, 0x00, 0x7A}, // Not described!
+	{0xF9, 0x1D, 0x00, 0x7D}, // Not described!
+	{0xF9, 0x1E, 0x00, 0x80}, // Not described!
+	{0xF9, 0x1F, 0x00, 0x83}, // Not described!
+	{0xF9, 0x20, 0x00, 0x86}, // Not described!
+	{0xF9, 0x21, 0x00, 0x88}, // Not described!
+	{0xF9, 0x22, 0x00, 0x8B}, // Not described!
+	{0xF9, 0x23, 0x00, 0x8E}, // Not described!
+	{0xF9, 0x24, 0x00, 0x91}, // Not described!
+	{0xF9, 0x25, 0x00, 0x94}, // Not described!
+	{0xF9, 0x26, 0x00, 0x96}, // Not described!
+	{0xF9, 0x27, 0x00, 0x99}, // Not described!
+	{0xF9, 0x28, 0x00, 0x9C}, // Not described!
+	{0xF9, 0x29, 0x00, 0x9F}, // Not described!
+	{0xF9, 0x2A, 0x00, 0xA2}, // Not described!
+	{0xF9, 0x2B, 0x00, 0xA4}, // Not described!
+	{0xF9, 0x2C, 0x00, 0xA7}, // Not described!
+	{0xF9, 0x2D, 0x00, 0xAA}, // Not described!
+	{0xF9, 0x2E, 0x00, 0xAD}, // Not described!
+	{0xF9, 0x2F, 0x00, 0xB0}, // Not described!
+	{0xF4, 0x13, 0x00, 0x42}, // Not described!
+	{0xF2, 0x07, 0x00, 0x11}  // Not described!
+};
+struct setup_entry_2b {
+	// high part of reg addr
+	u8 reg_h;
+	u8 reg_l;
+};
+static struct setup_entry_2b vf_setup_2byte[] = {
+	{0x11, 0x00}, // Sleep out
+	{0x29, 0x00} // Display on
+};
+
+#ifdef DEBUG_BOE_VF_TESTMODE
+// This code can be used to start the test mode of the display
+static struct setup_entry_4b vf_setup_4byte_test[] = {
+	{0xF0, 0x00, 0x00, 0xAA, 0x0000}, // Default
+	{0xF0, 0x01, 0x00, 0x11, 0x0000}, // skip to bist page that below code will available
+	{0xC4, 0x00, 0x00, 0xAA, 0x0000}, //BIST ON
+	{0xC4, 0x01, 0x00, 0x55, 0x0000}, //BIST ON
+	{0xC4, 0x02, 0x00, 0x01, 0x0000}, //BIST picture run
+	{0xC4, 0x03, 0x00, 0x80, 0x0000}, //BIST picture run
+	{0xC5, 0x00, 0x00, 0x09, 0x0000}, //Picture cycle time
+	{0xC5, 0x01, 0x00, 0xFF, 0x0000}, // Picture choose
+};
+#endif
+
+/* write a register to the display */
+static int i2c_reg_write(struct device *dev, u8 *data_out, int len)
+{
+	int ret;
+	struct boe_lcd_i2c_platform_data *plat_data = dev->platform_data;
+	struct i2c_msg msg = {
+		.addr	= plat_data->i2c_addr,
+		.flags	= 0,
+		.len	= len,
+		.buf	= data_out,
+	};
+	struct i2c_adapter *i2c_adap = i2c_get_adapter(plat_data->i2c_bus);
+
+	if (IS_ERR(i2c_adap)) {
+		pr_err("%s: i2c_adap is null\n", __func__);
+		return PTR_ERR(i2c_adap);
+	}
+	ret = i2c_transfer(i2c_adap, &msg, 1);
+	// According to meeting with boe the controller needs 100us
+	// to process the data
+	udelay(100);
+
+	if (len == 2)
+		dev_dbg(dev, "Write register 0x%02x%02x! %d\n",
+			data_out[0], data_out[1], ret);
+	else if (len == 4)
+		dev_dbg(dev, "Write register 0x%02x%02x%02x%02x! %d\n",
+			data_out[0], data_out[1], data_out[2], data_out[3], ret);
+
+	if (ret < 0)
+		dev_err(dev, "Failed writing register 0x%02x%02x! %d\n",
+			data_out[0], data_out[1], ret);
+
+	// i2c_transfer returns messages sent, we want to return 0 on success
+	if (ret == 1)
+		ret = 0;
+	i2c_put_adapter(i2c_adap);
+
+	return ret;
+}
+
+#ifdef DEBUG_BOE_REG_SETUP
+/* read a register to the display */
+static int i2c_reg_read(struct device *dev, u8 *data_out, u8 *data_in)
+{
+	int ret;
+	struct boe_lcd_i2c_platform_data *plat_data = dev->platform_data;
+	struct i2c_msg msgs[2] = {
+		{
+		.addr	= plat_data->i2c_addr,
+		.flags	= 0,
+		.len	= 2,
+		.buf	= data_out,
+		},
+		{
+		.addr	= plat_data->i2c_addr,
+		.flags	= I2C_M_RD,
+		.len	= 2,
+		.buf	= data_in,
+		}
+	};
+	struct i2c_adapter *i2c_adap = i2c_get_adapter(plat_data->i2c_bus);
+
+	if (IS_ERR(i2c_adap)) {
+		pr_err("%s: i2c_adap is null\n", __func__);
+		return PTR_ERR(i2c_adap);
+	}
+
+	ret = i2c_transfer(i2c_adap, msgs, 2);
+	udelay(100);
+
+	if (ret < 2)
+		dev_err(dev, "Failed reading register 0x%02x%02x! %d\n",
+			data_out[0], data_out[1], ret);
+	else
+		dev_err(dev, "Read back register 0x%02x%02x = 0x%02x%02x %d\n",
+			data_out[0], data_out[1], data_in[0], data_in[1], ret);
+
+	// i2c_transfer returns messages sent, we want to return 0 on success
+	if (ret == 2)
+		ret = 0;
+	i2c_put_adapter(i2c_adap);
+
+	return ret;
+}
+#endif
+
+static int boe_disp_i2c_init(struct device *dev)
+{
+	int i;
+	int ret = 0;
+	u8 data_out[4];
+#ifdef DEBUG_BOE_REG_SETUP
+	u8 data_in[2];
+#endif
+
+	LOG_ENTER();
+
+	for (i = 0; ret >= 0 && i < ARRAY_SIZE(vf_setup_4byte); ++i) {
+		data_out[0] = vf_setup_4byte[i].reg_h;
+		data_out[1] = vf_setup_4byte[i].reg_l;
+		data_out[2] = vf_setup_4byte[i].val_h;
+		data_out[3] = vf_setup_4byte[i].val_l;
+		ret = i2c_reg_write(dev, data_out, 4);
+#ifdef DEBUG_BOE_REG_SETUP
+		i2c_reg_read(dev, data_out, data_in);
+#endif
+	}
+
+	for (i = 0; ret >= 0 && i < ARRAY_SIZE(vf_setup_2byte); ++i) {
+		data_out[0] = vf_setup_2byte[i].reg_h;
+		data_out[1] = vf_setup_2byte[i].reg_l;
+		ret = i2c_reg_write(dev, data_out, 2);
+	}
+
+	LOG_EXITR(ret);
+	return ret;
+}
+
+// This would be called from mxcfb_probe -> mxcfb_dispdrv_init ->
+// mxc_dispdrv_gethandle. This is run after boe_lcdif_init and boe_lcdif_probe
+static int boe_dispdrv_init(struct mxc_dispdrv_handle *disp,
 	struct mxc_dispdrv_setting *setting)
 {
 	int ret, i;
-	struct mxc_lcdif_data *lcdif = mxc_dispdrv_getdata(disp);
+	struct boe_lcdif_data *lcdif = mxc_dispdrv_getdata(disp);
 	struct device *dev = &lcdif->pdev->dev;
-	struct mxc_lcd_platform_data *plat_data = dev->platform_data;
+	struct boe_lcd_i2c_platform_data *plat_data = dev->platform_data;
 	struct fb_videomode *modedb = lcdif_modedb;
-	int modedb_sz = lcdif_modedb_sz;
+
+	int modedb_sz = ARRAY_SIZE(lcdif_modedb);
+
+	LOG_ENTER();
 
 	/* use platform defined ipu/di */
 	ret = ipu_di_to_crtc(dev, plat_data->ipu_id,
@@ -78,6 +324,7 @@ static int lcdif_init(struct mxc_dispdrv_handle *disp,
 	INIT_LIST_HEAD(&setting->fbi->modelist);
 	for (i = 0; i < modedb_sz; i++) {
 		struct fb_videomode m;
+
 		fb_var_to_videomode(&m, &setting->fbi->var);
 		if (fb_mode_is_equal(&m, &modedb[i])) {
 			fb_add_videomode(&modedb[i],
@@ -86,46 +333,158 @@ static int lcdif_init(struct mxc_dispdrv_handle *disp,
 		}
 	}
 
+	ret = boe_disp_i2c_init(dev);
+
+	// TODO register as backlight service
+	// struct mxcfb_info* mxcfbi = (struct mxcfb_info *)fbi->par;
+	// devm_backlight_device_register(bla blaa "mxcfb_boe", mxcfbi->bd,
+
+	LOG_EXITR(ret);
 	return ret;
 }
 
-void lcdif_deinit(struct mxc_dispdrv_handle *disp)
+// The ones below are defined just to get a feel for how they are used.
+static void boe_dispdrv_deinit(struct mxc_dispdrv_handle *disp)
 {
-	/*TODO*/
+	LOG_ENTER();
+	LOG_EXIT();
 }
 
-static struct mxc_dispdrv_driver lcdif_drv = {
-	.name 	= DISPDRV_LCD,
-	.init 	= lcdif_init,
-	.deinit	= lcdif_deinit,
+static int boe_dispdrv_enable(struct mxc_dispdrv_handle *disp, struct fb_info *fbi)
+{
+	LOG_ENTER();
+	LOG_EXIT();
+	return 0;
+}
+
+static void boe_dispdrv_disable(struct mxc_dispdrv_handle *disp, struct fb_info *fbi)
+{
+	LOG_ENTER();
+	LOG_EXIT();
+}
+
+static int boe_dispdrv_setup(struct mxc_dispdrv_handle *disp, struct fb_info *fbi)
+{
+	LOG_ENTER();
+	LOG_EXIT();
+
+	return 0;
+}
+
+static int boe_dispdrv_swap_panel(struct mxc_dispdrv_handle *disp, struct fb_info *fbi, int active)
+{
+	LOG_ENTER();
+	LOG_EXIT();
+
+	return 0;
+}
+
+static int boe_dispdrv_get_active_panel(struct mxc_dispdrv_handle *disp, struct fb_info *fbi)
+{
+	LOG_ENTER();
+	LOG_EXIT();
+	return 0;
+}
+static struct mxc_dispdrv_driver boe_disp_drv = {
+	.name	= DISPDRV_LCD_I2C,
+	.init	= boe_dispdrv_init,
+	.deinit	= boe_dispdrv_deinit,
+	.enable	= boe_dispdrv_enable,
+
+	/* display driver disable function, called at early part of fb_blank */
+	.disable = boe_dispdrv_disable,
+
+	/* display driver setup function, called at early part of fb_set_par */
+	.setup = boe_dispdrv_setup,
+
+	/* display driver swap panel function */
+	.swap_panel = boe_dispdrv_swap_panel,
+
+	/* display driver get active panel function */
+	.get_active_panel = boe_dispdrv_get_active_panel
 };
 
-static int lcd_get_of_property(struct platform_device *pdev,
-				struct mxc_lcd_platform_data *plat_data)
+
+/**
+ * @brief Reads 32 bit value from device_node, logs failure as error
+ *
+ * @param np device node
+ * @param propname property name
+ * @param out_value value read
+ * @return int 0 on success, -ative otherwise
+ */
+static int of_property_read_u32_with_log(const struct device_node *np,
+					 const char *propname,
+					 u32 *out_value,
+					 struct device *dev)
+{
+	int err;
+
+	err = of_property_read_u32(np, propname, out_value);
+	if (err) {
+		dev_err(dev, "get of property %s failed\n", propname);
+		return err;
+	}
+	dev_dbg(dev, "get of property %s=0x%08x\n", propname, *out_value);
+	return err;
+}
+
+/**
+ * @brief Reads 8 bit value from device_node, logs failure as error
+ *
+ * @param np device node
+ * @param propname property name
+ * @param out_value value read
+ * @return int 0 on success, -ative otherwise
+ */
+static int of_property_read_u8_with_log(const struct device_node *np,
+					const char *propname,
+					u8 *out_value,
+					struct device *dev)
+{
+	int err;
+	u32 tmp_val;
+	// of_property_read_u8 is broken, it always returns 0!
+	err = of_property_read_u32(np, propname, &tmp_val);
+	if (err) {
+		dev_err(dev, "get of property %s failed\n", propname);
+		return err;
+	}
+	*out_value = tmp_val & 0xFF;
+	dev_dbg(dev, "get of property %s=0x%02x\n", propname, tmp_val);
+	return err;
+}
+
+static int lcd_get_of_properties(struct platform_device *pdev,
+				struct boe_lcd_i2c_platform_data *plat_data)
 {
 	struct device_node *np = pdev->dev.of_node;
 	int err;
-	u32 ipu_id, disp_id;
 	const char *default_ifmt;
 
+	err = of_property_read_u32_with_log(np, "ipu_id", &plat_data->ipu_id, &pdev->dev);
+	if (err)
+		return err;
+	err = of_property_read_u32_with_log(np, "disp_id", &plat_data->disp_id, &pdev->dev);
+	if (err)
+		return err;
+	err = of_property_read_u8_with_log(np, "i2c_bus", &plat_data->i2c_bus, &pdev->dev);
+	if (err)
+		return err;
+	err = of_property_read_u8_with_log(np, "i2c_addr", &plat_data->i2c_addr, &pdev->dev);
+	if (err)
+		return err;
+	dev_dbg(&pdev->dev, "ipu_id=0x%x, disp_id=0x%x, bus=0x%x, addr=0x%x",
+		plat_data->ipu_id,
+		plat_data->disp_id,
+		plat_data->i2c_bus,
+		plat_data->i2c_addr);
 	err = of_property_read_string(np, "default_ifmt", &default_ifmt);
 	if (err) {
 		dev_dbg(&pdev->dev, "get of property default_ifmt fail\n");
 		return err;
 	}
-	err = of_property_read_u32(np, "ipu_id", &ipu_id);
-	if (err) {
-		dev_dbg(&pdev->dev, "get of property ipu_id fail\n");
-		return err;
-	}
-	err = of_property_read_u32(np, "disp_id", &disp_id);
-	if (err) {
-		dev_dbg(&pdev->dev, "get of property disp_id fail\n");
-		return err;
-	}
-
-	plat_data->ipu_id = ipu_id;
-	plat_data->disp_id = disp_id;
+	dev_dbg(&pdev->dev, "default_ifmt=%s", default_ifmt);
 	if (!strncmp(default_ifmt, "RGB24", 5))
 		plat_data->default_ifmt = IPU_PIX_FMT_RGB24;
 	else if (!strncmp(default_ifmt, "BGR24", 5))
@@ -147,7 +506,7 @@ static int lcd_get_of_property(struct platform_device *pdev,
 	else if (!strncmp(default_ifmt, "YVYU16", 6))
 		plat_data->default_ifmt = IPU_PIX_FMT_YVYU;
 	else if (!strncmp(default_ifmt, "VYUY16", 6))
-				plat_data->default_ifmt = IPU_PIX_FMT_VYUY;
+		plat_data->default_ifmt = IPU_PIX_FMT_VYUY;
 	else {
 		dev_err(&pdev->dev, "err default_ifmt!\n");
 		return -ENOENT;
@@ -156,83 +515,94 @@ static int lcd_get_of_property(struct platform_device *pdev,
 	return err;
 }
 
-static int mxc_lcdif_probe(struct platform_device *pdev)
+static int boe_lcdif_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct pinctrl *pinctrl;
-	struct mxc_lcdif_data *lcdif;
-	struct mxc_lcd_platform_data *plat_data;
+	struct boe_lcdif_data *lcdif;
+	struct boe_lcd_i2c_platform_data *plat_data;
 
-	dev_dbg(&pdev->dev, "%s enter\n", __func__);
-	lcdif = devm_kzalloc(&pdev->dev, sizeof(struct mxc_lcdif_data),
+	LOG_ENTER();
+
+	lcdif = devm_kzalloc(&pdev->dev, sizeof(struct boe_lcdif_data),
 				GFP_KERNEL);
 	if (!lcdif)
 		return -ENOMEM;
 	plat_data = devm_kzalloc(&pdev->dev,
-				sizeof(struct mxc_lcd_platform_data),
+				sizeof(struct boe_lcd_i2c_platform_data),
 				GFP_KERNEL);
 	if (!plat_data)
 		return -ENOMEM;
 	pdev->dev.platform_data = plat_data;
 
-	ret = lcd_get_of_property(pdev, plat_data);
+	ret = lcd_get_of_properties(pdev, plat_data);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "get lcd of property fail\n");
 		return ret;
 	}
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "can't get/select pinctrl\n");
-		return PTR_ERR(pinctrl);
-	}
-
 	lcdif->pdev = pdev;
-	lcdif->disp_lcdif = mxc_dispdrv_register(&lcdif_drv);
+	lcdif->disp_lcdif = mxc_dispdrv_register(&boe_disp_drv);
 	mxc_dispdrv_setdata(lcdif->disp_lcdif, lcdif);
 
 	dev_set_drvdata(&pdev->dev, lcdif);
-	dev_dbg(&pdev->dev, "%s exit\n", __func__);
 
+	LOG_EXITR(ret);
 	return ret;
 }
 
-static int mxc_lcdif_remove(struct platform_device *pdev)
+static int boe_lcdif_remove(struct platform_device *pdev)
 {
-	struct mxc_lcdif_data *lcdif = dev_get_drvdata(&pdev->dev);
+	struct boe_lcdif_data *lcdif = dev_get_drvdata(&pdev->dev);
+
+	LOG_ENTER();
 
 	mxc_dispdrv_puthandle(lcdif->disp_lcdif);
 	mxc_dispdrv_unregister(lcdif->disp_lcdif);
-	kfree(lcdif);
+
+	LOG_EXIT();
 	return 0;
 }
 
-static const struct of_device_id imx_lcd_dt_ids[] = {
-	{ .compatible = "fsl,lcd"},
+static const struct of_device_id boe_lcd_dt_ids[] = {
+	{ .compatible = "boe,vx039x0m-nh0"},
 	{ /* sentinel */ }
 };
 static struct platform_driver mxc_lcdif_driver = {
 	.driver = {
-		.name = "mxc_lcdif",
-		.of_match_table	= imx_lcd_dt_ids,
+		.name = "mxcfb_boe",
+		.of_match_table	= boe_lcd_dt_ids,
 	},
-	.probe = mxc_lcdif_probe,
-	.remove = mxc_lcdif_remove,
+	.probe = boe_lcdif_probe,
+	.remove = boe_lcdif_remove,
 };
 
-static int __init mxc_lcdif_init(void)
+/**
+ * @brief entry point when loaded as a module
+ *
+ * @return int
+ */
+static int __init boe_lcdif_init(void)
 {
+	LOG_ENTER();
+	LOG_EXIT();
+	// This will trigger boe_dispdrv_init from the nxp framework
 	return platform_driver_register(&mxc_lcdif_driver);
 }
 
-static void __exit mxc_lcdif_exit(void)
+/**
+ * @brief exit point as module
+ *
+ */
+static void __exit boe_lcdif_exit(void)
 {
+	LOG_ENTER();
+	LOG_EXIT();
 	platform_driver_unregister(&mxc_lcdif_driver);
 }
 
-module_init(mxc_lcdif_init);
-module_exit(mxc_lcdif_exit);
+module_init(boe_lcdif_init);
+module_exit(boe_lcdif_exit);
 
-MODULE_AUTHOR("Freescale Semiconductor, Inc.");
-MODULE_DESCRIPTION("i.MX ipuv3 LCD extern port driver");
+MODULE_AUTHOR("Jonas Rydow");
+MODULE_DESCRIPTION("i.MX ipuv3 LCD extern port driver with i2c setup");
 MODULE_LICENSE("GPL");
