@@ -98,7 +98,7 @@
 			regulator-min-microvolt = <4000000>;
 			regulator-max-microvolt = <4000000>;
 			gpio = <&ec702_pca9534_0x46 2 GPIO_ACTIVE_HIGH>;
-			//regulator-boot-on;
+			regulator-boot-on;
 			startup-delay-us = <10000>;
 			enable-active-high;
 		};
