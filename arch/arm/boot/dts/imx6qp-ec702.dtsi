@@ -154,6 +154,12 @@
 		late_init = <0>;
 		disp_dev = "lcd-i2c";
 		mode_str ="BOE-XGA";
+		backlight_lcd = <&backlight_lcd>;
+		status = "okay";
+	};
+
+	backlight_lcd: backlight_lcd {
+		compatible = "dummy-backlight";
 		status = "okay";
 	};
 

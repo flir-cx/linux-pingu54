@@ -12,6 +12,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/i2c.h>
@@ -24,6 +25,14 @@
 #include <linux/platform_device.h>
 
 #include "mxc_dispdrv.h"
+
+
+#define BOE_VX039_MAX_BL_IF_BRIGHTNESS	255
+#define BOE_VX039_MAX_BL_REG_LOW	0xFF
+#define BOE_VX039_MAX_BL_REG_HIGH	0x01
+#define BOE_VX039_MAX_BL_REG		0x01FF
+#define BOE_VX039_REG_WRDISBV		0x51
+
 
 //#define PLANTUML_DEBUG
 #ifdef PLANTUML_DEBUG
@@ -49,7 +58,7 @@ struct boe_lcd_i2c_platform_data {
 struct boe_lcdif_data {
 	struct platform_device *pdev;
 	struct mxc_dispdrv_handle *disp_lcdif;
-	struct i2c_client *i2c_client;
+	struct backlight_device *bl_dev;
 };
 
 #define DISPDRV_LCD_I2C	"lcd-i2c"
@@ -215,7 +224,7 @@ static int i2c_reg_write(struct device *dev, u8 *data_out, int len)
 	return ret;
 }
 
-#ifdef DEBUG_BOE_REG_SETUP
+
 /* read a register to the display */
 static int i2c_reg_read(struct device *dev, u8 *data_out, u8 *data_in)
 {
@@ -259,7 +268,69 @@ static int i2c_reg_read(struct device *dev, u8 *data_out, u8 *data_in)
 
 	return ret;
 }
-#endif
+
+/**
+ * @brief reads brightness register from display
+ *
+ * @param dev i2c device
+ * @param val Where to put the value on success
+ * @return int 0 0n success
+ */
+static int boe_disp_read_brightness(struct device *dev, u16 *val)
+{
+	int ret;
+	u8 data_in[2];
+	u8 data_out[2] = {
+		BOE_VX039_REG_WRDISBV, 0x00
+	};
+
+	LOG_ENTER();
+	ret = i2c_reg_read(dev, data_out, data_in);
+	if (ret)
+		return ret;
+	*val = data_in[1];
+
+	data_out[1] = 0x01;
+	ret = i2c_reg_read(dev, data_out, data_in);
+
+	*val |= data_in[1] << 8;
+
+	dev_err(dev, "boe_read brightness:%d.\n", *val);
+	LOG_EXITR(ret);
+	return ret;
+};
+
+
+/**
+ * @brief Writes a 9 bit value as brightness
+ *
+ * @param dev device
+ * @param val 0x00 - 0x1FF
+ * @return int zero on success
+ */
+static int boe_disp_write_brightness(struct device *dev, u16 val)
+{
+	u8 data_out[4] = {
+		BOE_VX039_REG_WRDISBV,
+		0x00,
+		0x00,
+		val & BOE_VX039_MAX_BL_REG_LOW
+	};
+	int ret;
+
+	LOG_ENTER();
+	// Write DBV[7:0]
+	ret = i2c_reg_write(dev, data_out, 4);
+
+	if (!ret) {
+		// Write DBV[8:8]
+		data_out[3] = (val >> 8) & BOE_VX039_MAX_BL_REG_HIGH;
+		data_out[1] = 0x01;
+	}
+	ret = i2c_reg_write(dev, data_out, 4);
+	LOG_EXITR(ret);
+	return ret;
+}
 
 static int boe_disp_i2c_init(struct device *dev)
 {
@@ -291,6 +362,102 @@ static int boe_disp_i2c_init(struct device *dev)
 
 	LOG_EXITR(ret);
 	return ret;
+}
+
+static int boe_disp_bl_set_brightness(struct boe_lcdif_data *lcdif, int brightness)
+{
+	struct backlight_device *bl = lcdif->bl_dev;
+	// The register seems to be 9 bits wide, hence 0x1FF as max
+	u16 boe_brightness;
+	int ret;
+
+	LOG_ENTER();
+	boe_brightness = ((brightness * BOE_VX039_MAX_BL_REG) / bl->props.max_brightness);
+	dev_err(&bl->dev, "boe_brightness:%d.\n", boe_brightness);
+	ret = boe_disp_write_brightness(&lcdif->pdev->dev, boe_brightness);
+
+	LOG_EXITR(ret);
+	return ret;
+}
+
+static int boe_disp_bl_update_status(struct backlight_device *bl)
+{
+	int brightness = bl->props.brightness;
+	struct boe_lcdif_data *lcdif = bl_get_data(bl);
+
+	LOG_ENTER();
+	if (bl->props.power != FB_BLANK_UNBLANK ||
+		bl->props.fb_blank != FB_BLANK_UNBLANK)
+		brightness = 0;
+	boe_disp_bl_set_brightness(lcdif, brightness);
+
+	dev_dbg(&bl->dev, "boe_disp backlight brightness:%d.\n", brightness);
+
+	LOG_EXITR(0);
+	return 0;
+}
+
+
+static int boe_disp_bl_get_brightness(struct backlight_device *bl)
+{
+	u16 val;
+	int ret;
+	struct boe_lcdif_data *lcdif = bl_get_data(bl);
+
+	LOG_ENTER();
+	ret = boe_disp_read_brightness(&lcdif->pdev->dev, &val);
+	if (ret) {
+		dev_err(&lcdif->pdev->dev,
+			"Failed to read boe brightness: %d\n", ret);
+		return ret;
+	}
+	ret = (val * bl->props.max_brightness) / BOE_VX039_MAX_BL_REG;
+	LOG_EXITR(ret);
+	return ret;
+}
+
+static int boe_disp_bl_check_fb(struct backlight_device *bl, struct fb_info *fbi)
+{
+	LOG_ENTER();
+	LOG_EXIT();
+	return 0;
+}
+static const struct backlight_ops boe_disp_lcd_bl_ops = {
+	.update_status = boe_disp_bl_update_status,
+	.get_brightness = boe_disp_bl_get_brightness,
+	.check_fb = boe_disp_bl_check_fb,
+};
+
+static int boe_disp_init_backlight(struct boe_lcdif_data *lcdif)
+{
+	struct backlight_properties props;
+	struct backlight_device	*bl;
+	struct device *dev = &lcdif->pdev->dev;
+
+	LOG_ENTER();
+	if (lcdif->bl_dev) {
+		pr_debug("boe_disp backlight already init!\n");
+		return 0;
+	}
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = BOE_VX039_MAX_BL_IF_BRIGHTNESS;
+	props.type = BACKLIGHT_RAW;
+	bl = devm_backlight_device_register(dev, "mxcfb_boe", dev, lcdif,
+					    &boe_disp_lcd_bl_ops, &props);
+	if (IS_ERR(bl)) {
+		pr_err("error %ld on backlight register\n", PTR_ERR(bl));
+		return PTR_ERR(bl);
+	}
+
+	lcdif->bl_dev = bl;
+	bl->props.power = FB_BLANK_UNBLANK;
+	bl->props.fb_blank = FB_BLANK_UNBLANK;
+	bl->props.brightness = BOE_VX039_MAX_BL_IF_BRIGHTNESS;
+
+	boe_disp_bl_update_status(bl);
+	LOG_EXIT();
+
+	return 0;
 }
 
 // This would be called from mxcfb_probe -> mxcfb_dispdrv_init ->
@@ -335,9 +502,12 @@ static int boe_dispdrv_init(struct mxc_dispdrv_handle *disp,
 
 	ret = boe_disp_i2c_init(dev);
 
-	// TODO register as backlight service
-	// struct mxcfb_info* mxcfbi = (struct mxcfb_info *)fbi->par;
-	// devm_backlight_device_register(bla blaa "mxcfb_boe", mxcfbi->bd,
+	if (ret) {
+		dev_err(dev, "Failed initalizing lcd %d\n", ret);
+		return ret;
+	}
+
+	ret = boe_disp_init_backlight(lcdif);
 
 	LOG_EXITR(ret);
 	return ret;
@@ -346,7 +516,9 @@ static int boe_dispdrv_init(struct mxc_dispdrv_handle *disp,
 // The ones below are defined just to get a feel for how they are used.
 static void boe_dispdrv_deinit(struct mxc_dispdrv_handle *disp)
 {
+	struct boe_lcdif_data *lcdif = mxc_dispdrv_getdata(disp);
 	LOG_ENTER();
+	devm_backlight_device_unregister(&lcdif->pdev->dev, lcdif->bl_dev);
 	LOG_EXIT();
 }
 
