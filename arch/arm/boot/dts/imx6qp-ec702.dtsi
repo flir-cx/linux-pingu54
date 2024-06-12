@@ -546,8 +546,8 @@
 		reg = <0x6b>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <15 2>;
-		ti,usb-charger-detection = <&usbotg>;
-		status = "disabled";
+                //ti,usb-charger-detection = <&usbotg>;
+		status = "okay";
 	};
 
 	/* Battery fuel gauge */
