@@ -212,89 +212,87 @@ FSC_S32 fusb_InitializeUSBMux(void)
 {
     FSC_S32 ret = 0;
     struct device_node* node;
+    struct device *dev;
     struct fusb30x_chip* chip = fusb30x_GetChip();
 
     if (!chip) {
-        pr_err("FUSB  %s - Error: Chip structure is NULL!\n", __func__);
         return -ENOMEM;
     }
 
     /* Get our device tree node */
     node = chip->client->dev.of_node;
+    dev = &chip->client->dev;
 
     chip->gpio_usbmux_pol = of_get_named_gpio(node, "usbmux-gpio-pol", 0);
     if (!gpio_is_valid(chip->gpio_usbmux_pol)) {
         goto out;
     }
-
-    // Request our GPIO to reserve it in the system - this should help ensure we have exclusive access (not guaranteed)
-    ret = gpio_request(chip->gpio_usbmux_pol, "usbmux-gpio-pol");
-    if (ret < 0) {
-        dev_err(&chip->client->dev, "%s - Error: Could not request GPIO for USBMUX POL! Error code: %d\n", __func__, ret);
-        goto out;
-    }
-
-    ret = gpio_direction_output(chip->gpio_usbmux_pol, 0);
-    if (ret < 0) {
-        dev_err(&chip->client->dev, "%s - Error: Could not set GPIO direction to input for USBMUX POL! Error code: %d\n", __func__, ret);
-        goto out;
-    }
-
     chip->gpio_usbmux_amsel = of_get_named_gpio(node, "usbmux-gpio-amsel", 0);
     if (!gpio_is_valid(chip->gpio_usbmux_amsel)) {
         goto out;
     }
-
-    // Request our GPIO to reserve it in the system - this should help ensure we have exclusive access (not guaranteed)
-    ret = gpio_request(chip->gpio_usbmux_amsel, "usbmux-gpio-amsel");
-    if (ret < 0) {
-        dev_err(&chip->client->dev, "%s - Error: Could not request GPIO for USBMUX AMSEL! Error code: %d\n", __func__, ret);
-        goto out;
-    }
-
-    ret = gpio_direction_output(chip->gpio_usbmux_amsel, 0);
-    if (ret < 0) {
-        dev_err(&chip->client->dev, "%s - Error: Could not set GPIO direction to input for USBMUX AMSEL! Error code: %d\n", __func__, ret);
-        goto out;
-    }
-
     chip->gpio_usbmux_en = of_get_named_gpio(node, "usbmux-gpio-en", 0);
     if (!gpio_is_valid(chip->gpio_usbmux_en)) {
         goto out;
     }
 
     // Request our GPIO to reserve it in the system - this should help ensure we have exclusive access (not guaranteed)
+    ret = gpio_request(chip->gpio_usbmux_pol, "usbmux-gpio-pol");
+    if (ret) {
+        dev_err(dev, "Could not request GPIO for USBMUX POL! Error code: %d\n", ret);
+        goto outa;
+    }
+
+    // Request our GPIO to reserve it in the system - this should help ensure we have exclusive access (not guaranteed)
+    ret = gpio_request(chip->gpio_usbmux_amsel, "usbmux-gpio-amsel");
+    if (ret) {
+        dev_err(dev, "Could not request GPIO for USBMUX AMSEL! Error code: %d\n", ret);
+        goto outb;
+    }
+
+
+    // Request our GPIO to reserve it in the system - this should help ensure we have exclusive access (not guaranteed)
     ret = gpio_request(chip->gpio_usbmux_en, "usbmux-gpio-en");
-    if (ret < 0) {
-        dev_err(&chip->client->dev, "%s - Error: Could not request GPIO for USBMUX EN! Error code: %d\n", __func__, ret);
-        goto out;
+    if (ret) {
+        dev_err(dev, "Could not request GPIO for USBMUX EN! Error code: %d\n", ret);
+        goto outc;
     }
 
+    ret = gpio_direction_output(chip->gpio_usbmux_pol, 0);
+    if (ret) {
+        dev_err(dev, "Could not set GPIO direction to input for USBMUX POL! Error code: %d\n", ret);
+        goto outd;
+    }
+    ret = gpio_direction_output(chip->gpio_usbmux_amsel, 0);
+    if (ret) {
+        dev_err(dev, "Could not set GPIO direction to input for USBMUX AMSEL! Error code: %d\n", ret);
+        goto outd;
+    }
     ret = gpio_direction_output(chip->gpio_usbmux_en, 0);
-    if (ret < 0) {
-        dev_err(&chip->client->dev, "%s - Error: Could not set GPIO direction to input for USBMUX EN! Error code: %d\n", __func__, ret);
-        goto out;
+    if (ret) {
+        dev_err(dev, "Could not set GPIO direction to input for USBMUX EN! Error code: %d\n", ret);
+        goto outd;
     }
 
-    pr_info("FUSB  %s - USBMUX POL GPIO initialized as pin '%d'\n", __func__, chip->gpio_usbmux_pol);
-    pr_info("FUSB  %s - USBMUX AMSEL GPIO initialized as pin '%d'\n", __func__, chip->gpio_usbmux_amsel);
-    pr_info("FUSB  %s - USBMUX EN GPIO initialized as pin '%d'\n", __func__, chip->gpio_usbmux_en);
+    dev_info(dev, "USBMUX POL GPIO initialized as pin '%d'\n", chip->gpio_usbmux_pol);
+    dev_info(dev, "USBMUX AMSEL GPIO initialized as pin '%d'\n", chip->gpio_usbmux_amsel);
+    dev_info(dev, "USBMUX EN GPIO initialized as pin '%d'\n", chip->gpio_usbmux_en);
 
-    return 0;
+    return ret;
+
+outd:
+        gpio_free(chip->gpio_usbmux_en);
+outc:
+        gpio_free(chip->gpio_usbmux_amsel);
+outb:
+        gpio_free(chip->gpio_usbmux_pol);
+outa:
 
 out:
-    if (chip->gpio_usbmux_pol) {
-        gpio_free(chip->gpio_usbmux_pol);
-        chip->gpio_usbmux_pol = 0;
-    }
-    if (chip->gpio_usbmux_amsel) {
-        gpio_free(chip->gpio_usbmux_amsel);
-        chip->gpio_usbmux_amsel = 0;
-    }
-    if (chip->gpio_usbmux_en) {
-        gpio_free(chip->gpio_usbmux_en);
-        chip->gpio_usbmux_en = 0;
-    }
+    chip->gpio_usbmux_pol = 0;
+    chip->gpio_usbmux_amsel = 0;
+    chip->gpio_usbmux_en = 0;
+    dev_err(dev, "USB Muxing disabled\n");
     return ret;
 }
 

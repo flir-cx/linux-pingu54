@@ -60,39 +60,35 @@ static int fusb30x_probe (struct i2c_client* client,
     int ret = 0;
     struct fusb30x_chip* chip; 
     struct i2c_adapter* adapter;
+    struct device *dev = &client->dev;
 
     if (!client)
     {
-        pr_err("FUSB  %s - Error: Client structure is NULL!\n", __func__);
+        pr_err("Error: Client structure is NULL!\n");
         return -EINVAL;
     }
-    dev_info(&client->dev, "%s\n", __func__);
 
     /* Make sure probe was called on a compatible device */
-	if (!of_match_device(fusb30x_dt_match, &client->dev))
-	{
-		dev_err(&client->dev, "FUSB  %s - Error: Device tree mismatch!\n", __func__);
-		return -EINVAL;
-	}
-    pr_debug("FUSB  %s - Device tree matched!\n", __func__);
+    if (!of_match_device(fusb30x_dt_match, &client->dev))
+    {
+        dev_err(&client->dev, "Error: Device tree mismatch!\n");
+        return -EINVAL;
+    }
 
     /* Allocate space for our chip structure (devm_* is managed by the device) */
     chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
     if (!chip)
-	{
-		dev_err(&client->dev, "FUSB  %s - Error: Unable to allocate memory for g_chip!\n", __func__);
-		return -ENOMEM;
-	}
+       return -ENOMEM;
+
     chip->client = client;                                                      // Assign our client handle to our chip
     fusb30x_SetChip(chip);                                                      // Set our global chip's address to the newly allocated memory
-    pr_debug("FUSB  %s - Chip structure is set! Chip: %p ... g_chip: %p\n", __func__, chip, fusb30x_GetChip());
 
     /* Initialize the chip lock */
     mutex_init(&chip->lock);
 
     /* Initialize the chip's data members */
     fusb_InitChipData();
-    pr_debug("FUSB  %s - Chip struct data initialized!\n", __func__);
+    dev_dbg(dev, "Chip struct data initialized!\n");
 
     /* Verify that the system has our required I2C/SMBUS functionality (see <linux/i2c.h> for definitions) */
     adapter = to_i2c_adapter(client->dev.parent);
@@ -104,27 +100,26 @@ static int fusb30x_probe (struct i2c_client* client,
     {
         // If the platform doesn't support block reads, try with block writes and single reads (works with eg. RPi)
         // NOTE: It is likely that this may result in non-standard behavior, but will often be 'close enough' to work for most things
-        dev_warn(&client->dev, "FUSB  %s - Warning: I2C/SMBus block read/write functionality not supported, checking single-read mode...\n", __func__);
+        dev_warn(dev, "Warning: I2C/SMBus block read/write functionality not supported, checking single-read mode...\n");
         if (!i2c_check_functionality(adapter, FUSB30X_I2C_SMBUS_REQUIRED_FUNC))
         {
-            dev_err(&client->dev, "FUSB  %s - Error: Required I2C/SMBus functionality not supported!\n", __func__);
-            dev_err(&client->dev, "FUSB  %s - I2C Supported Functionality Mask: 0x%x\n", __func__, i2c_get_functionality(adapter));
+            dev_err(&client->dev, "Error: Required I2C/SMBus functionality not supported!\n");
+            dev_err(&client->dev, "I2C Supported Functionality Mask: 0x%x\n", i2c_get_functionality(adapter));
             return -EIO;
         }
     }
-    pr_debug("FUSB  %s - I2C Functionality check passed! Block reads: %s\n", __func__, chip->use_i2c_blocks ? "YES" : "NO");
+    dev_dbg(dev, "I2C Functionality check passed! Block reads: %s\n", chip->use_i2c_blocks ? "YES" : "NO");
 
     /* Assign our struct as the client's driverdata */
     i2c_set_clientdata(client, chip);
-    pr_debug("FUSB  %s - I2C client data set!\n", __func__);
 
     /* Verify that our device exists and that it's what we expect */
     if (!fusb_IsDeviceValid())
     {
-        dev_err(&client->dev, "FUSB  %s - Error: Unable to communicate with device!\n", __func__);
+        dev_err(dev, "Error: Unable to communicate with device!\n");
         return -EIO;
     }
-    pr_debug("FUSB  %s - Device check passed!\n", __func__);
+    dev_dbg(dev, "Device check passed!\n");
 
     /* reset fusb302*/
     fusb_reset();
@@ -136,18 +131,22 @@ static int fusb30x_probe (struct i2c_client* client,
     ret = fusb_InitializeGPIO();
     if (ret)
     {
-        dev_err(&client->dev, "FUSB  %s - Error: Unable to initialize GPIO!\n", __func__);
+        dev_err(&client->dev, "Error: Unable to initialize GPIO!\n");
         return ret;
     }
-    pr_debug("FUSB  %s - GPIO initialized!\n", __func__);
+    dev_dbg(dev, "GPIO initialized!\n");
 
-    fusb_InitializeUSBMux();
-    pr_debug("FUSB  %s - USBMUX GPIO initialized!\n", __func__);
+    ret = fusb_InitializeUSBMux();
+    if (ret) {
+        dev_err(&client->dev, "Unable to initialize USBMUX!\n");
+    } else {
+        dev_dbg(&client->dev, "USBMUX GPIO initialized!\n");
+    }
 
 //#ifdef FSC_DEBUG
     /* Initialize debug sysfs file accessors */
     fusb_Sysfs_Init();
-    pr_debug("FUSB  %s - Sysfs device file created!\n", __func__);
+    dev_dbg(dev, "Sysfs device file created!\n");
 //#endif // FSC_DEBUG
 
 #ifdef FSC_INTERRUPT_TRIGGERED
@@ -155,27 +154,27 @@ static int fusb30x_probe (struct i2c_client* client,
     ret = fusb_EnableInterrupts();
     if (ret)
     {
-        dev_err(&client->dev, "FUSB  %s - Error: Unable to enable interrupts! Error code: %d\n", __func__, ret);
+        dev_err(&client->dev, "Error: Unable to enable interrupts! Error code: %d\n", ret);
         return -EIO;
     }
 
     /* Initialize the core and enable the state machine (NOTE: timer and GPIO must be initialized by now)
     *  Interrupt must be enabled before starting 302 initialization */
     fusb_InitializeCore();
-    pr_debug("FUSB  %s - Core is initialized!\n", __func__);
+    dev_dbg(dev, "Core is initialized!\n");
 #else
     /* Initialize the core and enable the state machine (NOTE: timer and GPIO must be initialized by now) */
     fusb_InitializeCore();
-    pr_debug("FUSB  %s - Core is initialized!\n", __func__);
+    dev_dbg(dev, "Core is initialized!\n");
 
     /* Init our workers, but don't start them yet */
     fusb_InitializeWorkers();
     /* Start worker threads after successful initialization */
     fusb_ScheduleWork();
-    pr_debug("FUSB  %s - Workers initialized and scheduled!\n", __func__);
+    dev_dbg(dev, "Workers initialized and scheduled!\n");
 #endif  // ifdef FSC_POLLING elif FSC_INTERRUPT_TRIGGERED
 
-    dev_info(&client->dev, "FUSB  %s - FUSB30X Driver loaded successfully!\n", __func__);
+    dev_info(&client->dev, "FUSB30X Driver loaded successfully!\n");
 	return ret;
 }
 
