@@ -76,18 +76,20 @@
 		pinctrl-1 = <&pinctrl_ecspi1>;
 		pinctrl-2 = <&pinctrl_ecspi1_idle>;
 
-		/* _n low signals are interpreted by fvdk driver */
-		fpga_status_n = <&gpio1 2 GPIO_ACTIVE_HIGH>;
-		fpga_config_n = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		fpga_status_n = <&gpio1 2 GPIO_ACTIVE_LOW>;
+		fpga_config_n = <&gpio1 7 GPIO_ACTIVE_LOW>;
 		fpga_conf_done = <&gpio1 8 GPIO_ACTIVE_HIGH>;
-		fpga_ce_n = <&gpio5 25 GPIO_ACTIVE_HIGH>;
+		fpga_ce_n = <&gpio5 25 GPIO_ACTIVE_LOW>;
 		fpga-ready-gpio = <&gpio3 19 GPIO_ACTIVE_HIGH>;
 
 		spi-sclk-gpio = <&gpio5 22 GPIO_ACTIVE_HIGH>;
 		spi-mosi-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>;
 		spi-miso-gpio = <&gpio5 24 GPIO_ACTIVE_HIGH>;
-		spi-cs-gpio = <&gpio5 28 GPIO_ACTIVE_HIGH>;
+		spi-cs-gpio = <&gpio5 28 GPIO_ACTIVE_LOW>;
 
+		// The fvdk driver needs to find the SPI device
+		// via this phandle to prepare flash during FPGA programming
+		spi_fpga_flash = <&qspi_flash>;
 		vin-supply = <&DA9063_BMEM>, <&DA9063_BPRO>, <&DA9063_PERI_SW>, <&DA9063_CORE_SW>, <&DA9063_LDO8>;
 	};
 
@@ -206,7 +208,7 @@
 	// pinctrl-names = "default";
 	// pinctrl-0 = <&pinctrl_ecspi1>;
 	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio5 28 0>, <&gpio5 29 0>;
+	cs-gpios = <&gpio5 28 GPIO_ACTIVE_LOW>, <&gpio5 29 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	qspi_flash: mt25ql128aba@0 {
