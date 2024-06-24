@@ -87,6 +87,8 @@
 		spi-mosi-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>;
 		spi-miso-gpio = <&gpio5 24 GPIO_ACTIVE_HIGH>;
 		spi-cs-gpio = <&gpio5 28 GPIO_ACTIVE_HIGH>;
+
+		vin-supply = <&DA9063_BMEM>, <&DA9063_BPRO>, <&DA9063_PERI_SW>, <&DA9063_CORE_SW>, <&DA9063_LDO8>;
 	};
 
 	regulators {
@@ -371,7 +373,6 @@
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BMEM";
 				regulator-boot-on;
-				regulator-always-on;
 				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
 				/* Suspend handled by FVDK */
 			};
@@ -395,15 +396,18 @@
 			};
 
 			/* 1V8D_FPGA */
-			DA9063_CORE_SW:core_sw  {
+			DA9063_CORE_SW:core-sw  {
 				regulator-name = "DA9063_CORE_SW";
 				regulator-boot-on;
 				/* Suspend handled by FVDK */
 			};
 
 			/* LDO3: 1V8 test point */
-			DA9063_LDO3_BP:ldo3_bp  {
+			DA9063_LDO3_BP:ldo3  {
 				regulator-name = "DA9063_LDO3_BP";
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
 			};
 
 			/* 3V15_GP */
@@ -431,8 +435,8 @@
 				regulator-always-on;
 			};
 
-			/* 1V2D */
-			DA9063_PERI_SW:peri_sw  {
+			/* 1V2D_FPGA */
+			DA9063_PERI_SW:peri-sw  {
 				regulator-name = "DA9063_PERI_SW";
 				regulator-boot-on;
 				/* Suspend handled by FVDK */
