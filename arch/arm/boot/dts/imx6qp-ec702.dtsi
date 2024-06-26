@@ -194,6 +194,7 @@
 		pinctrl-0 = <&pinctrl_ipu1_di0>;
 		i2c_bus = <0x00>;
 		i2c_addr = <0x4c>;
+		power-supply = <&reg_disp_pwr_en>;
 		status = "okay";
 	};
 };

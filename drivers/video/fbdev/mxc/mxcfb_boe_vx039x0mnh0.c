@@ -15,6 +15,7 @@
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
+#include <linux/regulator/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/ipu.h>
@@ -32,6 +33,7 @@
 #define BOE_VX039_MAX_BL_REG_HIGH	0x01
 #define BOE_VX039_MAX_BL_REG		0x01FF
 #define BOE_VX039_REG_WRDISBV		0x51
+#define BOE_VX039_SUPPLY_NAME		"power"
 
 
 //#define PLANTUML_DEBUG
@@ -53,6 +55,7 @@ struct boe_lcd_i2c_platform_data {
 	u32 disp_id;
 	u8 i2c_bus;
 	u8 i2c_addr;
+	struct regulator *pwr_regulator;
 };
 
 struct boe_lcdif_data {
@@ -225,7 +228,7 @@ static int i2c_reg_write(struct device *dev, u8 *data_out, int len)
 }
 
 
-/* read a register to the display */
+/* read a register from the display */
 static int i2c_reg_read(struct device *dev, u8 *data_out, u8 *data_in)
 {
 	int ret;
@@ -258,7 +261,7 @@ static int i2c_reg_read(struct device *dev, u8 *data_out, u8 *data_in)
 		dev_err(dev, "Failed reading register 0x%02x%02x! %d\n",
 			data_out[0], data_out[1], ret);
 	else
-		dev_err(dev, "Read back register 0x%02x%02x = 0x%02x%02x %d\n",
+		dev_info(dev, "Read back register 0x%02x%02x = 0x%02x%02x %d\n",
 			data_out[0], data_out[1], data_in[0], data_in[1], ret);
 
 	// i2c_transfer returns messages sent, we want to return 0 on success
@@ -295,7 +298,7 @@ static int boe_disp_read_brightness(struct device *dev, u16 *val)
 
 	*val |= data_in[1] << 8;
 
-	dev_err(dev, "boe_read brightness:%d.\n", *val);
+	dev_info(dev, "boe_read brightness:%d.\n", *val);
 	LOG_EXITR(ret);
 	return ret;
 };
@@ -373,7 +376,7 @@ static int boe_disp_bl_set_brightness(struct boe_lcdif_data *lcdif, int brightne
 
 	LOG_ENTER();
 	boe_brightness = ((brightness * BOE_VX039_MAX_BL_REG) / bl->props.max_brightness);
-	dev_err(&bl->dev, "boe_brightness:%d.\n", boe_brightness);
+	dev_info(&bl->dev, "boe_brightness:%d.\n", boe_brightness);
 	ret = boe_disp_write_brightness(&lcdif->pdev->dev, boe_brightness);
 
 	LOG_EXITR(ret);
@@ -692,25 +695,43 @@ static int boe_lcdif_probe(struct platform_device *pdev)
 	int ret;
 	struct boe_lcdif_data *lcdif;
 	struct boe_lcd_i2c_platform_data *plat_data;
+	struct regulator *pwr_reg;
 
 	LOG_ENTER();
 
-	lcdif = devm_kzalloc(&pdev->dev, sizeof(struct boe_lcdif_data),
-				GFP_KERNEL);
-	if (!lcdif)
-		return -ENOMEM;
+	// The regulator is not up so this probe will be defered
+	// the first few times, this is why this is done before
+	// any allocations. Since it is on from u-boot there is
+	// no settling time after enable.
+	pwr_reg = devm_regulator_get_optional(&pdev->dev, BOE_VX039_SUPPLY_NAME);
+	if (PTR_ERR(pwr_reg) != -ENODEV) {
+		if (IS_ERR(pwr_reg))
+			return PTR_ERR(pwr_reg);
+		ret = regulator_enable(pwr_reg);
+	}
+
 	plat_data = devm_kzalloc(&pdev->dev,
 				sizeof(struct boe_lcd_i2c_platform_data),
 				GFP_KERNEL);
 	if (!plat_data)
 		return -ENOMEM;
 	pdev->dev.platform_data = plat_data;
+	plat_data->pwr_regulator = pwr_reg;
 
 	ret = lcd_get_of_properties(pdev, plat_data);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "get lcd of property fail\n");
+		if (ret == -EPROBE_DEFER)
+			dev_err(&pdev->dev, "probe DEFERED\n");
+		else
+			dev_err(&pdev->dev, "get lcd of property fail\n");
 		return ret;
 	}
+
+
+	lcdif = devm_kzalloc(&pdev->dev, sizeof(struct boe_lcdif_data),
+				GFP_KERNEL);
+	if (!lcdif)
+		return -ENOMEM;
 
 	lcdif->pdev = pdev;
 	lcdif->disp_lcdif = mxc_dispdrv_register(&boe_disp_drv);
@@ -735,6 +756,115 @@ static int boe_lcdif_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/**
+ * @brief Disable power supply regulator, if it exists
+ *
+ * @param pdev
+ * @return 0 on success or if no regulator exists, else errno
+ */
+static int boe_lcd_disp_pwr_disable(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct boe_lcd_i2c_platform_data *plat_data = pdev->dev.platform_data;
+
+	LOG_ENTER();
+
+	if (!IS_ERR(plat_data->pwr_regulator)) {
+		ret = regulator_disable(plat_data->pwr_regulator);
+		if (ret)
+			dev_err(&pdev->dev, "failed to disable %s regulator\n",
+				BOE_VX039_SUPPLY_NAME);
+		else
+			dev_info(&pdev->dev, "%s regulator disabled\n",
+				 BOE_VX039_SUPPLY_NAME);
+	} else {
+		dev_info(&pdev->dev, "%s regulator not found, disable passed\n",
+			 BOE_VX039_SUPPLY_NAME);
+	}
+
+	LOG_EXITR(ret);
+	return ret;
+}
+/**
+ * @brief Enable power supply regulator, if it exists
+ *
+ * @param pdev
+ * @return 0 on success or if no regulator exists, else errno
+ */
+static int boe_lcd_disp_pwr_enable(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct boe_lcd_i2c_platform_data *plat_data = pdev->dev.platform_data;
+
+	LOG_ENTER();
+
+	if (!IS_ERR(plat_data->pwr_regulator)) {
+		ret = regulator_enable(plat_data->pwr_regulator);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to enable %s regulator\n",
+				BOE_VX039_SUPPLY_NAME);
+			return ret;
+		}
+		dev_info(&pdev->dev, "%s regulator enabled\n",
+				BOE_VX039_SUPPLY_NAME);
+
+		// From VX039X0M-NH0_Ver1.0...pdf, 10.1 Power on sequence, T1+T2
+		msleep(21);
+	} else {
+		dev_info(&pdev->dev, "%s regulator not found, enable passed\n",
+			 BOE_VX039_SUPPLY_NAME);
+	}
+
+	LOG_EXITR(ret);
+	return ret;
+}
+/**
+ * @brief Entry point for suspend cb
+ *
+ * @param pdev
+ * @param state
+ * @return int
+ */
+int boe_lcdif_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	int ret;
+
+	LOG_ENTER();
+	ret = boe_lcd_disp_pwr_disable(pdev);
+
+	LOG_EXITR(ret);
+	return 0;
+}
+
+/**
+ * @brief Entry point for resume cb
+ *
+ * @param pdev
+ * @return int
+ */
+int boe_lcdif_resume(struct platform_device *pdev)
+{
+	int ret;
+	struct boe_lcdif_data *lcdif = dev_get_drvdata(&pdev->dev);
+
+	LOG_ENTER();
+	ret = boe_lcd_disp_pwr_enable(pdev);
+	if (ret)
+		return ret;
+
+
+	ret = boe_disp_i2c_init(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to initialize lcd %d\n", ret);
+		return ret;
+	}
+
+	ret = boe_disp_bl_update_status(lcdif->bl_dev);
+
+	LOG_EXITR(ret);
+	return ret;
+
+}
 static const struct of_device_id boe_lcd_dt_ids[] = {
 	{ .compatible = "boe,vx039x0m-nh0"},
 	{ /* sentinel */ }
@@ -746,10 +876,12 @@ static struct platform_driver mxc_lcdif_driver = {
 	},
 	.probe = boe_lcdif_probe,
 	.remove = boe_lcdif_remove,
+	.suspend = boe_lcdif_suspend,
+	.resume	= boe_lcdif_resume,
 };
 
 /**
- * @brief entry point when loaded as a module
+ * @brief Entry point when loaded as a module
  *
  * @return int
  */
