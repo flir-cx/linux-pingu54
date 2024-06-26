@@ -23,16 +23,22 @@ properties:
     description: pixel format to use
 
   pinctrl-names:
-    description: phandle to pin control of rgb interface
+    description: phandle to pin control of rgb interface, must be "default", "disabled"
 
   pinctrl-0:
-    description: phandle to pinctrl
+    description: phandle to pinctrl, enabled
+
+  pinctrl-1:
+    description: phandle to pinctrl, disabled
 
   i2c_bus:
     description: i2c bus to which the display is connected
 
   i2c_addr:
     description: i2c address of the display
+
+  power-supply:
+    description: phandle to power supply regulator
 
 
 required:
@@ -45,6 +51,9 @@ required:
   - i2c_bus
   - i2c_addr
 
+optional:
+  - power-supply
+
 additionalProperties: false
 
 examples:
@@ -54,10 +63,12 @@ examples:
       ipu_id = <0>;
       disp_id = <0>;
       default_ifmt = "RGB24";
-      pinctrl-names = "default";
-      pinctrl-0 = <&pinctrl_ipu1_di0>;
+      pinctrl-names = "default", "disabled";
+      pinctrl-0 = <&pinctrl_ipu1_di0_enabled>;
+      pinctrl-1 = <&pinctrl_ipu1_di0_disabled>;
       i2c_bus = <0x00>;
       i2c_addr = <0x4c>;
+      power-supply = <&reg_disp_pwr_en>;
       status = "okay";
     };
 
