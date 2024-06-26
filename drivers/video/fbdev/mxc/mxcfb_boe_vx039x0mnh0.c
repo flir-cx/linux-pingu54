@@ -15,7 +15,6 @@
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
-#include <linux/regulator/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/ipu.h>
@@ -23,7 +22,9 @@
 #include <linux/module.h>
 #include <linux/mxcfb.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
 #include "mxc_dispdrv.h"
 
@@ -56,6 +57,7 @@ struct boe_lcd_i2c_platform_data {
 	u8 i2c_bus;
 	u8 i2c_addr;
 	struct regulator *pwr_regulator;
+	struct pinctrl *pinctrl;
 };
 
 struct boe_lcdif_data {
@@ -727,6 +729,11 @@ static int boe_lcdif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	plat_data->pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(plat_data->pinctrl)) {
+		dev_err(&pdev->dev, "can't get/select default pinctrl\n");
+		return PTR_ERR(plat_data->pinctrl);
+	}
 
 	lcdif = devm_kzalloc(&pdev->dev, sizeof(struct boe_lcdif_data),
 				GFP_KERNEL);
@@ -754,6 +761,49 @@ static int boe_lcdif_remove(struct platform_device *pdev)
 
 	LOG_EXIT();
 	return 0;
+}
+
+/**
+ * @brief Enable the display interface bus
+ *
+ * @param pdev
+ * @return 0 on success -errno on fail
+ */
+static int enable_di_bus(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct boe_lcd_i2c_platform_data *plat_data = pdev->dev.platform_data;
+	struct pinctrl_state *pin_state;
+
+	pin_state = pinctrl_lookup_state(plat_data->pinctrl, "default");
+	ret = pinctrl_select_state(plat_data->pinctrl, pin_state);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to enable di bus\n");
+	else
+		dev_info(&pdev->dev, "Enabled di bus\n");
+
+	return ret;
+}
+/**
+ * @brief Disable the display interface bus
+ *
+ * @param pdev
+ * @return 0 on success -errno on fail
+ */
+static int disable_di_bus(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct boe_lcd_i2c_platform_data *plat_data = pdev->dev.platform_data;
+	struct pinctrl_state *pin_state;
+
+	pin_state = pinctrl_lookup_state(plat_data->pinctrl, "disabled");
+	ret = pinctrl_select_state(plat_data->pinctrl, pin_state);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to disable di bus\n");
+	else
+		dev_info(&pdev->dev, "Disabled di bus\n");
+
+	return ret;
 }
 
 /**
@@ -818,6 +868,7 @@ static int boe_lcd_disp_pwr_enable(struct platform_device *pdev)
 	LOG_EXITR(ret);
 	return ret;
 }
+
 /**
  * @brief Entry point for suspend cb
  *
@@ -831,9 +882,13 @@ int boe_lcdif_suspend(struct platform_device *pdev, pm_message_t state)
 
 	LOG_ENTER();
 	ret = boe_lcd_disp_pwr_disable(pdev);
+	if (ret)
+		dev_err(&pdev->dev, "failed to disable display power\n");
+
+	ret = disable_di_bus(pdev);
 
 	LOG_EXITR(ret);
-	return 0;
+	return ret;
 }
 
 /**
@@ -852,6 +907,11 @@ int boe_lcdif_resume(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = enable_di_bus(pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to reenable di bus %d, bailing out.\n", ret);
+		return ret;
+	}
 
 	ret = boe_disp_i2c_init(&pdev->dev);
 	if (ret) {
