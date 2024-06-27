@@ -69,8 +69,8 @@
 		};
 		reg_govp: reg_govp {
 			compatible = "regulator-fixed";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
 			regulator-name = "reg_govp";
 			gpio = <&gpio4 20 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
@@ -614,6 +614,7 @@
 		compatible = "atmel,24c02";
 		reg = <0x57>;
 		pagesize = <16>;
+		vcc-supply = <&DA9063_LDO11>;
 	};
 	sensor_flir_csi0: csi0@3c {
 		compatible = "flir,flir_csi";
