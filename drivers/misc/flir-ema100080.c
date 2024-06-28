@@ -228,13 +228,16 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 		dev_err(dev, "Failed to add sys fs entry\n");
 		goto err_misc_deregister;
 	}
+
 	/* Call the probe implementation */
+	ret = regulator_enable(vf->supply);
+	ret = regulator_enable(vf->adc_supply);
 	ret = flir_ema100080_on_probe(dev);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "Probe vf callback failed %d\n", ret);
 		goto err_remove_group;
 	}
-	ret = flir_ema100080_on_remove(dev);
+
 	dev_info(dev, "Viewfinder flir ema100080 found!\n");
 	return ret;
 
@@ -269,6 +272,8 @@ static int flir_ema100080_remove(struct i2c_client *client)
 	misc_deregister(&vf->miscdev);
 	dev_dbg(dev, "deregister misc dev\n");
 
+	ret = regulator_disable(vf->supply);
+	ret = regulator_disable(vf->adc_supply);
 	ret = flir_ema100080_on_remove(dev);
 	vf->dev = 0;
 	if (ret < 0)
@@ -338,10 +343,10 @@ static int flir_ema100080_do_ioctl(struct device *dev, u32 cmd, u8 *buf)
 		ret = 0;
 		break;
 	case IOCTL_FLIR_VF_PWR_OFF:
-		ret = flir_ema100080_set_pwr_off(dev);
+		/* ret = flir_ema100080_set_pwr_off(dev); */
 		break;
 	case IOCTL_FLIR_VF_PWR_ON:
-		ret = flir_ema100080_set_pwr_on(dev);
+		/* ret = flir_ema100080_set_pwr_on(dev); */
 		break;
 	default:
 		dev_err(dev, "ioctl %u not supported\n", cmd);
