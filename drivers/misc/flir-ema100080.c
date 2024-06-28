@@ -163,10 +163,6 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 	struct flir_ema100080_data *vf;
 	struct device *dev = &client->dev;
 
-	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_ON_GET IOCTL_R=%u\n", IOCTL_FLIR_VF_PWR_ON_GET);
-	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_ON IOCTL_W=%u\n", IOCTL_FLIR_VF_PWR_ON);
-	dev_dbg(dev, "probe IOCTL_FLIR_VF_PWR_OFF IOCTL_W=%u\n", IOCTL_FLIR_VF_PWR_OFF);
-
 	// sanity check
 	match = of_match_device(flir_ema100080_of_match, dev);
 	if (!match) {
