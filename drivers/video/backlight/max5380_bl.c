@@ -23,7 +23,6 @@ struct max5380_data {
 	u32 default_brightness;
 	u32 max_brightness;
 	struct regulator *supply;
-	bool regulator_enabled;
 };
 
 static const struct of_device_id max5380_match_table[] = { { .compatible = "flir,max5380" }, {}, };
@@ -105,27 +104,11 @@ static int max5380_update_status(struct backlight_device *backlight)
 		b = 0;
 	}
 
-	if (!data->regulator_enabled) {
-		ret = regulator_enable(data->supply);
-		data->regulator_enabled = true;
-	}
-
 	usleep_range(1000, 10000);
 	ret = i2c_smbus_write_byte(data->client, b);
 
 	if (ret < 0) {
 		dev_err(dev, "i2c write failed\n");
-		return ret;
-	}
-
-	if (data->regulator_enabled && brightness == 0) {
-		dev_dbg(dev, "brightness is set to zero.. power off regulator...\n");
-		ret = regulator_disable(data->supply);
-		data->regulator_enabled = false;
-	};
-
-	if (ret < 0) {
-		dev_err(dev, "backlight power off failed\n");
 		return ret;
 	}
 
