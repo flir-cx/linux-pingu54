@@ -73,10 +73,6 @@ static int init_emagin_lcd(struct device *dev);
 static int flir_ema100080_read_dt_i2c_cmds(struct device *dev, struct flir_ema100080_i2c_cmd *i2c_cmds);
 static int flir_ema100080_read_dt_driver_data(struct device *dev);
 
-/* Module loading/unloading responses */
-static int flir_ema100080_on_probe(struct device *dev);
-static int flir_ema100080_on_remove(struct device *dev);
-
 /* ioctl responses */
 static int flir_ema100080_set_pwr_on(struct device *dev);
 static int flir_ema100080_set_pwr_off(struct device *dev);
@@ -228,9 +224,10 @@ static int flir_ema100080_probe(struct i2c_client *client, const struct i2c_devi
 	/* Call the probe implementation */
 	ret = regulator_enable(vf->supply);
 	ret = regulator_enable(vf->adc_supply);
-	ret = flir_ema100080_on_probe(dev);
-	if (ret) {
-		dev_err(dev, "Probe vf callback failed %d\n", ret);
+	ret = flir_ema100080_set_pwr_on(dev);
+
+	if (ret < 0) {
+		dev_err(dev, "Failed to initialize emagin lcd\n");
 		goto err_remove_group;
 	}
 
@@ -270,7 +267,7 @@ static int flir_ema100080_remove(struct i2c_client *client)
 
 	ret = regulator_disable(vf->supply);
 	ret = regulator_disable(vf->adc_supply);
-	ret = flir_ema100080_on_remove(dev);
+	ret = flir_ema100080_set_pwr_off(dev);
 	vf->dev = 0;
 	if (ret < 0)
 		dev_err(dev, "%s: remove vf callback failed\n", __func__);
@@ -497,24 +494,6 @@ static int flir_ema100080_set_pwr_on(struct device *dev)
 }
 
 /**
- * @brief Called when device is probed
- *
- * @param vf viewfinder data struct, holds the device data
- * @return int non negative value on success
- */
-static int flir_ema100080_on_probe(struct device *dev)
-{
-	int ret = flir_ema100080_set_pwr_on(dev);
-
-	if (ret < 0) {
-		dev_err(dev, "Failed to initialize emagin lcd\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-/**
  * @brief Set power off
  *
  * @param vf viewfinder data struct, holds the device data
@@ -522,7 +501,6 @@ static int flir_ema100080_on_probe(struct device *dev)
  */
 static int flir_ema100080_set_pwr_off(struct device *dev)
 {
-	int ret = 0;
 	struct flir_ema100080_data *vf = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "Set psave to input\n");
@@ -534,17 +512,6 @@ static int flir_ema100080_set_pwr_off(struct device *dev)
 	}
 
 	return 0;
-}
-
-/**
- * @brief Called when device is removed
- *
- * @param vf viewfinder data struct, holds the device data
- * @return int non negative value on success
- */
-static int flir_ema100080_on_remove(struct device *dev)
-{
-	return flir_ema100080_set_pwr_off(dev);
 }
 
 /**
