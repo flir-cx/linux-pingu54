@@ -157,6 +157,7 @@
 		disp_dev = "lcd-i2c";
 		mode_str ="BOE-XGA";
 		backlight_lcd = <&backlight_lcd>;
+		bootlogo = <0x0 0x0>;
 		status = "okay";
 	};
 
