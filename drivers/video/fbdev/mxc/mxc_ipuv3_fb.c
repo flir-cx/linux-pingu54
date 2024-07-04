@@ -1867,7 +1867,7 @@ static void ipu_clone_fb(struct fb_info *info, unsigned long src_paddr, int fb)
 	task.output.paddr = dest_fbi->fix.smem_start; // This is the base
 	task.output.format = fbi_to_pixfmt(dest_fbi, false);
 
-	if (fb == 3 &&
+	if ((fb == 3 || fb == 2) &&
 	    (task.input.width == task.output.width) &&
 	    (task.input.height == task.output.height) &&
 	    (task.input.format == task.output.format)) {
