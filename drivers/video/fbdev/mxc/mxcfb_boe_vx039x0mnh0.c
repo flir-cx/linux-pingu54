@@ -701,15 +701,26 @@ static int boe_lcdif_probe(struct platform_device *pdev)
 
 	LOG_ENTER();
 
-	// The regulator is not up so this probe will be defered
-	// the first few times, this is why this is done before
-	// any allocations. Since it is on from u-boot there is
-	// no settling time after enable.
+	// The regulator might not be up so this probe may be defered.
+	// In order to not mess up the start order of framebuffers from
+	// the device tree we let that slip and try to get the regulator
+	// when we need it, i.e. when going into suspend. If this is not
+	// done the hdmi framebuffer may be started before the lcd and
+	// the primary buffer will not be correct.
 	pwr_reg = devm_regulator_get_optional(&pdev->dev, BOE_VX039_SUPPLY_NAME);
-	if (PTR_ERR(pwr_reg) != -ENODEV) {
-		if (IS_ERR(pwr_reg))
-			return PTR_ERR(pwr_reg);
+
+	if (!IS_ERR(pwr_reg))
 		ret = regulator_enable(pwr_reg);
+	else if (PTR_ERR(pwr_reg) == -ENODEV)
+		pr_err("%s: %s Optional power not found, and that's ok.\n",
+		       __func__, BOE_VX039_SUPPLY_NAME);
+	else if (PTR_ERR(pwr_reg) == -EPROBE_DEFER)
+		pr_err("%s: %s Init optional power supply lazily later.\n",
+		       __func__, BOE_VX039_SUPPLY_NAME);
+	else {
+		pr_err("%s: %s Could not get optinal power supply.\n",
+		       __func__, BOE_VX039_SUPPLY_NAME);
+		return PTR_ERR(pwr_reg);
 	}
 
 	plat_data = devm_kzalloc(&pdev->dev,
@@ -819,6 +830,20 @@ static int boe_lcd_disp_pwr_disable(struct platform_device *pdev)
 
 	LOG_ENTER();
 
+	// There is no power supply so we are done
+	if (PTR_ERR(plat_data->pwr_regulator) == -ENODEV) {
+		LOG_EXITR(0);
+		return 0;
+	}
+
+	if (PTR_ERR(plat_data->pwr_regulator) == -EPROBE_DEFER) {
+		dev_err(&pdev->dev, "Try to reprobe %s regulator\n",
+			BOE_VX039_SUPPLY_NAME);
+		plat_data->pwr_regulator =
+			devm_regulator_get_optional(&pdev->dev, BOE_VX039_SUPPLY_NAME);
+		if (!IS_ERR(plat_data->pwr_regulator))
+			ret = regulator_enable(plat_data->pwr_regulator);
+	}
 	if (!IS_ERR(plat_data->pwr_regulator)) {
 		ret = regulator_disable(plat_data->pwr_regulator);
 		if (ret)
@@ -827,13 +852,16 @@ static int boe_lcd_disp_pwr_disable(struct platform_device *pdev)
 		else
 			dev_info(&pdev->dev, "%s regulator disabled\n",
 				 BOE_VX039_SUPPLY_NAME);
-	} else {
-		dev_info(&pdev->dev, "%s regulator not found, disable passed\n",
-			 BOE_VX039_SUPPLY_NAME);
+		LOG_EXITR(ret);
+		return ret;
+	} else if (PTR_ERR(plat_data->pwr_regulator) == -ENODEV) {
+		LOG_EXITR(0);
+		return 0;
 	}
 
-	LOG_EXITR(ret);
-	return ret;
+	dev_err(&pdev->dev, "Reprobe of %s failed!\n", BOE_VX039_SUPPLY_NAME);
+	LOG_EXITR(PTR_ERR(plat_data->pwr_regulator));
+	return PTR_ERR(plat_data->pwr_regulator);
 }
 /**
  * @brief Enable power supply regulator, if it exists
@@ -964,7 +992,7 @@ static void __exit boe_lcdif_exit(void)
 	platform_driver_unregister(&mxc_lcdif_driver);
 }
 
-module_init(boe_lcdif_init);
+subsys_initcall(boe_lcdif_init);
 module_exit(boe_lcdif_exit);
 
 MODULE_AUTHOR("Jonas Rydow");
