@@ -527,7 +527,7 @@
 		status = "okay";
 	};
 
-	ec702_acc_kxtj3: ec702_acc_kxtj3_0x1c@0e {
+	ec702_acc_kxtj3: ec702_acc_kxtj3_0x1c@e {
 		compatible = "kionix,kxtj3";
 		reg = <0x0e>;
 		// TODO Remap axes for appcore
@@ -848,13 +848,40 @@
 	axi-id = <&gpr 0x1C 0x00040004>;
 };
 
-&reg_arm {
-	vin-supply = <&DA9063_BCORE1>;
+&cpu0{
+	arm-supply = <&DA9063_BCORE1>;
+	soc-supply = <&DA9063_BCORE2>;
+	operating-points = <
+		/* kHz	 uV */
+		996000 1280000
+		768000 1180000
+		420000 1150000
+	>;
+	fsl,soc-operating-points = <
+		/* ARM kHz SOC-PU uV */
+		996000 1200000
+		768000 1200000
+		420000 1200000
+	>;
 };
 
-&reg_soc {
-	vin-supply = <&DA9063_BCORE2>;
+&cpu1{
+	arm-supply = <&DA9063_BCORE1>;
+	soc-supply = <&DA9063_BCORE2>;
+	operating-points = <
+		/* kHz	 uV */
+		996000 1280000
+		768000 1180000
+		420000 1150000
+	>;
+	fsl,soc-operating-points = <
+		/* ARM kHz SOC-PU uV */
+		996000 1200000
+		768000 1200000
+		420000 1200000
+	>;
 };
+
 
 // OCRAM usage improvements
 &vpu {

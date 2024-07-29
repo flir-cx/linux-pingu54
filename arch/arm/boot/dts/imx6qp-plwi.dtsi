@@ -70,7 +70,7 @@
 
 &i2c3 {
 	/* This magnetometer is present in rev A, replaced with acc/mag below */
-	plwi_mag_bm1422_0x1e: plwi_mag_bm1422_0x1e@0F {
+	plwi_mag_bm1422_0x1e: plwi_mag_bm1422_0x1e@f {
 		compatible = "rohm,bm1422";
 		reg = <0x0F>;
 		status = "disabled";
