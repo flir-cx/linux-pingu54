@@ -505,7 +505,6 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-beco.dtb \
         imx6dl-blco.dts \
         imx6dl-hawk.dts \
-	imx6dl-ec701.dtb \
         imx6dl-wandboard-revb1.dtb \
 	imx6dl-wandboard-revd1.dtb \
 	imx6dl-yapp4-draco.dtb \
@@ -614,6 +613,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-wandboard-revb1.dtb \
 	imx6q-wandboard-revd1.dtb \
 	imx6q-zii-rdu2.dtb \
+	imx6qp-ec701.dtb \
 	imx6qp-ec702.dtb \
 	imx6qp-eoco.dtb \
 	imx6qp-nitrogen6_max.dtb \
