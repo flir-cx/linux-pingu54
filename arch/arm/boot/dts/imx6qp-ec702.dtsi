@@ -911,7 +911,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg>;
 	disable-over-current;
-//	imx6-usb-charger-detection;
+	imx6-usb-charger-detection;
+	fsl,anatop = <&anatop>;
 //	dr_mode = "host";
 	dr_mode = "peripheral";
 //	dr_mode = "otg";
