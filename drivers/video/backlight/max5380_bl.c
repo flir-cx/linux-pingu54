@@ -134,6 +134,8 @@ static int max5380_probe(struct i2c_client *client, const struct i2c_device_id *
 	struct device *dev = &client->dev;
 	int ret;
 
+	dev_dbg(&client->dev, "%s: probing\n", __func__);
+
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(dev, "fail : i2c functionality check\n");
 		return -EOPNOTSUPP;
@@ -144,8 +146,8 @@ static int max5380_probe(struct i2c_client *client, const struct i2c_device_id *
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, data);
-	i2c_set_clientdata(client, data);
 	max5380_parse_dt(&client->dev);
+
 	data->client = client;
 
 	data->supply = devm_regulator_get(dev, "vcc");
@@ -160,22 +162,22 @@ static int max5380_probe(struct i2c_client *client, const struct i2c_device_id *
 		return ret;
 	}
 
-	ret = regulator_enable(data->supply);
-	if (ret) {
-		dev_err(dev, "failed enabling regulator.\n");
-		return ret;
-	}
-
 	/* backlight register */
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = data->max_brightness;
-	props.brightness = clamp_t(u32, data->default_brightness, 0, props.max_brightness);
+	props.brightness =
+		clamp_t(u32, data->default_brightness, 0, props.max_brightness);
 	data->bdev = devm_backlight_device_register(&data->client->dev, "backlight_vf",
 						    &data->client->dev, data, &max5380_bl_ops, &props);
 	if (IS_ERR(data->bdev)) {
 		dev_err(dev, "failed to register backlight device\n");
-		regulator_disable(data->supply);
 		return PTR_ERR(data->bdev);
+	}
+
+	i2c_set_clientdata(client, data->bdev);
+	if (ret < 0) {
+		dev_err(dev, "fail : backlight register.\n");
+		return ret;
 	}
 
 	return 0;
@@ -189,12 +191,10 @@ static int max5380_probe(struct i2c_client *client, const struct i2c_device_id *
  */
 static int max5380_remove(struct i2c_client *client)
 {
-	struct max5380_data *data = i2c_get_clientdata(client);
-	struct backlight_device *backlight = data->bdev;
+	struct backlight_device *backlight = i2c_get_clientdata(client);
 
 	backlight->props.brightness = 0;
 	backlight_update_status(backlight);
-	regulator_disable(data->supply);
 
 	return 0;
 }
