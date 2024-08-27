@@ -62,8 +62,8 @@
 	radio_switch {
 		compatible = "gpio-keys";
 		radio_on {
-			label = "3V8_BW_sense";
-			gpios = <&ec702_pca9534_0x46 4 GPIO_ACTIVE_HIGH>;
+			label = "WIFI_INHIBIT_n";
+			gpios = <&ec702_pca9534_0x46 3 GPIO_ACTIVE_HIGH>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_RFKILL_ALL>;
 		};
