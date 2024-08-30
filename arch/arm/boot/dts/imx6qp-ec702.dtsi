@@ -159,7 +159,7 @@
 		default_bpp = <32>;
 		int_clk = <1>;
 		late_init = <0>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	backlight_lcd: backlight_lcd {
