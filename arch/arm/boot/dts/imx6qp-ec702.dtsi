@@ -69,8 +69,15 @@
 		};
 	};
 
-	fvd {
-		compatible = "flir,fvd";
+	fvdk {
+		compatible = "flir,fvd", "flir,fvdk";
+		fpa-supply = <&reg_ec702_4v0_fpa>;
+		1v1_fpga-supply = <&DA9063_BPRO>;
+		1v2_fpga-supply = <&DA9063_PERI_SW>;
+		1v8_fpga-supply = <&DA9063_CORE_SW>;
+		2v5_fpga-supply = <&DA9063_BMEM>;
+		3v15_fpga-supply = <&DA9063_LDO8>;
+
 		pinctrl-names = "default", "spi-default", "spi-idle";
 		pinctrl-0 = <&pinctrl_fvd>;
 		pinctrl-1 = <&pinctrl_ecspi1>;
@@ -90,7 +97,6 @@
 		// The fvdk driver needs to find the SPI device
 		// via this phandle to prepare flash during FPGA programming
 		spi_fpga_flash = <&qspi_flash>;
-		vin-supply = <&DA9063_BMEM>, <&DA9063_BPRO>, <&DA9063_PERI_SW>, <&DA9063_CORE_SW>, <&DA9063_LDO8>;
 	};
 
 	regulators {
@@ -107,17 +113,10 @@
 			enable-active-high;
 		};
 
-		reg_ec702_4v0_fpa: ec702_4v0_fpa {
+		reg_ec702_4v0_fpa: FPA_Regulator {
 			compatible = "regulator-fixed";
 			regulator-name = "4V0_fpa";
 			gpio = <&gpio2 1 0>;
-			enable-active-high;
-		};
-
-		/* Required by fvdk driver */
-		reg_ec702_fpa_i2c: ec702_fpa_i2c {
-			compatible = "regulator-fixed";
-			regulator-name = "fpa_i2c";
 			enable-active-high;
 		};
 

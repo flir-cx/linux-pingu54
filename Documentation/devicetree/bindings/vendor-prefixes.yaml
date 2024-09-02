@@ -379,6 +379,8 @@ patternProperties:
     description: Shenzhen Fly Young Technology Co.,LTD.
   "^firefly,.*":
     description: Firefly
+  "^flir,.*":
+    description: Teledyne FLIR
   "^focaltech,.*":
     description: FocalTech Systems Co.,Ltd
   "^frida,.*":

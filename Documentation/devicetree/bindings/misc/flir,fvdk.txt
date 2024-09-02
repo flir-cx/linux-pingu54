@@ -1,0 +1,39 @@
+FLIR FVDK Driver
+
+The fvdk driver supports fpga in FLIR cameras
+
+Required properties:
+- reg: address and length of the register for the device.
+- compatible: "flir,fvd", "flir,fvdk"
+
+Example:
+
+	fvdk {
+		compatible = "flir,fvd", "flir,fvdk";
+		fpa-supply = <&reg_ec702_4v0_fpa>;
+		1v1_fpga-supply = <&DA9063_BPRO>;
+		1v2_fpga-supply = <&DA9063_PERI_SW>;
+		1v8_fpga-supply = <&DA9063_CORE_SW>;
+		2v5_fpga-supply = <&DA9063_BMEM>;
+		3v15_fpga-supply = <&DA9063_LDO8>;
+
+		pinctrl-names = "default", "spi-default", "spi-idle";
+		pinctrl-0 = <&pinctrl_fvd>;
+		pinctrl-1 = <&pinctrl_ecspi1>;
+		pinctrl-2 = <&pinctrl_ecspi1_idle>;
+
+		fpga_status_n = <&gpio1 2 GPIO_ACTIVE_LOW>;
+		fpga_config_n = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		fpga_conf_done = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+		fpga_ce_n = <&gpio5 25 GPIO_ACTIVE_LOW>;
+		fpga-ready-gpio = <&gpio3 19 GPIO_ACTIVE_HIGH>;
+
+		spi-sclk-gpio = <&gpio5 22 GPIO_ACTIVE_HIGH>;
+		spi-mosi-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>;
+		spi-miso-gpio = <&gpio5 24 GPIO_ACTIVE_HIGH>;
+		spi-cs-gpio = <&gpio5 28 GPIO_ACTIVE_LOW>;
+
+		// The fvdk driver needs to find the SPI device
+		// via this phandle to prepare flash during FPGA programming
+		spi_fpga_flash = <&qspi_flash>;
+	};
