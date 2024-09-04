@@ -239,6 +239,7 @@
 	disp_id = <1>;
 	lcd_panel = "TRULY-VGA";
 	disp-power-on-supply = <&reg_disp_pwr_en>;
+	rotate-primary-180;
 	status = "okay";
 };
 
