@@ -116,7 +116,7 @@
 		reg_ec702_4v0_fpa: FPA_Regulator {
 			compatible = "regulator-fixed";
 			regulator-name = "4V0_fpa";
-			gpio = <&gpio2 1 0>;
+			gpio = <&gpio2 1 0>; //FPA_PWR_EN
 			enable-active-high;
 		};
 
