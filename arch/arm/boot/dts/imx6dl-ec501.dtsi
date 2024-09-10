@@ -141,7 +141,7 @@
 		status = "okay";
 	};
 
-	fvd {
+	fvdk {
 		compatible = "flir,fvd";
 		pinctrl-names = "default", "spi-default","spi-idle";
 		pinctrl-0 = <&pinctrl_fvd>;
