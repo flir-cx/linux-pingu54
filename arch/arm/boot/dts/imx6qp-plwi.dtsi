@@ -16,19 +16,18 @@
 #include "imx6q-pinfunc.h"
 
 / {
-	plwi_buttons {
+	plwi_keys {
 		compatible = "gpio-keys";
 		autorepeat;
 
 		/*
-		 * PLWI rev A has some bugs, only Right and Trig is mapped correctly.
-		 * We can swap Left and Front mappings, to get Left in correct place.
-		 * But PWR_ON_SW_n and Front are still swapped and need HW changes.
+		 * PLWI rev A had a bug, only Right and Trig was mapped correctly.
+		 * These mappings are for rev B.
 		 */
 		pb_left {
 			label = "Rocker Left";
 			gpio-key;
-			gpios = <&plwi_pca9534_0x42 3 GPIO_ACTIVE_LOW>; /* Should be 1 */
+			gpios = <&plwi_pca9534_0x42 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_LEFT>;
 		};
 		pb_right {
@@ -40,7 +39,7 @@
 		pb_front {
 			label = "Button Front";
 			gpio-key;
-			gpios = <&plwi_pca9534_0x42 1 GPIO_ACTIVE_LOW>; /* Should be 3 */
+			gpios = <&plwi_pca9534_0x42 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_ENTER>;
 		};
 		pb_trigger {
