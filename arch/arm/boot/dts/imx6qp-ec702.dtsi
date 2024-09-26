@@ -27,7 +27,7 @@
 	};
 
 	memory {
-		reg = <0x10000000 0x20000000>;
+		reg = <0x10000000 0x40000000>;
 	};
 
 	clocks {
@@ -852,6 +852,10 @@
 	axi-id = <&gpr 0x1C 0x00040004>;
 };
 
+&gpc {
+	fsl,ldo-bypass = <1>;
+};
+
 &cpu0{
 	arm-supply = <&DA9063_BCORE1>;
 	soc-supply = <&DA9063_BCORE2>;
@@ -886,6 +890,13 @@
 	>;
 };
 
+&reg_arm {
+	vin-supply = <&DA9063_BCORE1>;
+};
+
+&reg_soc {
+	vin-supply = <&DA9063_BCORE2>;
+};
 
 // OCRAM usage improvements
 &vpu {
@@ -894,6 +905,10 @@
 
 &sdma {
 	iram = <&ocram>;
+};
+
+&vdoa {
+	status = "disabled";
 };
 
 &uart1 {
