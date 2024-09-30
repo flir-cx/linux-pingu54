@@ -29,12 +29,10 @@
 
 #include "mxc_dispdrv.h"
 
-
+#define BOE_VX039_MAUCCTR		0xF0
 #define BOE_VX039_MAX_BL_IF_BRIGHTNESS	255
-#define BOE_VX039_MAX_BL_REG_LOW	0xFF
-#define BOE_VX039_MAX_BL_REG_HIGH	0x01
-#define BOE_VX039_MAX_BL_REG		0x01FF
 #define BOE_VX039_REG_WRDISBV		0x51
+#define BOE_VX039_REG_AWB_GAIN_H	0xB9
 #define BOE_VX039_SUPPLY_NAME		"power"
 
 
@@ -192,6 +190,17 @@ static struct setup_entry_4b vf_setup_4byte_test[] = {
 };
 #endif
 
+// This code is used to go into brightness adjustment of the display
+static struct setup_entry_4b vf_brightness_setup_4byte[] = {
+	{0xF0, 0x00, 0x00, 0xAA}, // Default
+	{0xF0, 0x01, 0x00, 0x15}, // skip to bist page 5 where below code is available
+	{0xB9, 0x00, 0x00, 0x10}, // Enable dimming
+	{0xB9, 0x01, 0x00, 0x30}, // Enable dimming
+	{0xB9, 0x05, 0x00, 0xAA}, // AWB gain, 0xAA this value needs to be adjusted
+	{0xB9, 0x06, 0x00, 0xAA}, // AWB gain, to something between 0-255
+	{0xB9, 0x07, 0x00, 0xAA}, // AWB gain, reflecting the wanted value
+};
+
 /* write a register to the display */
 static int i2c_reg_write(struct device *dev, u8 *data_out, int len)
 {
@@ -285,59 +294,76 @@ static int i2c_reg_read(struct device *dev, u8 *data_out, u8 *data_in)
  * @param val Where to put the value on success
  * @return int 0 0n success
  */
-static int boe_disp_read_brightness(struct device *dev, u16 *val)
+static int boe_disp_read_brightness(struct device *dev, u8 *val)
 {
-	int ret;
+	int i;
+	int ret = 0;
 	u8 data_in[2];
-	u8 data_out[2] = {
-		BOE_VX039_REG_WRDISBV, 0x00
-	};
+	u8 data_out[4];
 
 	LOG_ENTER();
+
+	// Enable cmd2, page 5, 11.1.3 in boe manual
+	for (i = 0; ret >= 0 && i < 1; ++i) {
+		data_out[0] = vf_brightness_setup_4byte[i].reg_h;
+		data_out[1] = vf_brightness_setup_4byte[i].reg_l;
+		data_out[2] = vf_brightness_setup_4byte[i].val_h;
+		data_out[3] = vf_brightness_setup_4byte[i].val_l;
+		ret = i2c_reg_write(dev, data_out, 4);
+		dev_dbg(dev, "Write register 0x%02x%02x 0x%02x 0x%02x! %d\n",
+			data_out[0], data_out[1], data_out[2], data_out[3], ret);
+	}
+
+	data_out[0] = BOE_VX039_REG_AWB_GAIN_H;
+	data_out[1] = 0x05;
 	ret = i2c_reg_read(dev, data_out, data_in);
 	if (ret)
 		return ret;
 	*val = data_in[1];
-
-	data_out[1] = 0x01;
-	ret = i2c_reg_read(dev, data_out, data_in);
-
-	*val |= data_in[1] << 8;
-
-	dev_info(dev, "boe_read brightness:%d.\n", *val);
+	dev_dbg(dev, "boe_read brightness:%d.\n", *val);
 	LOG_EXITR(ret);
 	return ret;
 };
 
 
 /**
- * @brief Writes a 9 bit value as brightness
+ * @brief Writes a 8 bit value as brightness
  *
  * @param dev device
- * @param val 0x00 - 0x1FF
+ * @param val 0x00 - 0xFF
  * @return int zero on success
  */
-static int boe_disp_write_brightness(struct device *dev, u16 val)
+static int boe_disp_write_brightness(struct device *dev, u8 val)
 {
-	u8 data_out[4] = {
-		BOE_VX039_REG_WRDISBV,
-		0x00,
-		0x00,
-		val & BOE_VX039_MAX_BL_REG_LOW
-	};
-	int ret;
+	int i;
+	int ret = 0;
+	u8 data_out[4];
 
-	LOG_ENTER();
-	// Write DBV[7:0]
-	ret = i2c_reg_write(dev, data_out, 4);
+	// The gain is calculated as FLOOR((v/255)^(1/2.2)*256)-1 according to boe
+	// According to boe excel sheet the brightness is written as:
+	// register | value
+	// 0xF000   | 0xAA
+	// 0xF001   | 0x15
+	// 0xB900   | 0x10
+	// 0xB901   | 0x30
+	// 0xB905   | 'AWB gain' // Which seems to be a value from 0-255
+	// 0xB906   | 'AWB gain' // the gain is not linear
+	// 0xB907   | 'AWB gain'
 
-	if (!ret) {
-		// Write DBV[8:8]
-		data_out[3] = (val >> 8) & BOE_VX039_MAX_BL_REG_HIGH;
-		data_out[1] = 0x01;
+	// This only sets the gain
+	for (i = 4; i < ARRAY_SIZE(vf_brightness_setup_4byte); ++i)
+		vf_brightness_setup_4byte[i].val_l = val;
+
+	for (i = 0; ret >= 0 && i < ARRAY_SIZE(vf_brightness_setup_4byte); ++i) {
+		data_out[0] = vf_brightness_setup_4byte[i].reg_h;
+		data_out[1] = vf_brightness_setup_4byte[i].reg_l;
+		data_out[2] = vf_brightness_setup_4byte[i].val_h;
+		data_out[3] = vf_brightness_setup_4byte[i].val_l;
+		ret = i2c_reg_write(dev, data_out, 4);
+		dev_dbg(dev, "Write register 0x%02x%02x 0x%02x 0x%02x! %d\n",
+			data_out[0], data_out[1], data_out[2], data_out[3], ret);
 	}
-	ret = i2c_reg_write(dev, data_out, 4);
-	LOG_EXITR(ret);
+
 	return ret;
 }
 
@@ -375,15 +401,10 @@ static int boe_disp_i2c_init(struct device *dev)
 
 static int boe_disp_bl_set_brightness(struct boe_lcdif_data *lcdif, int brightness)
 {
-	struct backlight_device *bl = lcdif->bl_dev;
-	// The register seems to be 9 bits wide, hence 0x1FF as max
-	u16 boe_brightness;
 	int ret;
 
 	LOG_ENTER();
-	boe_brightness = ((brightness * BOE_VX039_MAX_BL_REG) / bl->props.max_brightness);
-	dev_info(&bl->dev, "boe_brightness:%d.\n", boe_brightness);
-	ret = boe_disp_write_brightness(&lcdif->pdev->dev, boe_brightness);
+	ret = boe_disp_write_brightness(&lcdif->pdev->dev, brightness);
 
 	LOG_EXITR(ret);
 	return ret;
@@ -409,7 +430,7 @@ static int boe_disp_bl_update_status(struct backlight_device *bl)
 
 static int boe_disp_bl_get_brightness(struct backlight_device *bl)
 {
-	u16 val;
+	u8 val;
 	int ret;
 	struct boe_lcdif_data *lcdif = bl_get_data(bl);
 
@@ -420,7 +441,7 @@ static int boe_disp_bl_get_brightness(struct backlight_device *bl)
 			"Failed to read boe brightness: %d\n", ret);
 		return ret;
 	}
-	ret = (val * bl->props.max_brightness) / BOE_VX039_MAX_BL_REG;
+	ret = val;
 	LOG_EXITR(ret);
 	return ret;
 }
@@ -768,7 +789,7 @@ static void boe_handle_pwr_reg_defered(struct boe_lcdif_data *lcdif)
 }
 
 /**
- * @brief Handle lati init of power regulator
+ * @brief Handle late init of power regulator
  *
  * @param work
  */
