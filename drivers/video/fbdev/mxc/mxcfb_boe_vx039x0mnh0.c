@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/mxcfb.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -56,6 +57,7 @@ struct boe_lcd_i2c_platform_data {
 	u32 disp_id;
 	u8 i2c_bus;
 	u8 i2c_addr;
+	int gpio_lcd_reset;
 	struct regulator *pwr_regulator;
 	struct pinctrl *pinctrl;
 };
@@ -507,13 +509,8 @@ static int boe_dispdrv_init(struct mxc_dispdrv_handle *disp,
 		}
 	}
 
-	ret = boe_disp_i2c_init(dev);
-
-	if (ret) {
-		dev_err(dev, "Failed initalizing lcd %d\n", ret);
-		return ret;
-	}
-
+	// The display is already initialized in u-boot so no need to do it again
+	// Backlight need to be handled though
 	ret = boe_disp_init_backlight(lcdif);
 
 	LOG_EXITR(ret);
@@ -658,6 +655,22 @@ static int lcd_get_of_properties(struct platform_device *pdev,
 		plat_data->disp_id,
 		plat_data->i2c_bus,
 		plat_data->i2c_addr);
+
+	plat_data->gpio_lcd_reset = of_get_named_gpio(np, "lcd-reset", 0);
+	if (!gpio_is_valid(plat_data->gpio_lcd_reset)) {
+		int gpio_ret = plat_data->gpio_lcd_reset;
+
+		plat_data->gpio_lcd_reset = 0;
+		dev_err(&pdev->dev, "cannot find 'lcd-reset' in dtb or invalid gpio\n");
+		return gpio_ret;
+	}
+	err = devm_gpio_request(&pdev->dev, plat_data->gpio_lcd_reset, "lcd-reset");
+	if (err) {
+		dev_err(&pdev->dev, "unable to get gpio %d: 'lcd-reset' (%i)\n",
+			plat_data->gpio_lcd_reset, err);
+		return err;
+	}
+
 	err = of_property_read_string(np, "default_ifmt", &default_ifmt);
 	if (err) {
 		dev_dbg(&pdev->dev, "get of property default_ifmt fail\n");
