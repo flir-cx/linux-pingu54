@@ -84,7 +84,7 @@ static struct fb_videomode lcdif_modedb[] = {
 		.lower_margin = 3,
 		.hsync_len = 4,
 		.vsync_len = 6,
-		.sync = 0, // We don't have drdy FB_SYNC_OE_LOW_ACT,
+		.sync = FB_SYNC_OE_LOW_ACT,
 		.vmode = FB_VMODE_NONINTERLACED,
 		.flag = 0,
 	},
@@ -123,8 +123,8 @@ static struct setup_entry_4b vf_setup_4byte[] = {
 	{0x82, 0x04, 0x00, 0x00}, // Not described!
 	{0x82, 0x05, 0x00, 0x03}, // Not described!
 	{0x82, 0x06, 0x00, 0x03}, // Not described!
-	{0x83, 0x00, 0x00, 0x80}, // Set RGB_DE_OPT=1 for RGB video mode 2, no data enable used
-	{0x83, 0x01, 0x00, 0x0A}, // Set RGB_HBP, according to mail
+	//{0x83, 0x00, 0x00, 0x80}, // Set RGB_DE_OPT=1 for RGB video mode 2, no data enable used
+	//{0x83, 0x01, 0x00, 0x0A}, // Set RGB_HBP, according to mail
 	{0x35, 0x00, 0x00, 0x00}, // Not described!
 	{0xFF, 0x00, 0x00, 0x5A}, // Not described!
 	{0xFF, 0x01, 0x00, 0x81}, // Not described!
