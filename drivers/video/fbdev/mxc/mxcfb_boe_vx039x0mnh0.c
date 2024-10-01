@@ -123,8 +123,8 @@ static struct setup_entry_4b vf_setup_4byte[] = {
 	{0x82, 0x04, 0x00, 0x00}, // Not described!
 	{0x82, 0x05, 0x00, 0x03}, // Not described!
 	{0x82, 0x06, 0x00, 0x03}, // Not described!
-	//{0x83, 0x00, 0x00, 0x80}, // Set RGB_DE_OPT=1 for RGB video mode 2, no data enable used
-	//{0x83, 0x01, 0x00, 0x0A}, // Set RGB_HBP, according to mail
+	{0x83, 0x00, 0x00, 0x80}, // Set RGB_DE_OPT=1 for RGB video mode 2, no data enable used
+	{0x83, 0x01, 0x00, 0x0A}, // Set RGB_HBP, according to mail
 	{0x35, 0x00, 0x00, 0x00}, // Not described!
 	{0xFF, 0x00, 0x00, 0x5A}, // Not described!
 	{0xFF, 0x01, 0x00, 0x81}, // Not described!
@@ -487,6 +487,56 @@ static int boe_disp_init_backlight(struct boe_lcdif_data *lcdif)
 	boe_disp_bl_update_status(bl);
 	LOG_EXIT();
 
+	return 0;
+}
+
+static int boe_disp_release_reset(struct device *dev)
+{
+	struct boe_lcd_i2c_platform_data *plat_data = dev->platform_data;
+	int ret;
+
+	LOG_ENTER();
+	if (plat_data->gpio_lcd_reset <= 0) {
+		dev_err(dev, "No reset gpio defined to release at por\n");
+		return -EINVAL;
+	}
+
+	// We have a 10 ms power sequencer, LM3880MFE-1AA, for for VDDI after Enable
+	// and another 10 ms for VIN. After that we should wait for 21 ms before
+	// releasing the reset.
+	msleep(41);
+	ret = gpio_direction_output(plat_data->gpio_lcd_reset, 1);
+	if (ret) {
+		dev_err(dev, "Failed setting lcd reset gpio to output por (%d)\n", ret);
+		return ret;
+	}
+	// After releasing the reset we should wait for 120 ms until we safely reach
+	// the default state before sending any commands to the display according
+	// to 10.1 in BOE datasheet.
+	msleep(120);
+	LOG_EXITR(0);
+	return 0;
+}
+
+static int boe_disp_hold_reset(struct device *dev)
+{
+	struct boe_lcd_i2c_platform_data *plat_data = dev->platform_data;
+	int ret;
+
+	LOG_ENTER();
+	if (plat_data->gpio_lcd_reset <= 0) {
+		dev_err(dev, "No reset gpio defined to hold\n");
+		return -EINVAL;
+	}
+
+
+	ret = gpio_direction_output(plat_data->gpio_lcd_reset, 0);
+	if (ret) {
+		dev_err(dev, "Failed setting lcd reset gpio to output por (%d)\n", ret);
+		return ret;
+	}
+	msleep(1); // minimum 1ms according to 10.1 in BOE datasheet
+	LOG_EXITR(0);
 	return 0;
 }
 
@@ -998,6 +1048,7 @@ int boe_lcdif_suspend(struct platform_device *pdev, pm_message_t state)
 	int ret;
 
 	LOG_ENTER();
+	boe_disp_hold_reset(&pdev->dev);
 	ret = boe_lcd_disp_pwr_disable(pdev);
 	if (ret)
 		dev_err(&pdev->dev, "failed to disable display power\n");
@@ -1030,6 +1081,7 @@ int boe_lcdif_resume(struct platform_device *pdev)
 		return ret;
 	}
 
+	boe_disp_release_reset(&pdev->dev);
 	ret = boe_disp_i2c_init(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize lcd %d\n", ret);
