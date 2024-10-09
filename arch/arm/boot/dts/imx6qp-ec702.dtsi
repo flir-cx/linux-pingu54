@@ -479,7 +479,7 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1>;
 	pinctrl-1 = <&pinctrl_i2c1_gpio>;
-	scl-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio5 27 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio5 26 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -489,7 +489,7 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	pinctrl-1 = <&pinctrl_i2c2_gpio>;
-	scl-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio4 12 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
@@ -504,7 +504,7 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	pinctrl-1 = <&pinctrl_i2c3_gpio>;
-	scl-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio1 5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
