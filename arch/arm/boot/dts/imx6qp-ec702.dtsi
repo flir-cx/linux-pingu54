@@ -513,6 +513,7 @@
 		compatible = "atmel,24c02";
 		reg = <0x57>;
 		pagesize = <16>;
+		vcc-supply = <&DA9063_LDO11>;
 	};
 
 	/* Power ctrl I/O expander */
