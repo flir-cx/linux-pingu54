@@ -105,6 +105,7 @@
 		compatible = "nxp,pca9534";
 		reg = <0x21>;
 		gpio-controller;
+		vcc-supply = <&DA9063_LDO11>;
 		// Int: I2C3_ALERT_n, GPIO4.5
 		interrupt-parent = <&gpio4>;
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
