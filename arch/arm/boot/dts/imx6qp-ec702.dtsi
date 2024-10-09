@@ -133,8 +133,8 @@
 
 	};
 
-	/* Use HDMI port as primary display for now.
-	 * Bring back VF display as first fb once it becomes available.
+	/*
+	 * Use Viewfinder display as first fb.
 	 */
 
 	mxcfb1: fb@0 {
@@ -463,7 +463,7 @@
 &hdmi_core {
 	ipu_id = <0>;
 	disp_id = <1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi_video {
@@ -471,7 +471,7 @@
 	//fsl,phy_reg_vlev = <0x294>;
 	//fsl,phy_reg_cksymtx = <0x800d>;
 	//HDMI-supply = <&reg_hdmi>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c1 {
