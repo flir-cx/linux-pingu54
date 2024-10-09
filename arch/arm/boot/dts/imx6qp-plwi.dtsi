@@ -225,7 +225,6 @@
 	bus-width = <4>;
 	non-removable;
 	no-1-8-v;
-	keep-power-in-suspend;
 	cap-power-off-card;
 	max-frequency = <25000000>;
 	status = "okay";
@@ -233,7 +232,7 @@
 	#size-cells = <0>;
 
 	wlcore: wlcore@2 {
-		compatible = "ti,wl1831";
+		compatible = "ti,wl1837";
 		reg = <2>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
