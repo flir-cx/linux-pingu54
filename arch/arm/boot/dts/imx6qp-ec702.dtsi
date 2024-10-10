@@ -945,7 +945,7 @@
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
 	non-removable;
-	no-1-8-v;
+	voltage-ranges = <1800 1800 3300 3300>; // 1.7V-1.95V and 2.7V-3.6V according to THGBMUG7C1LBAIL datasheet
 	status = "okay";
 };
 
