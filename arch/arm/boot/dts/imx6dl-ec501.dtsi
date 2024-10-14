@@ -102,7 +102,7 @@
 
 	pwm1_tbd {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 200000>; //0.2ms
+		pwms = <&pwm1 0 200000 0>; //0.2ms
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pwm1>;
@@ -111,11 +111,12 @@
 
 	pwm2_torch {
 		compatible = "pwm-backlight";
-		pwms = <&pwm2 0 200000>; //0.2ms
+		pwms = <&pwm2 0 200000 0>; //0.2ms
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pwm2>;
 		default-brightness-level = <0>;
+		status = "okay";
 	};
 
 	v4l2_cap_0 {
