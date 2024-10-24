@@ -55,7 +55,7 @@
 		hasLaser = <0>;
 		HasSoftwareControlledLaser = <0>;
 		hasGPS = <1>;
-		standbyMinutes = <1440>;
+		hasFocusModule = <0>;
 	};
 
 	/* Radio switch */

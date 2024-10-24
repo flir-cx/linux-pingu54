@@ -74,6 +74,7 @@
 		compatible = "flir,fad";
 		hasLaser = <1>;
 		hasGPS = <1>;
+		hasFocusModule = <1>;
 //		laser_on-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
 //		laser_soft-gpios = <&rori_pca9534 5 GPIO_ACTIVE_LOW>;
 //		laser_switch-gpios = <&rori_pca9534 2 GPIO_ACTIVE_LOW>;
