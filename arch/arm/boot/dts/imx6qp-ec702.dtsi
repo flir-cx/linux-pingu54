@@ -119,13 +119,13 @@
 			enable-active-high;
 		};
 
-		/* DISP_PWR_EN */
+		/* DISP_PWR_EN, rev D */
 		reg_disp_pwr_en: reg_disp_pwr_en {
 			compatible = "regulator-fixed";
 			regulator-name = "1V8D_VF";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-			gpio = <&ec702_pca9534_0x46 6 GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio4 13 GPIO_ACTIVE_HIGH>;
 			regulator-boot-on;
 			enable-active-high;
 		};
@@ -180,8 +180,8 @@
 		disp_id = <0>;
 		default_ifmt = "RGB24";
 		pinctrl-names = "default", "disabled";
-		pinctrl-0 = <&pinctrl_ipu1_di0_enabled>;
-		pinctrl-1 = <&pinctrl_ipu1_di0_disabled>;
+		pinctrl-0 = <&pinctrl_ipu1_di0_enabled &pinctrl_disp_pwr_gpio>;
+		pinctrl-1 = <&pinctrl_ipu1_di0_disabled &pinctrl_disp_pwr_gpio>;
 		lcd-reset = <&gpio4 20 GPIO_ACTIVE_LOW>;
 		i2c_bus = <0x00>;
 		i2c_addr = <0x4c>;
@@ -612,6 +612,13 @@
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26 0x4001b8b1
 			MX6QDL_PAD_CSI0_DAT9__GPIO5_IO27 0x4001b8b1
+		>;
+	};
+
+	pinctrl_disp_pwr_gpio: disppwrgrp {
+		fsl,pins = <
+			/* DISP_PWR_EN, EC702 rev D */
+			MX6QDL_PAD_KEY_ROW3__GPIO4_IO13		0x1b0b0
 		>;
 	};
 
