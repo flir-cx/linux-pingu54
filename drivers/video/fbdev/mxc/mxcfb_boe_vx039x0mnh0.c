@@ -64,8 +64,6 @@ struct boe_lcdif_data {
 	struct platform_device *pdev;
 	struct mxc_dispdrv_handle *disp_lcdif;
 	struct backlight_device *bl_dev;
-
-	struct delayed_work boe_delayed_work;
 };
 
 #define DISPDRV_LCD_I2C	"lcd-i2c"
@@ -778,98 +776,36 @@ static int lcd_get_of_properties(struct platform_device *pdev,
 	return err;
 }
 
-/**
- * @brief Initialize power-supply regulator, and schedule new try if deferred
- *
- * @param lcdif
- */
-static void boe_init_pwr_reg(struct boe_lcdif_data *lcdif)
-{
-	int ret;
-	struct device *dev = &lcdif->pdev->dev;
-	struct boe_lcd_i2c_platform_data *plat_data = dev->platform_data;
-
-	dev_info(dev, "initialize power regulator\n");
-	plat_data->pwr_regulator = devm_regulator_get_optional(dev, BOE_VX039_SUPPLY_NAME);
-	if (!IS_ERR(plat_data->pwr_regulator)) {
-		ret = regulator_enable(plat_data->pwr_regulator);
-		if (ret)
-			dev_err(dev, "Enable power regulator failed %i, bailing out.\n", ret);
-		else
-			dev_info(dev, "Enabled power regulator after init.\n");
-		return;
-	}
-
-	if (PTR_ERR(plat_data->pwr_regulator) == -EPROBE_DEFER) {
-		dev_info(dev, "Schedule another regulator init try.\n");
-		schedule_delayed_work(&lcdif->boe_delayed_work, msecs_to_jiffies(1000));
-		return;
-	}
-	if (PTR_ERR(plat_data->pwr_regulator) == -ENODEV) {
-		dev_info(dev, "power regulator is not found in dt, fine we are done!\n");
-		return;
-	}
-	dev_err(dev, "Failed to get power regulator: %ld, giving up.\n",
-		PTR_ERR(plat_data->pwr_regulator));
-}
-
-/**
- * @brief Handle power regulator deferred probe
- *
- * @param lcdif
- */
-static void boe_handle_pwr_reg_defered(struct boe_lcdif_data *lcdif)
-{
-	int ret;
-	struct device *dev = &lcdif->pdev->dev;
-	struct boe_lcd_i2c_platform_data *plat_data = dev->platform_data;
-
-	dev_info(dev, "handle power regulator deferred\n");
-	plat_data->pwr_regulator = devm_regulator_get_optional(dev, BOE_VX039_SUPPLY_NAME);
-	if (!IS_ERR(plat_data->pwr_regulator)) {
-		ret = regulator_enable(plat_data->pwr_regulator);
-		dev_info(dev, "Enable power regulator after reprobe to sync cnt.\n");
-		return;
-	}
-	if (PTR_ERR(plat_data->pwr_regulator) == -EPROBE_DEFER)
-		schedule_delayed_work(&lcdif->boe_delayed_work, msecs_to_jiffies(1000));
-	else
-		dev_err(dev, "Failed to get power regulator: %ld\n",
-			PTR_ERR(plat_data->pwr_regulator));
-}
-
-/**
- * @brief Handle late init of power regulator
- *
- * @param work
- */
-static void boe_lcdif_work_handler(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct boe_lcdif_data *lcdif = container_of(dwork, struct boe_lcdif_data, boe_delayed_work);
-	struct device *dev = &lcdif->pdev->dev;
-	struct boe_lcd_i2c_platform_data *plat_data = dev->platform_data;
-
-	dev_info(dev, "%s: handle late power regulator.\n", __func__);
-
-	if (plat_data->pwr_regulator == NULL) {
-		boe_init_pwr_reg(lcdif);
-		return;
-	}
-
-	if (PTR_ERR(plat_data->pwr_regulator) == -EPROBE_DEFER) {
-		boe_handle_pwr_reg_defered(lcdif);
-		return;
-	}
-}
-
 static int boe_lcdif_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct boe_lcdif_data *lcdif;
 	struct boe_lcd_i2c_platform_data *plat_data;
+	struct regulator *pwr_reg;
 
 	LOG_ENTER();
+
+	// The regulator might not be up so this probe may be defered.
+	// In order to not mess up the start order of framebuffers from
+	// the device tree we let that slip and try to get the regulator
+	// when we need it, i.e. when going into suspend. If this is not
+	// done the hdmi framebuffer may be started before the lcd and
+	// the primary buffer will not be correct.
+	pwr_reg = devm_regulator_get_optional(&pdev->dev, BOE_VX039_SUPPLY_NAME);
+
+	if (!IS_ERR(pwr_reg))
+		ret = regulator_enable(pwr_reg);
+	else if (PTR_ERR(pwr_reg) == -ENODEV)
+		pr_err("%s: %s Optional power not found, and that's ok.\n",
+		       __func__, BOE_VX039_SUPPLY_NAME);
+	else if (PTR_ERR(pwr_reg) == -EPROBE_DEFER)
+		pr_err("%s: %s Init optional power supply lazily later.\n",
+		       __func__, BOE_VX039_SUPPLY_NAME);
+	else {
+		pr_err("%s: %s Could not get optinal power supply.\n",
+		       __func__, BOE_VX039_SUPPLY_NAME);
+		return PTR_ERR(pwr_reg);
+	}
 
 	plat_data = devm_kzalloc(&pdev->dev,
 				sizeof(struct boe_lcd_i2c_platform_data),
@@ -877,6 +813,7 @@ static int boe_lcdif_probe(struct platform_device *pdev)
 	if (!plat_data)
 		return -ENOMEM;
 	pdev->dev.platform_data = plat_data;
+	plat_data->pwr_regulator = pwr_reg;
 
 	ret = lcd_get_of_properties(pdev, plat_data);
 	if (ret < 0) {
@@ -898,17 +835,11 @@ static int boe_lcdif_probe(struct platform_device *pdev)
 	if (!lcdif)
 		return -ENOMEM;
 
-	INIT_DELAYED_WORK(&lcdif->boe_delayed_work, boe_lcdif_work_handler);
-
 	lcdif->pdev = pdev;
 	lcdif->disp_lcdif = mxc_dispdrv_register(&boe_disp_drv);
 	mxc_dispdrv_setdata(lcdif->disp_lcdif, lcdif);
 
 	dev_set_drvdata(&pdev->dev, lcdif);
-
-	// Run the regulator get in a delayed work to make sure the
-	// regulator is up and running when we try to access it.
-	schedule_delayed_work(&lcdif->boe_delayed_work, msecs_to_jiffies(3000));
 
 	LOG_EXITR(ret);
 	return ret;
@@ -919,7 +850,7 @@ static int boe_lcdif_remove(struct platform_device *pdev)
 	struct boe_lcdif_data *lcdif = dev_get_drvdata(&pdev->dev);
 
 	LOG_ENTER();
-	cancel_delayed_work_sync(&lcdif->boe_delayed_work);
+
 	mxc_dispdrv_puthandle(lcdif->disp_lcdif);
 	mxc_dispdrv_unregister(lcdif->disp_lcdif);
 
@@ -983,28 +914,39 @@ static int boe_lcd_disp_pwr_disable(struct platform_device *pdev)
 
 	LOG_ENTER();
 
+	// There is no power supply so we are done
 	if (PTR_ERR(plat_data->pwr_regulator) == -ENODEV) {
-		dev_info(&pdev->dev, "regulator is not defined in dt, that's ok.\n");
 		LOG_EXITR(0);
 		return 0;
 	}
 
+	if (PTR_ERR(plat_data->pwr_regulator) == -EPROBE_DEFER) {
+		dev_err(&pdev->dev, "Try to reprobe %s regulator\n",
+			BOE_VX039_SUPPLY_NAME);
+		plat_data->pwr_regulator =
+			devm_regulator_get_optional(&pdev->dev, BOE_VX039_SUPPLY_NAME);
+		if (!IS_ERR(plat_data->pwr_regulator))
+			ret = regulator_enable(plat_data->pwr_regulator);
+	}
 	if (!IS_ERR(plat_data->pwr_regulator)) {
-		dev_info(&pdev->dev, "Disabling power regulator\n");
 		ret = regulator_disable(plat_data->pwr_regulator);
 		if (ret)
-			dev_err(&pdev->dev, "failed to disable power regulator\n");
+			dev_err(&pdev->dev, "failed to disable %s regulator\n",
+				BOE_VX039_SUPPLY_NAME);
 		else
-			dev_info(&pdev->dev, "power regulator disabled\n");
+			dev_info(&pdev->dev, "%s regulator disabled\n",
+				 BOE_VX039_SUPPLY_NAME);
 		LOG_EXITR(ret);
 		return ret;
+	} else if (PTR_ERR(plat_data->pwr_regulator) == -ENODEV) {
+		LOG_EXITR(0);
+		return 0;
 	}
 
-	dev_err(&pdev->dev, "Disable regulator failed %ld\n", PTR_ERR(plat_data->pwr_regulator));
+	dev_err(&pdev->dev, "Reprobe of %s failed!\n", BOE_VX039_SUPPLY_NAME);
 	LOG_EXITR(PTR_ERR(plat_data->pwr_regulator));
 	return PTR_ERR(plat_data->pwr_regulator);
 }
-
 /**
  * @brief Enable power supply regulator, if it exists
  *
@@ -1021,15 +963,18 @@ static int boe_lcd_disp_pwr_enable(struct platform_device *pdev)
 	if (!IS_ERR(plat_data->pwr_regulator)) {
 		ret = regulator_enable(plat_data->pwr_regulator);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to enable pwr regulator\n");
+			dev_err(&pdev->dev, "failed to enable %s regulator\n",
+				BOE_VX039_SUPPLY_NAME);
 			return ret;
 		}
-		dev_info(&pdev->dev, "power enabled\n");
+		dev_info(&pdev->dev, "%s regulator enabled\n",
+				BOE_VX039_SUPPLY_NAME);
 
 		// From VX039X0M-NH0_Ver1.0...pdf, 10.1 Power on sequence, T1+T2
 		msleep(21);
 	} else {
-		dev_info(&pdev->dev, "regulator not found, enable passed\n");
+		dev_info(&pdev->dev, "%s regulator not found, enable passed\n",
+			 BOE_VX039_SUPPLY_NAME);
 	}
 
 	LOG_EXITR(ret);
