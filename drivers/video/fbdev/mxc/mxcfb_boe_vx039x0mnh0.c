@@ -25,7 +25,6 @@
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
-#include <linux/regulator/consumer.h>
 
 #include "mxc_dispdrv.h"
 
@@ -56,7 +55,7 @@ struct boe_lcd_i2c_platform_data {
 	u8 i2c_bus;
 	u8 i2c_addr;
 	int gpio_lcd_reset;
-	struct regulator *pwr_regulator;
+	int gpio_lcd_enable;
 	struct pinctrl *pinctrl;
 };
 
@@ -198,6 +197,9 @@ static struct setup_entry_4b vf_brightness_setup_4byte[] = {
 	{0xB9, 0x06, 0x00, 0xAA}, // AWB gain, to something between 0-255
 	{0xB9, 0x07, 0x00, 0xAA}, // AWB gain, reflecting the wanted value
 };
+
+/* Forward decl */
+static int boe_lcd_disp_pwr_enable(struct platform_device *pdev);
 
 /* write a register to the display */
 static int i2c_reg_write(struct device *dev, u8 *data_out, int len)
@@ -740,6 +742,21 @@ static int lcd_get_of_properties(struct platform_device *pdev,
 		return err;
 	}
 
+	plat_data->gpio_lcd_enable = of_get_named_gpio(np, "lcd-enable", 0);
+	if (!gpio_is_valid(plat_data->gpio_lcd_enable)) {
+		int gpio_ret = plat_data->gpio_lcd_enable;
+
+		plat_data->gpio_lcd_enable = 0;
+		dev_err(&pdev->dev, "cannot find 'lcd-enable' in dtb or invalid gpio\n");
+		return gpio_ret;
+	}
+	err = devm_gpio_request(&pdev->dev, plat_data->gpio_lcd_enable, "lcd-enable");
+	if (err) {
+		dev_err(&pdev->dev, "unable to get gpio %d: 'lcd-enable' (%i)\n",
+			plat_data->gpio_lcd_enable, err);
+		return err;
+	}
+
 	err = of_property_read_string(np, "default_ifmt", &default_ifmt);
 	if (err) {
 		dev_dbg(&pdev->dev, "get of property default_ifmt fail\n");
@@ -773,7 +790,7 @@ static int lcd_get_of_properties(struct platform_device *pdev,
 		return -ENOENT;
 	}
 
-	return err;
+	return 0;
 }
 
 static int boe_lcdif_probe(struct platform_device *pdev)
@@ -781,31 +798,8 @@ static int boe_lcdif_probe(struct platform_device *pdev)
 	int ret;
 	struct boe_lcdif_data *lcdif;
 	struct boe_lcd_i2c_platform_data *plat_data;
-	struct regulator *pwr_reg;
 
 	LOG_ENTER();
-
-	// The regulator might not be up so this probe may be defered.
-	// In order to not mess up the start order of framebuffers from
-	// the device tree we let that slip and try to get the regulator
-	// when we need it, i.e. when going into suspend. If this is not
-	// done the hdmi framebuffer may be started before the lcd and
-	// the primary buffer will not be correct.
-	pwr_reg = devm_regulator_get_optional(&pdev->dev, BOE_VX039_SUPPLY_NAME);
-
-	if (!IS_ERR(pwr_reg))
-		ret = regulator_enable(pwr_reg);
-	else if (PTR_ERR(pwr_reg) == -ENODEV)
-		pr_err("%s: %s Optional power not found, and that's ok.\n",
-		       __func__, BOE_VX039_SUPPLY_NAME);
-	else if (PTR_ERR(pwr_reg) == -EPROBE_DEFER)
-		pr_err("%s: %s Init optional power supply lazily later.\n",
-		       __func__, BOE_VX039_SUPPLY_NAME);
-	else {
-		pr_err("%s: %s Could not get optinal power supply.\n",
-		       __func__, BOE_VX039_SUPPLY_NAME);
-		return PTR_ERR(pwr_reg);
-	}
 
 	plat_data = devm_kzalloc(&pdev->dev,
 				sizeof(struct boe_lcd_i2c_platform_data),
@@ -813,7 +807,6 @@ static int boe_lcdif_probe(struct platform_device *pdev)
 	if (!plat_data)
 		return -ENOMEM;
 	pdev->dev.platform_data = plat_data;
-	plat_data->pwr_regulator = pwr_reg;
 
 	ret = lcd_get_of_properties(pdev, plat_data);
 	if (ret < 0) {
@@ -821,6 +814,13 @@ static int boe_lcdif_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "probe DEFERED\n");
 		else
 			dev_err(&pdev->dev, "get lcd of property fail\n");
+		return ret;
+	}
+
+	/* Power should be enabled after u-boot */
+	ret = boe_lcd_disp_pwr_enable(pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to enable display power\n");
 		return ret;
 	}
 
@@ -902,79 +902,49 @@ static int disable_di_bus(struct platform_device *pdev)
 }
 
 /**
- * @brief Disable power supply regulator, if it exists
+ * @brief Disable power supply to display
  *
  * @param pdev
- * @return 0 on success or if no regulator exists, else errno
+ * @return 0 on success, else negative errno
  */
 static int boe_lcd_disp_pwr_disable(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret;
 	struct boe_lcd_i2c_platform_data *plat_data = pdev->dev.platform_data;
 
 	LOG_ENTER();
 
-	// There is no power supply so we are done
-	if (PTR_ERR(plat_data->pwr_regulator) == -ENODEV) {
-		LOG_EXITR(0);
-		return 0;
-	}
+	ret = gpio_direction_output(plat_data->gpio_lcd_enable, 0);
+	if (ret)
+		dev_err(&pdev->dev, "Failed setting lcd enable gpio = 0 (%d)\n", ret);
+	else
+		dev_info(&pdev->dev, "Display power disabled\n");
 
-	if (PTR_ERR(plat_data->pwr_regulator) == -EPROBE_DEFER) {
-		dev_err(&pdev->dev, "Try to reprobe %s regulator\n",
-			BOE_VX039_SUPPLY_NAME);
-		plat_data->pwr_regulator =
-			devm_regulator_get_optional(&pdev->dev, BOE_VX039_SUPPLY_NAME);
-		if (!IS_ERR(plat_data->pwr_regulator))
-			ret = regulator_enable(plat_data->pwr_regulator);
-	}
-	if (!IS_ERR(plat_data->pwr_regulator)) {
-		ret = regulator_disable(plat_data->pwr_regulator);
-		if (ret)
-			dev_err(&pdev->dev, "failed to disable %s regulator\n",
-				BOE_VX039_SUPPLY_NAME);
-		else
-			dev_info(&pdev->dev, "%s regulator disabled\n",
-				 BOE_VX039_SUPPLY_NAME);
-		LOG_EXITR(ret);
-		return ret;
-	} else if (PTR_ERR(plat_data->pwr_regulator) == -ENODEV) {
-		LOG_EXITR(0);
-		return 0;
-	}
-
-	dev_err(&pdev->dev, "Reprobe of %s failed!\n", BOE_VX039_SUPPLY_NAME);
-	LOG_EXITR(PTR_ERR(plat_data->pwr_regulator));
-	return PTR_ERR(plat_data->pwr_regulator);
+	LOG_EXITR(ret);
+	return ret;
 }
+
 /**
- * @brief Enable power supply regulator, if it exists
+ * @brief Enable power supply to display
  *
  * @param pdev
- * @return 0 on success or if no regulator exists, else errno
+ * @return 0 on success, else negative errno
  */
 static int boe_lcd_disp_pwr_enable(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret;
 	struct boe_lcd_i2c_platform_data *plat_data = pdev->dev.platform_data;
 
 	LOG_ENTER();
 
-	if (!IS_ERR(plat_data->pwr_regulator)) {
-		ret = regulator_enable(plat_data->pwr_regulator);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to enable %s regulator\n",
-				BOE_VX039_SUPPLY_NAME);
-			return ret;
-		}
-		dev_info(&pdev->dev, "%s regulator enabled\n",
-				BOE_VX039_SUPPLY_NAME);
+	ret = gpio_direction_output(plat_data->gpio_lcd_enable, 1);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed setting lcd enable gpio = 1 (%d)\n", ret);
+	} else {
+		dev_info(&pdev->dev, "Display power enabled\n");
 
 		// From VX039X0M-NH0_Ver1.0...pdf, 10.1 Power on sequence, T1+T2
 		msleep(21);
-	} else {
-		dev_info(&pdev->dev, "%s regulator not found, enable passed\n",
-			 BOE_VX039_SUPPLY_NAME);
 	}
 
 	LOG_EXITR(ret);
