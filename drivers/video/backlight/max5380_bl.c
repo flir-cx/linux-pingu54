@@ -110,7 +110,6 @@ static int max5380_update_status(struct backlight_device *backlight)
 		data->regulator_enabled = true;
 	}
 
-	usleep_range(1000, 10000);
 	ret = i2c_smbus_write_byte(data->client, b);
 
 	if (ret < 0) {

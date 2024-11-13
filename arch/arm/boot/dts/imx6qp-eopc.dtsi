@@ -16,9 +16,16 @@
 	regulators {
 		compatible = "simple-bus";
 
+		reg_8va: 8VA {
+			 //Voltage +8VA is EXT_POWER via IC3, Surge protector
+			 status = "okay";
+			 compatible = "regulator-fixed";
+			 regulator-name = "+8VA";
+			 regulator-boot-on;
+		};
 
 		temp_8v_en: temp_8v_en { 
-            status = "okay";
+			status = "okay";
 			compatible = "regulator-fixed";
 			regulator-name = "temp_8v_en";
 			gpio = <&eopc_pcf8574_0x76 0 GPIO_ACTIVE_HIGH>;
