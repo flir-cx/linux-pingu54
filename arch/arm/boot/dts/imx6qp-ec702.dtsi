@@ -722,6 +722,12 @@
 		>;
 	};
 
+	pinctrl_pcie: pciegrp {
+		fsl,pins = <
+			MX6QDL_PAD_SD1_DAT0__GPIO1_IO16	0x1b0b1
+		>;
+	};
+
 	pinctrl_uart1: uart1grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD3_DAT6__UART1_RX_DATA	0x1b0b1
@@ -784,6 +790,13 @@
 			MX6QDL_PAD_EIM_DA0__EIM_AD00		0xb0b1
 		>;
 	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio1 16 0>;
+	status = "okay";
 };
 
 &ipu1 {
