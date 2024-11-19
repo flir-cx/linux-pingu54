@@ -27,7 +27,7 @@
 	};
 
 	memory {
-		reg = <0x10000000 0x20000000>;
+		reg = <0x10000000 0x40000000>;
 	};
 
 	clocks {
@@ -379,6 +379,17 @@
 			interrupts-names = "LDO_LIM";
 			interrupt-parent = <&da9063>;
 
+			/* A note on the buck regulators:
+			 * MODE_SYNC is able to deliver high current, while MODE_SLEEP enters a
+			 * low current mode. MODE_AUTO automatically changes between the two.
+			 * In suspend, MODE_SLEEP results in problems after suspend, it seems
+			 * it continues to use MODE_SLEEP that cannot deliver enough current.
+			 *
+			 * Therefore, always use either MODE_SYNC or MODE_AUTO. MODE_AUTO
+			 * might save some power, but we set MODE_SYNC here for all buck
+			 * regulators for now.
+			 */
+
 			/* VCCARM */
 			DA9063_BCORE1:bcore1  {
 				regulator-name = "DA9063_BCORE1";
@@ -387,12 +398,9 @@
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1280000>;
 
-				/*regulator-initial-mode = <1>;*/
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
-				/* regulator-initial-state = "suspend-mem"; */
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 					regulator-suspend-uv= <950000>;
 					regulator-off-in-suspend;
 				};
@@ -407,10 +415,8 @@
 				regulator-max-microvolt = <1280000>;
 
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
-				/* regulator-initial-state = "suspend-mem"; */
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
 				regulator-state-mem {
-					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
 					regulator-suspend-uv= <950000>;
 					regulator-off-in-suspend;
 				};
@@ -422,11 +428,7 @@
 				regulator-name = "DA9063_BIO";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
-				regulator-state-mem {
-					regulator-mode = <DA9063_BUCK_MODE_SLEEP>;
-					regulator-off-in-suspend;
-				};
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
 			};
 
 			/* 2V5D_FPGA */
@@ -434,7 +436,7 @@
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BMEM";
 				regulator-boot-on;
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
 				/* Suspend handled by FVDK */
 			};
 
@@ -444,7 +446,7 @@
 				regulator-name = "DA9063_BPERI";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
 			};
 
 			/* 1V1D_FPGA */
@@ -452,7 +454,7 @@
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-name = "DA9063_BPRO";
 				regulator-boot-on;
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>, <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
 				/* Suspend handled by FVDK */
 			};
 
@@ -563,6 +565,7 @@
 		compatible = "atmel,24c02";
 		reg = <0x57>;
 		pagesize = <16>;
+		vcc-supply = <&DA9063_LDO11>;
 	};
 
 	/* Power ctrl I/O expander */
@@ -635,6 +638,7 @@
 			MX6QDL_PAD_CSI0_DAT4__ECSPI1_SCLK 0x100b1
 			MX6QDL_PAD_CSI0_DAT5__ECSPI1_MOSI 0x100b1
 			MX6QDL_PAD_CSI0_DAT6__ECSPI1_MISO 0x100b1
+			MX6QDL_PAD_CSI0_DAT7__GPIO5_IO25 0x1b0b1
 		>;
 	};
 
@@ -643,6 +647,7 @@
 			MX6QDL_PAD_CSI0_DAT4__GPIO5_IO22	0x100b1
 			MX6QDL_PAD_CSI0_DAT5__GPIO5_IO23	0x100b1
 			MX6QDL_PAD_CSI0_DAT6__GPIO5_IO24	0x100b1
+			MX6QDL_PAD_CSI0_DAT7__GPIO5_IO25	0x1a0b1  //Disable PKE in suspend
 		>;
 	};
 
@@ -660,6 +665,7 @@
 			MX6QDL_PAD_EIM_D17__GPIO3_IO17	0x10010
 			MX6QDL_PAD_EIM_D18__GPIO3_IO18	0x10010
 			MX6QDL_PAD_EIM_D19__GPIO3_IO19	0x10010
+			MX6QDL_PAD_CSI0_DAT7__GPIO5_IO25 0x1b0b1
 		>;
 	};
 
@@ -957,6 +963,10 @@
 	axi-id = <&gpr 0x1C 0x00040004>;
 };
 
+&gpc {
+	fsl,ldo-bypass = <1>;
+};
+
 &cpu0{
 	arm-supply = <&DA9063_BCORE1>;
 	soc-supply = <&DA9063_BCORE2>;
@@ -991,6 +1001,13 @@
 	>;
 };
 
+&reg_arm {
+	vin-supply = <&DA9063_BCORE1>;
+};
+
+&reg_soc {
+	vin-supply = <&DA9063_BCORE2>;
+};
 
 // OCRAM usage improvements
 &vpu {
@@ -1095,7 +1112,7 @@
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
 	non-removable;
-	no-1-8-v;
+	voltage-ranges = <1800 1800 3300 3300>; // 1.7V-1.95V and 2.7V-3.6V according to THGBMUG7C1LBAIL datasheet
 	status = "okay";
 };
 
