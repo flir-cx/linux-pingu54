@@ -2354,7 +2354,8 @@ static int imx6_pcie_suspend(struct device *dev)
 	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
 	
-	if (unlikely(imx6_pcie->drvdata->variant == IMX6Q)) {
+	if (unlikely(imx6_pcie->drvdata->variant == IMX6Q) ||
+	    unlikely(imx6_pcie->drvdata->variant == IMX6QP)) {
 		/*
 		 * L2 can exit by 'reset' or Inband beacon (from remote EP)
 		 * toggling phy_powerdown has same effect as 'inband beacon'
@@ -2409,7 +2410,8 @@ static int imx6_pcie_resume(struct device *dev)
 
 	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
-	if (unlikely(imx6_pcie->drvdata->variant == IMX6Q)) {
+	if (unlikely(imx6_pcie->drvdata->variant == IMX6Q) ||
+	    unlikely(imx6_pcie->drvdata->variant == IMX6QP)) {
 		/*
 		 * L2 can exit by 'reset' or Inband beacon (from remote EP)
 		 * toggling phy_powerdown has same effect as 'inband beacon'
