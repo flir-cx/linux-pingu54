@@ -919,7 +919,7 @@
 	fsl,burst-clk-enable;
 	/* BCLK is EIM clock (99MHz), divided by 2 */
 	fsl,burst-clk-div = <2>;
-	status = "okay";
+	status = "disabled";
 
 	imx-weim@1,0 {
 		compatible = "fsl,imx6q-weim";
