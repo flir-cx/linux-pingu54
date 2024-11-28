@@ -871,6 +871,14 @@
 		>;
 	};
 
+	pinctrl_uart5_sleep: uart5grpsleep {
+		fsl,pins = <
+			// 100 kOhm pull down GPIO input
+			MX6QDL_PAD_KEY_ROW1__GPIO4_IO09		0x3010
+			MX6QDL_PAD_KEY_COL1__GPIO4_IO08		0x3010
+		>;
+	};
+
 	pinctrl_usbotg: usbotggrp {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID	0x17059
@@ -1054,8 +1062,9 @@
 };
 
 &uart5 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_uart5>;
+	pinctrl-1 = <&pinctrl_uart5_sleep>;
 	status = "okay";
 
 	/* GPS */
