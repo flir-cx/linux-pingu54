@@ -776,7 +776,11 @@ static int kxtj9_probe(struct i2c_client *client,
 	input_set_drvdata(input_dev, tj9);
 	tj9->input_dev = input_dev;
 
-	input_dev->name = "kxtj9_accel";
+	if (pdata->is_sensor_accel)
+		input_dev->name = "KionixSensorAccel";
+	else
+		input_dev->name = "KionixLCDAccel";
+
 	input_dev->id.bustype = BUS_I2C;
 
 	input_dev->open = kxtj9_input_open;
