@@ -269,6 +269,10 @@
 			compatible = "dlg,da9063-reset";
 		};
 
+		comp1v2 {
+			compatible = "dlg,da9063-comp1v2"; /* Monitors battery voltage */
+		};
+
 		/*
 		 * Regulator                Signal      Voltage     Enabled
 		 * -------------------------------------------------------------
