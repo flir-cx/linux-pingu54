@@ -323,10 +323,6 @@
 
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
-				regulator-state-mem {
-					regulator-suspend-uv= <950000>;
-					regulator-off-in-suspend;
-				};
 			};
 
 			/* VCCSOC */
@@ -339,10 +335,6 @@
 
 				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
-				regulator-state-mem {
-					regulator-suspend-uv= <950000>;
-					regulator-off-in-suspend;
-				};
 			};
 
 			/* 1V8D */
