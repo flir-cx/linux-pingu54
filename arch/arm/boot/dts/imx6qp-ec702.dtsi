@@ -814,15 +814,28 @@
 &cpu0{
 	arm-supply = <&DA9063_BCORE1>;
 	soc-supply = <&DA9063_BCORE2>;
+
+	/* Operating points differ a little compared to imx6q.dtsi.
+	 * Our SoC is fused to 792MHz, so the higher freqs will not be used.
+	 * But those frequencies are added here anyway.
+	 * We are also using LDO bypass, and there is ~25mV drop on a 0ohm
+	 * resistor after the PMIC, and we must be above 1.15V.
+	 * Thus a little higher voltage on 768. 768 and 420 has also been
+	 * chosen historically for less interference with GPS/WiFi.
+	 */
 	operating-points = <
 		/* kHz	 uV */
-		996000 1280000
+		1200000 1275000
+		996000 1250000
+		852000 1250000
 		768000 1180000
 		420000 1150000
 	>;
 	fsl,soc-operating-points = <
 		/* ARM kHz SOC-PU uV */
-		996000 1200000
+		1200000 1275000
+		996000 1250000
+		852000 1250000
 		768000 1200000
 		420000 1200000
 	>;
@@ -833,13 +846,17 @@
 	soc-supply = <&DA9063_BCORE2>;
 	operating-points = <
 		/* kHz	 uV */
-		996000 1280000
+		1200000 1275000
+		996000 1250000
+		852000 1250000
 		768000 1180000
 		420000 1150000
 	>;
 	fsl,soc-operating-points = <
 		/* ARM kHz SOC-PU uV */
-		996000 1200000
+		1200000 1275000
+		996000 1250000
+		852000 1250000
 		768000 1200000
 		420000 1200000
 	>;
