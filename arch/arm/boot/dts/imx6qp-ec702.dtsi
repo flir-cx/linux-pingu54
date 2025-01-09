@@ -339,11 +339,14 @@
 
 			/* 1V8D */
 			DA9063_BIO:bio  {
-				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				/* SLEEP mode (PFM) can be used for low currents up to 300mA.
+				 * Expected load is about 30mA.
+				 */
+				regulator-initial-mode = <DA9063_BUCK_MODE_SLEEP>;
 				regulator-name = "DA9063_BIO";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>;
 			};
 
 			/* 2V5D_FPGA */
@@ -357,11 +360,14 @@
 
 			/* 1V2D */
 			DA9063_BPERI:bperi  {
-				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				/* SLEEP mode (PFM) can be used for low currents up to 300mA.
+				 * Expected load is about 100mA.
+				 */
+				regulator-initial-mode = <DA9063_BUCK_MODE_SLEEP>;
 				regulator-name = "DA9063_BPERI";
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>;
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>;
 			};
 
 			/* 1V1D_FPGA */
