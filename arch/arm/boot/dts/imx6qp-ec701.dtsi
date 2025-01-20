@@ -50,12 +50,12 @@
 		compatible = "gpio-keys";
 
 		autorepeat;
-		/*KEY_F3*/
+		/*KEY_F7*/
 		keyboard_zoom {
 			label = "Zoom";
 			gpio-key;
 			gpios = <&ec701_pca9534_0x46 0 GPIO_ACTIVE_LOW>;
-			linux,code = <61>;
+			linux,code = <65>;
 		};
 		/*KEY_ENTER*/
 		keyboard_mode {
@@ -105,7 +105,7 @@
 		spi-sclk-gpio = <&gpio5 22 GPIO_ACTIVE_HIGH>;
 		spi-mosi-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>;
 		spi-miso-gpio = <&gpio5 24 GPIO_ACTIVE_HIGH>;
-		spi-cs-gpio = <&gpio5 28 GPIO_ACTIVE_HIGH>;
+		spi-cs-gpio = <&gpio5 28 GPIO_ACTIVE_LOW>;
 
 		// The fvdk driver needs to find the SPI device
 		// via this phandle to prepare flash during FPGA programming
@@ -265,7 +265,7 @@
 	// pinctrl-names = "default";
 	// pinctrl-0 = <&pinctrl_ecspi1>;
 	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio5 28 0>, <&gpio5 29 0>;
+	cs-gpios = <&gpio5 28 GPIO_ACTIVE_LOW>, <&gpio5 29 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	qspi_flash: mt25ql128aba@0 {
@@ -276,7 +276,7 @@
 
 	/* Detector flash */
 	dat64flash: dat64flash@1 {
-		compatible = "micron,n25q128a13", "jedec,spi-nor";
+		compatible = "micron,n25q128a13", "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <1>;
 	};
