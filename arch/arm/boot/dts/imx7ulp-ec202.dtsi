@@ -265,7 +265,7 @@
 			IMX7ULP_PAD_PTC16__LPSPI3_SIN   0x0 /* SPI_MISO */
 			IMX7ULP_PAD_PTC17__LPSPI3_SOUT  0x0 /* SPI_MOSI */
 			IMX7ULP_PAD_PTC18__LPSPI3_SCK   0x0 /* SPI_SCK */
-			IMX7ULP_PAD_PTC19__LPSPI3_PCS0  0x0 /* SPI_CS_0 */
+			IMX7ULP_PAD_PTC19__PTC19        0x3 /* SPI_CS_0 */
 			>;
 	};
 
@@ -479,11 +479,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-
-	fsl,spi-num-chipselects = <1>;
-
-	/delete-property/ dmas;
-	/delete-property/ dma-names;
+	cs-gpios = <&gpio_ptc 19 GPIO_ACTIVE_LOW>;
 
 	mapcomm_lpspi: okeanos@0 {
 		reg = <0>;
